@@ -1,0 +1,108 @@
+// CLI komut yonlendirici
+import { initCommand } from "./init.mjs";
+import { doctorCommand } from "../doctor/doctor.mjs";
+import { rebuildIndexesCommand } from "./rebuild-indexes.mjs";
+import { addCommand } from "./add.mjs";
+import { scanCodeCommand } from "./scan-code.mjs";
+import { graphCommand } from "./graph.mjs";
+import { migrateCommand } from "./migrate.mjs";
+import { analyzeCommand } from "./analyze.mjs";
+import { contextCommand } from "./context.mjs";
+import { hooksCommand } from "./hooks.mjs";
+
+const COMMANDS = {
+  init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
+  doctor:  { handler: doctorCommand, help: "Sistem sagligi ve store engine raporu" },
+  add:     { handler: addCommand,    help: "Bug veya decision ekle (add bug | add decision)" },
+  "rebuild-indexes": { handler: rebuildIndexesCommand, help: "Tum indexleri yeniden uret" },
+  scan:    { handler: scanCodeCommand, help: "Kod scanner — files/imports/todos (scan code)" },
+  graph:   { handler: graphCommand,    help: "Graph build / report / viewer (graph build | graph report | graph viewer)" },
+  migrate: { handler: migrateCommand,  help: "Migration dry-run (legacy YAML + Obsidian + Graphify ref)" },
+  analyze: { handler: analyzeCommand,  help: "Tum raporlari uret (health/bugs/decisions/architecture/...)" },
+  context: { handler: contextCommand,  help: "Claude bagliami uret (--module <X> ile filtre)" },
+  hooks:   { handler: hooksCommand,    help: "Hook migration plan/dry-run (apply Faz 8'de devre disi)" },
+  archive: { handler: stubCommand("archive", "Faz 1 kapsami — su an manuel apply ile yapildi") },
+  ingest:  { handler: stubCommand("ingest",  "Faz 5 — legacy kaynaklari oku, normalize et") },
+  report:  { handler: stubCommand("report",  "Faz 6 — tek rapor uret (su an: 'analyze' tum raporlari uretir)") },
+  search:  { handler: stubCommand("search",  "Faz 3+5 — canonical store'da arama") }
+};
+
+function stubCommand(name, desc) {
+  return async () => {
+    console.log(`[serif-brain ${name}] STUB — ${desc}`);
+    console.log(`Bu komut henuz implement edilmedi. Aktif faz: 2 (scaffold). Onayli faz ilerleyince eklenecek.`);
+    return 0;
+  };
+}
+
+function printHelp() {
+  console.log(`serif-brain — bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi`);
+  console.log(``);
+  console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
+  console.log(``);
+  const active = ["init", "doctor", "add", "rebuild-indexes", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  console.log(`Aktif komutlar (Faz 2-8):`);
+  for (const name of active) {
+    console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);
+  }
+  console.log(``);
+  console.log(`Stub komutlar (sonraki fazlarda implement edilecek):`);
+  for (const [name, cmd] of Object.entries(COMMANDS)) {
+    if (active.includes(name)) continue;
+    console.log(`  ${name.padEnd(20)} (stub)`);
+  }
+  console.log(``);
+  console.log(`Genel bayraklar:`);
+  console.log(`  --help, -h               bu yardim`);
+  console.log(`  --version, -v            versiyon`);
+  console.log(`  --project <yol>          proje koku (default: cwd)`);
+  console.log(``);
+  console.log(`Ortam:`);
+  console.log(`  SERIF_BRAIN_DEBUG=1      stack trace goster`);
+}
+
+export function parseArgs(argv) {
+  const args = { _: [], flags: {} };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith("--")) {
+      const key = a.slice(2);
+      const next = argv[i + 1];
+      if (next && !next.startsWith("-")) { args.flags[key] = next; i++; }
+      else args.flags[key] = true;
+    } else if (a.startsWith("-")) {
+      args.flags[a.slice(1)] = true;
+    } else {
+      args._.push(a);
+    }
+  }
+  return args;
+}
+
+export async function run(argv) {
+  const args = parseArgs(argv);
+
+  if (args.flags.version || args.flags.v) {
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const { dirname, join } = await import("node:path");
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(readFileSync(join(here, "../../package.json"), "utf8"));
+    console.log(`serif-brain ${pkg.version}`);
+    return 0;
+  }
+  if (args.flags.help || args.flags.h || args._.length === 0) {
+    printHelp();
+    return 0;
+  }
+
+  const cmdName = args._[0];
+  const cmd = COMMANDS[cmdName];
+  if (!cmd) {
+    console.error(`[serif-brain] bilinmeyen komut: ${cmdName}`);
+    console.error(`'serif-brain --help' icin yardimi gor.`);
+    return 1;
+  }
+
+  return await cmd.handler({ args, subcommand: args._.slice(1) });
+}
