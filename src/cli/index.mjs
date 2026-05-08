@@ -3,6 +3,8 @@ import { initCommand } from "./init.mjs";
 import { doctorCommand } from "../doctor/doctor.mjs";
 import { rebuildIndexesCommand } from "./rebuild-indexes.mjs";
 import { addCommand } from "./add.mjs";
+import { closeCommand } from "./close.mjs";
+import { staleCommand } from "./stale.mjs";
 import { scanCodeCommand } from "./scan-code.mjs";
 import { graphCommand } from "./graph.mjs";
 import { migrateCommand } from "./migrate.mjs";
@@ -14,6 +16,8 @@ const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
   doctor:  { handler: doctorCommand, help: "Sistem sagligi ve store engine raporu" },
   add:     { handler: addCommand,    help: "Bug veya decision ekle (add bug | add decision)" },
+  close:   { handler: closeCommand,  help: "Bug/decision kapat (status flip + completed_at + opsiyonel commit/note)" },
+  stale:   { handler: staleCommand,  help: "Acik kalemleri son commit aktivitesine gore tara (--days N, --quiet)" },
   "rebuild-indexes": { handler: rebuildIndexesCommand, help: "Tum indexleri yeniden uret" },
   scan:    { handler: scanCodeCommand, help: "Kod scanner — files/imports/todos (scan code)" },
   graph:   { handler: graphCommand,    help: "Graph build / report / viewer (graph build | graph report | graph viewer)" },
@@ -40,7 +44,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "rebuild-indexes", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Aktif komutlar (Faz 2-8):`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);
