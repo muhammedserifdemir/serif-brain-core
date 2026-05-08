@@ -5,7 +5,8 @@ import { join, relative, extname, basename } from "node:path";
 export const EXCLUDED_DIRS = new Set([
   "node_modules", ".git", "dist", "build", "out", ".next", ".vite",
   ".cache", "coverage", ".serif-brain", "graphify-out", ".turbo",
-  ".vercel", ".idea", ".vscode", ".obsidian", "__pycache__"
+  ".vercel", ".idea", ".vscode", ".obsidian", "__pycache__",
+  ".claude", "backups"
 ]);
 
 export const INCLUDED_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -37,9 +38,6 @@ export function scanFiles(root, opts = {}) {
     let entries;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
-      if (entry.name.startsWith(".") && !["src","app"].includes(entry.name)) {
-        // Allow .serif-platform-style dot dirs are still excluded if in EXCLUDED_DIRS
-      }
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (EXCLUDED_DIRS.has(entry.name)) continue;
