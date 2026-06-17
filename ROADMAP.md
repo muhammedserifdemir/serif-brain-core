@@ -28,11 +28,12 @@ Mevcut başlangıç: ~65/100 (~6800 satır, sıfır bağımlılık ESM). Dört a
 - [~] Zengin context: toResult snippet + brain_context aktif-iş özeti var; compile.mjs gövde/backlink zenginleştirme ertelendi (opsiyonel)
 - [~] SessionStart auto-context: MCP brain_context bunu on-demand sağlıyor (statik dump'tan iyi); hooks planı zaten `context` SessionStart öneriyor
 
-## Faz 3 — Güvenilirlik & dağıtım
-- [ ] Hardcoded path'leri kaldır (plan.mjs:8, doctor.mjs, init.mjs)
-- [ ] Test kapsamı %5 → %70+ (yaml/migrate/ingest/graph/scanner)
-- [ ] CI (GitHub Actions test+lint) + semver + README
-- [ ] Performans: artımlı tarama/index cache (mtime hash)
+## Faz 3 — Güvenilirlik & dağıtım ✅ TAMAM (commit <faz3>)
+- [x] Hardcoded path'ler kaldırıldı — plan.mjs SBC_BIN (import.meta'dan türetilir) + skill yolları/doctor legacy kaynakları/init archive (homedir) → taşınabilir
+- [x] Test kapsamı genişletildi: 12 → **34 test** (yaml round-trip/scanner/analyze/resolver/search/MCP); 3 → 6 test dosyası
+- [x] CI: `.github/workflows/ci.yml` (Node 22+24, node --test + doctor + CLI smoke)
+- [x] README.md (kurulum, komut tablosu, MCP, mimari) + sürüm 0.1.0 → 0.2.0
+- [ ] (ertelendi) artımlı tarama/index cache — build ~200ms, darboğaz değil; ileride
 
 ## Faz 4 — Hijyen otomasyonu
 - [ ] `prune`/`gc` — stale + otomasyon objelerini güvenli arşivle

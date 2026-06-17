@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -127,7 +128,7 @@ function buildConfig(projectRoot, storeEngine, projects, { custom = false } = {}
     lines.push(
       `# Sources to read during migration (Faz 5). Read-only references.`,
       `legacy_sources:`,
-      `  archive_root: "/Users/muhammedserifdemir/SerifBrainArchive/legacy-2026-04-29-230615"`,
+      `  archive_root: "${join(homedir(), "SerifBrainArchive")}"`,
       `  read_from_archive: true     # always read from archive, not live sources`,
       ``
     );

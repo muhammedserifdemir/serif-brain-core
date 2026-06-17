@@ -1,6 +1,6 @@
 {
   "name": "serif-brain-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi. Obsidian/Graphify/eski Brain runtime bagimliligi yok.",
   "type": "module",
   "private": true,

@@ -3,9 +3,13 @@
 // Hicbir dosya yazilmaz, hicbir dosya degistirilmez.
 
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 
-const SBC_BIN = "/Users/muhammedserifdemir/Desktop/seriftech-packages/serif-brain-core/bin/serif-brain.mjs";
+// Paketin bin yolu — kod konumundan türetilir (hardcoded makine yolu DEĞİL).
+// plan.mjs: src/hooks/ → ../../bin/serif-brain.mjs
+const SBC_BIN = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "bin", "serif-brain.mjs");
 
 const LEGACY_PATTERNS = {
   sherif_brain_skill: /sherif-brain-claude\/scripts\/load-context\.mjs/,
@@ -54,9 +58,9 @@ export function buildPlan({ projectRoot }) {
   const diff = computeDiff(rawText, proposedText);
 
   // ─── Skill durumu (tavsiye) ───
-  const oldSkillPath = "/Users/muhammedserifdemir/.claude/skills/sherif-brain-claude";
+  const oldSkillPath = join(homedir(), ".claude", "skills", "sherif-brain-claude");
   const oldSkillExists = existsSync(oldSkillPath);
-  const newSkillPath = "/Users/muhammedserifdemir/.claude/skills/serif-brain-core";
+  const newSkillPath = join(homedir(), ".claude", "skills", "serif-brain-core");
   const newSkillExists = existsSync(join(newSkillPath, "SKILL.md"));
 
   // ─── Risk tespiti ───

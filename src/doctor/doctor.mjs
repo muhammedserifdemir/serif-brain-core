@@ -1,6 +1,7 @@
 // serif-brain doctor — sistem sagligi raporu
 import { existsSync, statSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
 import { loadConfig, validateObject } from "../markdown/schema.mjs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
@@ -13,12 +14,16 @@ const LEGACY_HOOK_PATTERNS = [
   /graphify-out/
 ];
 
+// Legacy migration referans kontrolleri — kullanıcı ev dizinine göre türetilir
+// (hardcoded kullanıcı adı DEĞİL). Bunlar yalnız "eski kaynaklar temizlendi mi"
+// bilgi kontrolüdür; yoksa doctor "kaldırıldı ✓" der.
+const HOME = homedir();
 const LEGACY_SOURCES = [
-  { id: "project-brain",       path: "/Users/muhammedserifdemir/Desktop/serif-platform/.claude/brain" },
-  { id: "claude-brain-package", path: "/Users/muhammedserifdemir/Desktop/seriftech-packages/claude-brain" },
-  { id: "skill-sherif-brain-claude", path: "/Users/muhammedserifdemir/.claude/skills/sherif-brain-claude" },
-  { id: "obsidian-vault",      path: "/Users/muhammedserifdemir/Obsidian-Dev-Vault" },
-  { id: "graphify-out",        path: "/Users/muhammedserifdemir/Desktop/serif-platform/graphify-out" }
+  { id: "project-brain",       path: join(HOME, "Desktop/serif-platform/.claude/brain") },
+  { id: "claude-brain-package", path: join(HOME, "Desktop/seriftech-packages/claude-brain") },
+  { id: "skill-sherif-brain-claude", path: join(HOME, ".claude/skills/sherif-brain-claude") },
+  { id: "obsidian-vault",      path: join(HOME, "Obsidian-Dev-Vault") },
+  { id: "graphify-out",        path: join(HOME, "Desktop/serif-platform/graphify-out") }
 ];
 
 function check(label, ok, detail = "") {
@@ -202,7 +207,7 @@ export async function doctorCommand({ args }) {
 
   // 4. Migration readiness
   header("4. Migration Readiness");
-  const archiveRoot = "/Users/muhammedserifdemir/SerifBrainArchive";
+  const archiveRoot = join(HOME, "SerifBrainArchive");
   const archiveExists = existsSync(archiveRoot);
   check("Archive root", archiveExists, archiveExists ? archiveRoot : "missing — run 'serif-brain archive legacy --apply'");
   if (archiveExists) {
