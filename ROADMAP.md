@@ -20,11 +20,13 @@ Mevcut başlangıç: ~65/100 (~6800 satır, sıfır bağımlılık ESM). Dört a
 - [x] 5 regresyon testi (tsconfig-glob, alias, jsconfig, inline-object)
 - [ ] (ertelendi) monorepo packages/* + module_paths config + INCLUDED_EXTS config — düşük öncelik (alias'lar artık çözülüyor)
 
-## Faz 2 — Arama & AI entegrasyonu (en büyük yetenek boşluğu)
-- [ ] `search` komutu (yapısal sorgu + tam-metin)
-- [ ] MCP sunucusu (saf-Node, JSON-RPC/stdio) — search/context/query Claude Code'a
-- [ ] Zengin context (gövde/özet + backlink + recency skorlama)
-- [ ] SessionStart hook → otomatik context
+## Faz 2 — Arama & AI entegrasyonu ✅ TAMAM (commit <faz2>)
+- [x] `search` komutu — yapısal filtre (type/status/priority/module/tag/owner/since) + tam-metin (başlık ağırlıklı skor) + --json
+- [x] **MCP sunucusu (saf-Node, JSON-RPC/stdio)** — brain_search/brain_get/brain_context; Claude Code brain'i CANLI okur (docs/MCP.md)
+- [x] Arama çekirdeği (src/query/search.mjs) — CLI + MCP ortak kullanır; recency+priority skor
+- [x] 10 test (arama filtreleri + MCP protokolü)
+- [~] Zengin context: toResult snippet + brain_context aktif-iş özeti var; compile.mjs gövde/backlink zenginleştirme ertelendi (opsiyonel)
+- [~] SessionStart auto-context: MCP brain_context bunu on-demand sağlıyor (statik dump'tan iyi); hooks planı zaten `context` SessionStart öneriyor
 
 ## Faz 3 — Güvenilirlik & dağıtım
 - [ ] Hardcoded path'leri kaldır (plan.mjs:8, doctor.mjs, init.mjs)
