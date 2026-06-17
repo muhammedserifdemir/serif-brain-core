@@ -66,9 +66,14 @@ export function validateObject(obj, opts = {}) {
     errors.push(`invalid priority: ${obj.priority} (valid: ${config.valid_priority.join(", ")})`);
   }
 
-  // Severity (bug only)
-  if (type === "bug" && obj.severity && !config.valid_priority.includes(obj.severity)) {
-    errors.push(`invalid severity: ${obj.severity}`);
+  // Severity (bug only) — kendi enum'u (valid_severity); yoksa geriye-uyumlu
+  // olarak valid_priority'ye düş. Önceden daima valid_priority kullanılıyordu →
+  // ayrı bir severity ölçeği (örn. blocker/major/minor) tanımlanamıyordu.
+  if (type === "bug" && obj.severity) {
+    const validSeverity = config.valid_severity || config.valid_priority;
+    if (!validSeverity.includes(obj.severity)) {
+      errors.push(`invalid severity: ${obj.severity} (valid: ${validSeverity.join(", ")})`);
+    }
   }
 
   // Module(s)

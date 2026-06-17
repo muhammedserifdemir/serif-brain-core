@@ -119,14 +119,20 @@ export async function doctorCommand({ args }) {
       loadConfig(brainRoot);
       const projects = listProjects(brainRoot);
       let total = 0, parseFailed = 0, schemaInvalid = 0, warnings_ = 0;
+      // Sorunlu dosyaları yol + neden ile topla ki sadece sayı değil, NEREYE
+      // bakılacağı da görünsün (önceden yalnız sayaç vardı → tanı kör-noktası).
+      const parseFailedFiles = [];
+      const schemaInvalidFiles = [];
+      const warningFiles = [];
+      const rel = (f) => (f && f.startsWith(brainRoot) ? f.slice(brainRoot.length + 1) : f);
       for (const project of projects) {
         const objs = listAllObjects(brainRoot, project);
         total += objs.length;
         for (const obj of objs) {
-          if (obj.error) { parseFailed++; continue; }
+          if (obj.error) { parseFailed++; parseFailedFiles.push({ file: rel(obj.file_path), error: obj.error }); continue; }
           const v = validateObject(obj.frontmatter);
-          if (!v.valid) schemaInvalid++;
-          warnings_ += v.warnings.length;
+          if (!v.valid) { schemaInvalid++; schemaInvalidFiles.push({ file: rel(obj.file_path), errors: v.errors }); }
+          if (v.warnings.length) { warnings_ += v.warnings.length; warningFiles.push({ file: rel(obj.file_path), warnings: v.warnings }); }
         }
       }
       check(`Total objects`, total >= 0, `${total}`);
@@ -134,6 +140,21 @@ export async function doctorCommand({ args }) {
       if (!check(`Schema-invalid`, schemaInvalid === 0, schemaInvalid === 0 ? "0" : `${schemaInvalid}`)) errors++;
       check(`Schema warnings`, warnings_ === 0 || "warn", `${warnings_}`);
       if (warnings_ > 0) warnings++;
+
+      // Hatalı dosyaları açıkça listele (parse + şema = hata; uyarılar capped).
+      if (parseFailedFiles.length) {
+        console.log(`\n  Parse hatası olan dosyalar:`);
+        for (const f of parseFailedFiles) console.log(`    ✗ ${f.file}\n        ${f.error}`);
+      }
+      if (schemaInvalidFiles.length) {
+        console.log(`\n  Şema-geçersiz dosyalar:`);
+        for (const f of schemaInvalidFiles) console.log(`    ✗ ${f.file}\n        ${f.errors.join("; ")}`);
+      }
+      if (warningFiles.length) {
+        const shown = warningFiles.slice(0, 10);
+        console.log(`\n  Şema uyarısı olan dosyalar${warningFiles.length > 10 ? ` (ilk 10/${warningFiles.length})` : ""}:`);
+        for (const f of shown) console.log(`    · ${f.file} — ${f.warnings.join("; ")}`);
+      }
 
       // Indexes presence
       const idxDir = join(brainRoot, "indexes");

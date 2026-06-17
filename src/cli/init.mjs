@@ -46,6 +46,9 @@ const NEUTRAL_MODULES = ["core", "ui", "api", "pipeline", "infra", "docs", "unkn
 
 const VALID_STATUS = ["queued", "open", "active", "in_progress", "blocked", "done", "rejected", "archived"];
 const VALID_PRIORITY = ["critical", "high", "medium", "low"];
+// Bug severity'nin kendi ölçeği (priority'den ayrı). Tanımlı değilse şema
+// doğrulaması valid_priority'ye düşer (geriye-uyumlu).
+const VALID_SEVERITY = ["critical", "high", "medium", "low"];
 const CONTEXT_EXCLUDED_STATUS = ["done", "rejected", "archived"];
 
 function buildConfig(projectRoot, storeEngine, projects, { custom = false } = {}) {
@@ -81,6 +84,10 @@ function buildConfig(projectRoot, storeEngine, projects, { custom = false } = {}
     ``,
     `valid_priority:`,
     ...VALID_PRIORITY.map(p => `  - ${p}`),
+    ``,
+    `# Bug severity ölçeği (priority'den ayrı). Kaldırılırsa valid_priority kullanılır.`,
+    `valid_severity:`,
+    ...VALID_SEVERITY.map(s => `  - ${s}`),
     ``,
     `# Context compiler will exclude records with these statuses from Claude context`,
     `context_excluded_status:`,

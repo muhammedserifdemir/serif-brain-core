@@ -11,6 +11,7 @@ import { migrateCommand } from "./migrate.mjs";
 import { analyzeCommand } from "./analyze.mjs";
 import { contextCommand } from "./context.mjs";
 import { hooksCommand } from "./hooks.mjs";
+import { validateCommand } from "./validate.mjs";
 
 const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
@@ -19,6 +20,7 @@ const COMMANDS = {
   close:   { handler: closeCommand,  help: "Bug/decision kapat (status flip + completed_at + opsiyonel commit/note)" },
   stale:   { handler: staleCommand,  help: "Acik kalemleri son commit aktivitesine gore tara (--days N, --quiet)" },
   "rebuild-indexes": { handler: rebuildIndexesCommand, help: "Tum indexleri yeniden uret" },
+  validate: { handler: validateCommand, help: "Objeleri semaya gore dogrula; hatali dosyalari yol+neden ile listele (--warnings, --project_id)" },
   scan:    { handler: scanCodeCommand, help: "Kod scanner — files/imports/todos (scan code)" },
   graph:   { handler: graphCommand,    help: "Graph build / report / viewer (graph build | graph report | graph viewer)" },
   migrate: { handler: migrateCommand,  help: "Migration dry-run (legacy YAML + Obsidian + Graphify ref)" },
@@ -44,7 +46,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Aktif komutlar (Faz 2-8):`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);
