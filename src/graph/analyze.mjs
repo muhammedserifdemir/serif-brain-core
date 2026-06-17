@@ -1,6 +1,28 @@
 // 11 architecture analizi.
 const DAY = 86400000;
 
+function toRe(p) {
+  try { return p instanceof RegExp ? p : new RegExp(p); } catch { return null; }
+}
+
+// Framework + araç giriş-noktaları: tasarımı gereği hiçbir yerden import EDİLMEZ
+// (framework/runtime konvansiyonla yükler) → orphan sayılmamalı. Eskiden yalnız
+// "route" + main/index + bin/scripts muaftı; global-error, instrumentation,
+// i18n/request, *.config, *.worker, e2e/* sahte-orphan görünüyordu. Config'ten
+// entrypoint_patterns ile genişletilebilir.
+const DEFAULT_ENTRYPOINTS = [
+  /(^|\/)(page|layout|route|loading|error|not-found|template|default|global-error)\.[tj]sx?$/,
+  /(^|\/)\+(page|layout|server)(\.server)?\.[tj]s$/,
+  /(^|\/)\+(page|layout)\.svelte$/,
+  /(^|\/)pages\/.+\.[tj]sx?$/,
+  /(^|\/)(middleware|instrumentation)\.[tj]sx?$/,
+  /(^|\/)i18n\/request\.[tj]sx?$/,
+  /(^|\/)(main|index)\.[tj]sx?$/,
+  /\.config\.[tj]sx?$/,
+  /\.worker\.[tj]sx?$/,
+  /(^|\/)(bin|scripts|e2e)\//,
+];
+
 export function analyzeGraph(graph, opts = {}) {
   const now = opts.now || Date.now();
   const staleDays = opts.stale_days || 30;
@@ -8,6 +30,13 @@ export function analyzeGraph(graph, opts = {}) {
   const tooManyImports = opts.too_many_imports || 15;
   const highRiskBugThreshold = opts.high_risk_bug_threshold || 3;
   const manyOpenBugsThreshold = opts.many_open_bugs || 5;
+
+  // Giriş-noktası muafiyeti = varsayılanlar + config'ten gelenler.
+  const entrypointRes = [...DEFAULT_ENTRYPOINTS, ...((opts.entrypoint_patterns || []).map(toRe).filter(Boolean))];
+  // Otomasyon-üretimi obje desenleri (id'ye göre). Bunlar küratörlü kararları
+  // kirletmesin diye stale/owner sinyalinden dışlanır + ayrı sayılır.
+  const automationRes = (opts.automation_id_patterns || ["-bridge-"]).map(toRe).filter(Boolean);
+  const isAutomation = (id) => automationRes.some((re) => re.test(id || ""));
 
   // Indeksler
   const fileNodes = graph.nodes.filter(n => n.type === "file" || n.type === "route" || n.type === "component");
@@ -31,11 +60,8 @@ export function analyzeGraph(graph, opts = {}) {
   // Entrypoint heuristics: kind=route, basename ∈ {main.ts, main.tsx, index.html-related, bin/*}
   const isEntrypoint = (n) => {
     if (n.type === "route") return true;
-    const b = (n.label || "").toLowerCase();
-    if (["main.ts","main.tsx","main.js","main.mjs","index.ts","index.tsx"].includes(b)) return true;
-    if (n.path && n.path.startsWith("bin/")) return true;
-    if (n.path && n.path.startsWith("scripts/")) return true;
-    return false;
+    const p = n.path || "";
+    return entrypointRes.some((re) => re.test(p));
   };
 
   const orphanFiles = fileNodes.filter(f => {
@@ -125,13 +151,15 @@ export function analyzeGraph(graph, opts = {}) {
     .filter(d => !d.module || d.module.length === 0 || d.module.includes("unknown"))
     .map(d => ({ id: d.id.replace("decision:",""), title: d.label, status: d.status }));
 
-  // ─── 7. Bugs without owner ───
+  // ─── 7. Bugs without owner (otomasyon objeleri hariç) ───
   const bugsNoOwner = bugNodes
+    .filter(b => !isAutomation(b.id))
     .filter(b => (!b.owner || b.owner === "") && ["open","active","in_progress","blocked"].includes(b.status))
     .map(b => ({ id: b.id.replace("bug:",""), title: b.label, priority: b.priority, status: b.status }));
 
-  // ─── 8. Stale active decisions (>30d) ───
+  // ─── 8. Stale active decisions (>30d, otomasyon objeleri hariç) ───
   const staleDecisions = decisionNodes
+    .filter(d => !isAutomation(d.id))
     .filter(d => ["active","in_progress"].includes(d.status))
     .map(d => ({
       ...d,
@@ -169,6 +197,8 @@ export function analyzeGraph(graph, opts = {}) {
     stale_active_decisions: staleDecisions,
     unresolved_dependencies: unresolvedDeps,
     routes_without_owner: routesNoOwner,
-    components_with_too_many_imports: heavyComponents
+    components_with_too_many_imports: heavyComponents,
+    // Otomasyon-üretimi (churn) obje sayısı — sinyalden dışlandı, ayrı raporlanır.
+    automation_objects: [...bugNodes, ...decisionNodes].filter(n => isAutomation(n.id)).length
   };
 }

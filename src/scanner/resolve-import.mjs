@@ -1,7 +1,7 @@
 // Import specifier -> file path resolver.
 // Relative + index.{ts,tsx,js,jsx,mjs,cjs} resolution.
 // Bare imports return null (handled as 'package' nodes upstream).
-import { existsSync, statSync } from "node:fs";
+import { existsSync, statSync, readFileSync } from "node:fs";
 import { dirname, resolve as pResolve, relative, join } from "node:path";
 
 const TRY_EXTS = [".ts", ".tsx", ".mjs", ".js", ".jsx", ".cjs"];
@@ -89,18 +89,62 @@ export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}) {
   return { kind: "package", spec };
 }
 
-export function loadTsconfigPaths(projectRoot) {
-  // Best effort — tsconfig.json varsa paths field'ini parse et.
-  // JSON5 destegi yok; basit JSON varsayiyoruz.
-  const tsconfig = pResolve(projectRoot, "tsconfig.json");
-  if (!existsSync(tsconfig)) return {};
-  try {
-    const raw = require("node:fs").readFileSync(tsconfig, "utf8");
-    // strip comments (basit)
-    const cleaned = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-    const json = JSON.parse(cleaned);
-    return json?.compilerOptions?.paths || {};
-  } catch {
-    return {};
+// JSONC (yorumlu + trailing-virgüllü JSON) -> temiz JSON metni.
+// KRİTİK: string-farkında. Naive regex blok-yorum sıyırma, string içindeki
+// glob/alias değerlerinde geçen yorum-benzeri dizileri yanlış eşleyip paths'i
+// siliyordu (tsconfig "@/*" + "**/*.ts" bir arada olunca). Bu sürüm string ve
+// escape durumunu izleyerek YALNIZ gerçek yorumları atar.
+function stripJsonc(src) {
+  let out = "";
+  let inStr = false, strCh = "", inLine = false, inBlock = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i], n = src[i + 1];
+    if (inLine) { if (c === "\n") { inLine = false; out += c; } continue; }
+    if (inBlock) { if (c === "*" && n === "/") { inBlock = false; i++; } continue; }
+    if (inStr) {
+      out += c;
+      if (c === "\\") { out += (n ?? ""); i++; continue; }
+      if (c === strCh) inStr = false;
+      continue;
+    }
+    if (c === '"' || c === "'") { inStr = true; strCh = c; out += c; continue; }
+    if (c === "/" && n === "/") { inLine = true; i++; continue; }
+    if (c === "/" && n === "*") { inBlock = true; i++; continue; }
+    out += c;
   }
+  return out.replace(/,(\s*[}\]])/g, "$1"); // trailing virgül
+}
+
+export function loadTsconfigPaths(projectRoot) {
+  // tsconfig.json (yoksa jsconfig.json) compilerOptions.paths + baseUrl oku.
+  // KRİTİK: bu paket ESM ("type":"module") — `require` TANIMSIZ. Eskiden burada
+  // `require("node:fs")` çağrılıyordu → her zaman fırlatıp catch'e düşüyor, paths
+  // DAİMA {} dönüyordu → tüm `@/...` alias import'ları çözülemiyordu (yüzlerce
+  // sahte "unresolved" + şişmiş orphan). readFileSync ile düzeltildi.
+  // JSON5 değil; yorumlar + trailing virgül kabaca sıyrılır.
+  for (const name of ["tsconfig.json", "jsconfig.json"]) {
+    const cfgPath = pResolve(projectRoot, name);
+    if (!existsSync(cfgPath)) continue;
+    try {
+      const raw = readFileSync(cfgPath, "utf8");
+      const json = JSON.parse(stripJsonc(raw));
+      const co = json?.compilerOptions || {};
+      const paths = co.paths || {};
+      const baseUrl = (co.baseUrl || ".").replace(/\/$/, "");
+      // Hedefleri baseUrl'e göre projectRoot-göreli normalize et (resolveImport
+      // pResolve(projectRoot, ...) yapıyor; '*' korunur).
+      const norm = {};
+      for (const [from, toList] of Object.entries(paths)) {
+        const list = Array.isArray(toList) ? toList : [toList];
+        norm[from] = list.map((to) => {
+          const t = String(to).replace(/^\.\//, "");
+          return baseUrl === "." ? t : `${baseUrl}/${t}`;
+        });
+      }
+      return norm;
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }

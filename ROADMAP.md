@@ -11,12 +11,14 @@ Mevcut başlangıç: ~65/100 (~6800 satır, sıfır bağımlılık ESM). Dört a
 - [x] init config şablonuna `valid_severity`
 - Doğrulama: edux brain'inde 5 gizli hatalı dosya anında isimlendirildi.
 
-## Faz 1 — Graf/scanner doğruluğu (false-positive'leri öldür)
-- [ ] Orphan tespiti framework giriş-noktaları (Next.js error/loading/not-found/middleware/instrumentation, route.ts; SvelteKit +server) — config'ten genişletilebilir
-- [ ] Otomasyon vs küratörlü ayrımı (`source.kind`) + raporlardan churn dışlama
-- [ ] Config-driven: INCLUDED_EXTS, module_paths, eşikler (god/stale/orphan)
-- [ ] Monorepo + jsconfig.json import çözümleme
-- [ ] YAML sağlamlaştırma: inline-object `{ }` desteği (Faz 0'da bulunan parse hatası)
+## Faz 1 — Graf/scanner doğruluğu ✅ TAMAM (commit <faz1>)
+- [x] **tsconfig/jsconfig alias resolver DÜZELTİLDİ** — `require`→readFileSync (ESM bug: paths daima boş geliyordu) + string-farkında JSONC sıyırıcı (glob'lı tsconfig'i bozmaz) + baseUrl + jsconfig fallback → **edux: unresolved 866→1, orphan 132→24**
+- [x] Orphan entry-point tespiti genişletildi + config-driven (`entrypoint_patterns`): global-error/instrumentation/i18n-request/*.config/*.worker/e2e/template/default/+server
+- [x] Otomasyon vs küratörlü ayrımı (`automation_id_patterns`, vars. `-bridge-`) → stale/owner sinyalinden dışlanır + ayrı sayılır
+- [x] Config-driven analiz eşikleri (god/stale/too-many/high-risk/many-open)
+- [x] YAML inline-object `{ }` desteği → edux parse hatası 1→0
+- [x] 5 regresyon testi (tsconfig-glob, alias, jsconfig, inline-object)
+- [ ] (ertelendi) monorepo packages/* + module_paths config + INCLUDED_EXTS config — düşük öncelik (alias'lar artık çözülüyor)
 
 ## Faz 2 — Arama & AI entegrasyonu (en büyük yetenek boşluğu)
 - [ ] `search` komutu (yapısal sorgu + tam-metin)

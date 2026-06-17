@@ -15,13 +15,21 @@ export async function graphCommand({ args, subcommand }) {
   if (!existsSync(brainRoot)) {
     throw new Error(`Brain root missing: ${brainRoot} — run 'serif-brain init' first`);
   }
-  loadConfig(brainRoot);
+  const cfg = loadConfig(brainRoot);
+
+  // v0.2 hotfix — project_id'yi CLI flag'inden, sonra brain config'inden,
+  // son çare projectRoot basename'inden çıkar. Eskiden buildGraph hardcoded
+  // "serif-platform" döndürüyordu (Bridge'in graph'ında yanlış proje adı).
+  const projectId = args.flags.project_id
+    || cfg?.projects?.find((p) => p.active)?.id
+    || cfg?.projects?.[0]?.id
+    || null;
 
   if (sub === "build") {
     console.log(`[serif-brain graph build]`);
-    console.log(`  Project: ${projectRoot}`);
+    console.log(`  Project: ${projectRoot} (id=${projectId || "<auto>"})`);
 
-    const graph = await buildGraph({ projectRoot, brainRoot });
+    const graph = await buildGraph({ projectRoot, brainRoot, projectId });
 
     const jsonPath = writeGraphJson(graph, brainRoot);
     const dotPath = writeGraphDot(graph, brainRoot);
@@ -48,7 +56,16 @@ export async function graphCommand({ args, subcommand }) {
     const graph = JSON.parse(readFileSync(graphPath, "utf8"));
     console.log(`  Loaded graph: ${graph.stats.node_count} nodes, ${graph.stats.edge_count} edges`);
 
-    const analysis = analyzeGraph(graph);
+    // Analiz eşikleri + giriş-noktası/otomasyon desenleri config'ten (hardcode değil).
+    const analysis = analyzeGraph(graph, {
+      entrypoint_patterns: cfg?.entrypoint_patterns,
+      automation_id_patterns: cfg?.automation_id_patterns,
+      stale_days: cfg?.stale_days,
+      god_threshold: cfg?.god_threshold,
+      too_many_imports: cfg?.too_many_imports,
+      high_risk_bug_threshold: cfg?.high_risk_bug_threshold,
+      many_open_bugs: cfg?.many_open_bugs,
+    });
     const reportPath = writeAnalysisReport(graph, analysis, brainRoot);
 
     console.log(``);

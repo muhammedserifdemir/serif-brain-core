@@ -45,15 +45,39 @@ function parseScalar(raw) {
     if (inner === "") return [];
     return splitInlineArray(inner).map(parseScalar);
   }
-  // Inline object — desteklenmiyor (block syntax kullan)
-  if (s.startsWith("{")) {
-    throw new Error(`Inline object not supported: ${s}`);
+  // Inline object — { key: val, key2: "v2" }. Eskiden fırlatıyordu; frontmatter'da
+  // `source: { kind: manual, path: "" }` gibi satırlar parse hatası veriyordu.
+  if (s.startsWith("{") && s.endsWith("}")) {
+    const inner = s.slice(1, -1).trim();
+    if (inner === "") return {};
+    const obj = {};
+    for (const part of splitInlineArray(inner)) {
+      const seg = part.trim();
+      if (!seg) continue;
+      const ci = findInlineColon(seg);
+      if (ci === -1) continue;
+      const k = parseScalar(seg.slice(0, ci).trim());
+      obj[String(k)] = parseScalar(seg.slice(ci + 1).trim());
+    }
+    return obj;
   }
   // Number
   if (/^-?\d+$/.test(s)) return parseInt(s, 10);
   if (/^-?\d+\.\d+$/.test(s)) return parseFloat(s);
   // ISO date / unquoted string — string olarak birak
   return s;
+}
+
+// İlk tırnak-dışı ":" indeksi (inline object anahtar/değer ayrımı için).
+function findInlineColon(s) {
+  let inS = false, inD = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "'" && !inD) inS = !inS;
+    else if (c === '"' && !inS) inD = !inD;
+    else if (c === ":" && !inS && !inD) return i;
+  }
+  return -1;
 }
 
 function splitInlineArray(s) {
