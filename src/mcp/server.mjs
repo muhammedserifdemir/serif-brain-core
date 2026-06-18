@@ -2,6 +2,7 @@
 // JSON-RPC 2.0 isteklerini işler; stdio sarmalayıcı (cli/mcp.mjs) bunu kullanır.
 // Claude Code bu sunucu üzerinden brain'i CANLI okuyabilir (search/get/context).
 import { loadObjects, searchObjects, toResult } from "../query/search.mjs";
+import { findRelated } from "../query/related.mjs";
 
 const PROTOCOL_VERSION = "2024-11-05";
 
@@ -46,6 +47,20 @@ export const TOOLS = [
       },
     },
   },
+  {
+    name: "brain_related",
+    description:
+      "Bir objeye OTOMATİK keşfedilen ilişkili objeler (paylaşılan modül/etiket + " +
+      "metin benzerliği). Elle [[link]] gerektirmeden bilgi ağında gezinmek için.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Hedef obje id'si" },
+        limit: { type: "number", default: 10 },
+      },
+      required: ["id"],
+    },
+  },
 ];
 
 const ACTIVE_STATUSES = ["open", "active", "in_progress", "blocked", "queued"];
@@ -84,6 +99,15 @@ function callTool(name, a = {}, brainRoot) {
     return JSON.stringify({ active_bugs: bugs, active_decisions: decisions }, null, 2);
   }
 
+  if (name === "brain_related") {
+    if (!a.id) throw new Error("id gerekli");
+    const all = loadObjects(brainRoot);
+    const target = all.find((o) => o.frontmatter?.id === a.id);
+    if (!target) return JSON.stringify({ found: false, id: a.id });
+    const related = findRelated(target, all, { limit: Number.isFinite(a.limit) ? a.limit : 10 });
+    return JSON.stringify({ found: true, id: a.id, related }, null, 2);
+  }
+
   throw new Error(`bilinmeyen araç: ${name}`);
 }
 
@@ -94,7 +118,7 @@ function rpcError(id, code, message) { return { jsonrpc: "2.0", id, error: { cod
  * Tek bir JSON-RPC isteğini işle. Bildirim (id yok) ise null döner.
  * Test edilebilir: stdio'dan bağımsız.
  */
-export function createBrainMcp({ brainRoot, version = "0.2.0" }) {
+export function createBrainMcp({ brainRoot, version = "0.3.0" }) {
   function handle(req) {
     const { id, method, params } = req || {};
     if (method === "initialize") {

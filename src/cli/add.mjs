@@ -31,7 +31,7 @@ export async function addCommand({ args, subcommand }) {
   if (!existsSync(brainRoot)) {
     throw new Error(`Brain root missing: ${brainRoot} — run 'serif-brain init' first`);
   }
-  loadConfig(brainRoot);
+  const config = loadConfig(brainRoot);
 
   const title = args.flags.title;
   if (!title) {
@@ -39,7 +39,15 @@ export async function addCommand({ args, subcommand }) {
     return 1;
   }
 
-  const project = args.flags.project_id || "serif-platform";
+  // Default project = config'in aktif projesi (eskiden "serif-platform"a
+  // hardcode'tu; bu yüzden add her brain'de yanlış projeye yazıyordu).
+  // Öncelik: --project_id flag > config aktif proje > ilk proje > eski fallback.
+  const configProjects = config?.projects || [];
+  const defaultProject =
+    configProjects.find((p) => p.active)?.id ||
+    configProjects[0]?.id ||
+    "serif-platform";
+  const project = args.flags.project_id || defaultProject;
   const module = args.flags.module || "unknown";
   const priority = args.flags.priority || TYPE_DEFAULTS[type].priority;
   const severity = args.flags.severity || priority;

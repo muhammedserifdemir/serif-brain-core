@@ -1,0 +1,17 @@
+# serif-brain — derived/cache files only
+# Canonical data (config.yaml, objects/, archive-index/) IS tracked.
+
+# Derived — regenerable via 'serif-brain analyze'
+graph/
+reports/
+context/
+indexes/
+
+# SQLite engine artifacts
+brain.db
+brain.db-journal
+brain.db-shm
+brain.db-wal
+
+# JSONL fallback artifacts (if engine=jsonl)
+objects-jsonl/

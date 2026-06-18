@@ -13,7 +13,7 @@ const EDGE_TYPES = ["imports","uses","owns","mentions","fixes","caused_by","bloc
 
 function nid(type, key) { return `${type}:${key}`; }
 
-export async function buildGraph({ projectRoot, brainRoot }) {
+export async function buildGraph({ projectRoot, brainRoot, projectId }) {
   const startedAt = Date.now();
 
   // ─── 1. Code scan ───
@@ -37,15 +37,17 @@ export async function buildGraph({ projectRoot, brainRoot }) {
     edges.push({ source, target, type, ...meta });
   }
 
-  // Project node
-  addNode({ id: nid("project", "serif-platform"), type: "project", label: "serif-platform", path: projectRoot });
+  // Project node — projectId parametresinden gelir (CLI --project_id veya
+  // brain config'ten). Hardcoded "serif-platform" değişti (v0.2 hotfix).
+  const pid = projectId || basename(projectRoot) || "project";
+  addNode({ id: nid("project", pid), type: "project", label: pid, path: projectRoot });
 
   // Module nodes (her benzersiz module icin)
   const modules = new Set();
   for (const f of files) modules.add(ownerOf(f.rel_path));
   for (const m of modules) {
     addNode({ id: nid("module", m), type: "module", label: m });
-    addEdge(nid("project","serif-platform"), nid("module", m), "owns");
+    addEdge(nid("project", pid), nid("module", m), "owns");
   }
 
   // Package (dependency) nodes

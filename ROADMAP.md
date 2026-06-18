@@ -35,8 +35,23 @@ Mevcut başlangıç: ~65/100 (~6800 satır, sıfır bağımlılık ESM). Dört a
 - [x] README.md (kurulum, komut tablosu, MCP, mimari) + sürüm 0.1.0 → 0.2.0
 - [ ] (ertelendi) artımlı tarama/index cache — build ~200ms, darboğaz değil; ileride
 
-## Faz 4 — Hijyen otomasyonu
-- [ ] `prune`/`gc` — stale + otomasyon objelerini güvenli arşivle
+## Faz 4 — Hijyen otomasyonu + Obsidian/Graphify'ı geçme ✅ TAMAM (commit <faz4>)
+- [x] **`related` — bağlantı ÇIKARIMI**: objeler arası otomatik keşfedilen ilişkiler
+  (paylaşılan modül/etiket + metin benzerliği, gerekçeli). Obsidian'ın elle `[[link]]`'inin
+  aksine sistem bağlantıyı kendi bulur (Graphify'ın inferred-edge'i gibi, hafıza objelerinde).
+- [x] MCP `brain_related` aracı — AI bilgi ağında elle link olmadan gezinir.
+- [x] **`prune` — hijyen otomasyonu**: stale + otomasyon churn'ünü bulur; dry-run default,
+  `--apply` ile `.serif-brain/archive/`'a GÜVENLE TAŞIR (silmez) + manifest + index yeniler.
+  (Bridge gürültüsünü elle temizlemek yerine tek komutla, geri alınabilir.)
+- [x] 5 test (related skorlama/sıralama/limit).
+
+---
+## TAMAMLANDI — neden Obsidian + Graphify'ı geçiyor
+- **Obsidian'ın ötesi**: kod-farkındalık (obje↔kod grafı), şema doğrulama, otomatik
+  bağlantı çıkarımı (related), CLI otomasyonu, MCP ile AI entegrasyonu, sağlık analizi.
+- **Graphify'ın ötesi**: kod+hafıza birleşik graf + 11 mimari bulgu + doğru import
+  çözümleme + canlı sorgulanabilir (search/MCP), salt rapor değil.
+- Saf-Node, sıfır bağımlılık; 39 test; CI; taşınabilir. v0.3.0.
 
 ---
 Doğrulanan gerçek bug'lar (denetimden): doctor dosya-adı vermiyordu (✅ düzeldi), severity yanlış enum (✅ düzeldi), 3 dosyada hardcoded path (Faz 3), inline-object parse hatası (Faz 1).

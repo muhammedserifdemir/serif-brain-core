@@ -14,6 +14,8 @@ import { hooksCommand } from "./hooks.mjs";
 import { validateCommand } from "./validate.mjs";
 import { searchCommand } from "./search.mjs";
 import { mcpCommand } from "./mcp.mjs";
+import { relatedCommand } from "./related.mjs";
+import { pruneCommand } from "./prune.mjs";
 
 const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
@@ -30,7 +32,9 @@ const COMMANDS = {
   context: { handler: contextCommand,  help: "Claude bagliami uret (--module <X> ile filtre)" },
   hooks:   { handler: hooksCommand,    help: "Hook migration plan/dry-run (apply Faz 8'de devre disi)" },
   search:  { handler: searchCommand,   help: "Hafizada yapisal + tam-metin arama ('text' --type --status --priority --module --tag --json --limit)" },
-  mcp:     { handler: mcpCommand,       help: "MCP sunucusu (stdio/JSON-RPC) — Claude Code brain'i canli okur (brain_search/brain_get/brain_context)" },
+  related: { handler: relatedCommand,  help: "Bir objeye otomatik kesfedilen iliskili objeler (modul/etiket/metin benzerligi) <id> --limit --json" },
+  prune:   { handler: pruneCommand,    help: "Stale + otomasyon churn objelerini guvenle arsivle (dry-run; --apply, --days N)" },
+  mcp:     { handler: mcpCommand,       help: "MCP sunucusu (stdio/JSON-RPC) — Claude Code brain'i canli okur (brain_search/get/context/related)" },
   archive: { handler: stubCommand("archive", "Faz 1 kapsami — su an manuel apply ile yapildi") },
   ingest:  { handler: stubCommand("ingest",  "Faz 5 — legacy kaynaklari oku, normalize et") },
   report:  { handler: stubCommand("report",  "Faz 6 — tek rapor uret (su an: 'analyze' tum raporlari uretir)") }
@@ -49,7 +53,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "related", "prune", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Aktif komutlar (Faz 2-8):`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);

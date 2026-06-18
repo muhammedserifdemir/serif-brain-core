@@ -53,12 +53,12 @@ test("MCP: initialize protocolVersion + serverInfo döner", () => {
   assert.ok(res.result.protocolVersion);
 });
 
-test("MCP: tools/list 3 aracı listeler", () => {
+test("MCP: tools/list araçları listeler", () => {
   const { handle } = createBrainMcp({ brainRoot: "/tmp/x" });
   const res = handle({ jsonrpc: "2.0", id: 2, method: "tools/list" });
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["brain_context", "brain_get", "brain_search"]);
-  assert.equal(TOOLS.length, 3);
+  assert.deepEqual(names, ["brain_context", "brain_get", "brain_related", "brain_search"]);
+  assert.equal(TOOLS.length, 4);
 });
 
 test("MCP: notifications/* için yanıt yok (null)", () => {
