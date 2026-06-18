@@ -2,9 +2,10 @@
 import { resolve as pResolve, basename } from "node:path";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
 import { parseImports, parseTodos, parseIdMentions } from "../scanner/parse-imports.mjs";
-import { resolveImport, loadTsconfigPaths, isExternalPackage, isNodeBuiltin } from "../scanner/resolve-import.mjs";
+import { resolveImport, loadTsconfigPaths, loadWorkspacePackages, isExternalPackage, isNodeBuiltin } from "../scanner/resolve-import.mjs";
 import { ownerOf } from "../scanner/module-owner.mjs";
 import { scanPackageJsons, allDependencies } from "../scanner/package-scan.mjs";
+import { loadScanCache, saveScanCache } from "../scanner/cache.mjs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
 
 // Node types — prompt sozlesmesi ile ayni
@@ -19,6 +20,7 @@ export async function buildGraph({ projectRoot, brainRoot, projectId }) {
   // ─── 1. Code scan ───
   const files = scanFiles(projectRoot);
   const aliases = loadTsconfigPaths(projectRoot);
+  const workspaces = loadWorkspacePackages(projectRoot);
   const packages = scanPackageJsons(projectRoot);
   const allDeps = allDependencies(packages);
 
@@ -59,14 +61,26 @@ export async function buildGraph({ projectRoot, brainRoot, projectId }) {
   let totalImports = 0, unresolved = 0, externalRefs = 0, todoCount = 0;
   const tsconfigAliases = aliases;
 
-  // 2a. File metadata + import parse
+  // 2a. File metadata + import parse (ARTIMLI: değişmeyen dosyalar cache'ten)
+  const prevCache = loadScanCache(brainRoot);
+  const nextCache = {};
+  let cacheHits = 0;
   const fileImports = new Map(); // rel_path -> [resolved imports]
   for (const f of files) {
-    const text = readFileSafe(f.abs_path);
-    const loc = countLines(text);
-    const imports = parseImports(text);
-    const todos = parseTodos(text);
-    const mentions = parseIdMentions(text);
+    const mtimeMs = f.mtime?.getTime?.() ?? 0;
+    const prev = prevCache.files?.[f.rel_path];
+    let loc, imports, todos, mentions;
+    if (prev && prev.mtimeMs === mtimeMs && prev.size === f.size) {
+      ({ loc, imports, todos, mentions } = prev);
+      cacheHits++;
+    } else {
+      const text = readFileSafe(f.abs_path);
+      loc = countLines(text);
+      imports = parseImports(text);
+      todos = parseTodos(text);
+      mentions = parseIdMentions(text);
+    }
+    nextCache[f.rel_path] = { mtimeMs, size: f.size, loc, imports, todos, mentions };
     todoCount += todos.length;
 
     addNode({
@@ -86,13 +100,14 @@ export async function buildGraph({ projectRoot, brainRoot, projectId }) {
 
     fileImports.set(f.rel_path, { imports, mentions });
   }
+  saveScanCache(brainRoot, nextCache);
 
   // 2b. Resolve imports (dosyalar arasi)
   for (const f of files) {
     const { imports, mentions } = fileImports.get(f.rel_path);
     for (const spec of imports) {
       totalImports++;
-      const r = resolveImport(spec, f.abs_path, projectRoot, tsconfigAliases);
+      const r = resolveImport(spec, f.abs_path, projectRoot, tsconfigAliases, workspaces);
       if (r.kind === "file" && fileByRel.has(r.rel)) {
         addEdge(nid("file", f.rel_path), nid("file", r.rel), "imports");
       } else if (r.kind === "package") {
@@ -174,6 +189,7 @@ export async function buildGraph({ projectRoot, brainRoot, projectId }) {
       todos: todoCount,
       node_count: nodes.size,
       edge_count: edges.length,
+      cache_hits: cacheHits,
       build_ms: elapsed
     },
     nodes: [...nodes.values()],

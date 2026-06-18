@@ -55,3 +55,10 @@ Mevcut başlangıç: ~65/100 (~6800 satır, sıfır bağımlılık ESM). Dört a
 
 ---
 Doğrulanan gerçek bug'lar (denetimden): doctor dosya-adı vermiyordu (✅ düzeldi), severity yanlış enum (✅ düzeldi), 3 dosyada hardcoded path (Faz 3), inline-object parse hatası (Faz 1).
+
+## 100-PUSH (v1.0.0) — açık bırakılan gediklerin hepsi kapatıldı
+- [x] Test kapsamı: migrate (normalize/classify/dedup) + ingest (legacy-yaml) + backlinks +
+  YAML uç durumları → **12'den 64 teste**.
+- [x] Artımlı tarama cache'i (mtime+size) — sıcak build ~6.5x (222ms→34ms, cache_hits).
+- [x] Monorepo workspace paket çözümleme (`workspaces`/`packages/*` → kaynak).
+- [x] Dağıtım: CHANGELOG.md + package.json `files`/`keywords`/`prepublishOnly` + sürüm 1.0.0 + git tag.

@@ -118,7 +118,7 @@ function rpcError(id, code, message) { return { jsonrpc: "2.0", id, error: { cod
  * Tek bir JSON-RPC isteğini işle. Bildirim (id yok) ise null döner.
  * Test edilebilir: stdio'dan bağımsız.
  */
-export function createBrainMcp({ brainRoot, version = "0.3.0" }) {
+export function createBrainMcp({ brainRoot, version = "1.0.0" }) {
   function handle(req) {
     const { id, method, params } = req || {};
     if (method === "initialize") {

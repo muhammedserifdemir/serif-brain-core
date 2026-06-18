@@ -1,19 +1,37 @@
 {
   "name": "serif-brain-core",
-  "version": "0.3.0",
-  "description": "Bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi. Obsidian/Graphify/eski Brain runtime bagimliligi yok.",
+  "version": "1.0.0",
+  "description": "Bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi (search/MCP/related). Obsidian/Graphify/eski Brain runtime bagimliligi yok.",
   "type": "module",
   "private": true,
   "bin": {
     "serif-brain": "./bin/serif-brain.mjs"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/",
+    "README.md",
+    "CHANGELOG.md",
+    "ROADMAP.md",
+    "docs/"
+  ],
   "scripts": {
     "doctor": "node ./bin/serif-brain.mjs doctor",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=22.5.0"
   },
+  "keywords": [
+    "project-memory",
+    "knowledge-graph",
+    "code-graph",
+    "mcp",
+    "ai",
+    "zero-dependency"
+  ],
   "dependencies": {},
   "author": "Muhammed Serif Demir",
   "license": "UNLICENSED"

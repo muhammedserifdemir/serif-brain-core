@@ -1,7 +1,7 @@
 // Import specifier -> file path resolver.
 // Relative + index.{ts,tsx,js,jsx,mjs,cjs} resolution.
 // Bare imports return null (handled as 'package' nodes upstream).
-import { existsSync, statSync, readFileSync } from "node:fs";
+import { existsSync, statSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve as pResolve, relative, join } from "node:path";
 
 const TRY_EXTS = [".ts", ".tsx", ".mjs", ".js", ".jsx", ".cjs"];
@@ -59,7 +59,7 @@ function tryWithExts(base) {
   return null;
 }
 
-export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}) {
+export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}, workspaces = null) {
   if (isNodeBuiltin(spec)) return { kind: "node-builtin", spec };
   if (isRelative(spec)) {
     const base = pResolve(dirname(fromAbsPath), spec);
@@ -86,7 +86,57 @@ export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}) {
   if (isAbsolute(spec)) {
     return { kind: "absolute", spec };
   }
+  // Monorepo workspace paketi mi? (örn. @scope/pkg → packages/pkg/src)
+  if (workspaces) {
+    for (const [name, dir] of Object.entries(workspaces)) {
+      if (spec === name || spec.startsWith(name + "/")) {
+        const sub = spec.slice(name.length).replace(/^\//, "");
+        const candidates = sub
+          ? [join(dir, sub), join(dir, "src", sub)]
+          : [join(dir, "src", "index"), join(dir, "index")];
+        for (const base of candidates) {
+          const file = tryWithExts(base);
+          if (file) return { kind: "file", abs: file, rel: relative(projectRoot, file), workspace: name };
+        }
+      }
+    }
+  }
   return { kind: "package", spec };
+}
+
+/**
+ * Monorepo workspace paketlerini yükle: { paketAdı: paketDizini }.
+ * root package.json `workspaces` alanından (veya varsayılan packages/* taramasından).
+ */
+export function loadWorkspacePackages(projectRoot) {
+  const out = {};
+  let globs = [];
+  const rootPkg = pResolve(projectRoot, "package.json");
+  if (existsSync(rootPkg)) {
+    try {
+      const j = JSON.parse(stripJsonc(readFileSync(rootPkg, "utf8")));
+      const ws = j.workspaces;
+      globs = Array.isArray(ws) ? ws : (ws?.packages || []);
+    } catch { /* yoksay */ }
+  }
+  if (!globs.length) globs = ["packages/*", "apps/*"]; // yaygın varsayılanları dene
+  for (const g of globs) {
+    const baseDir = g.replace(/\/\*+$/, "");
+    const absBase = pResolve(projectRoot, baseDir);
+    if (!existsSync(absBase)) continue;
+    let entries;
+    try { entries = readdirSync(absBase, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      const pkgJson = join(absBase, e.name, "package.json");
+      if (!existsSync(pkgJson)) continue;
+      try {
+        const pj = JSON.parse(stripJsonc(readFileSync(pkgJson, "utf8")));
+        if (pj.name) out[pj.name] = join(absBase, e.name);
+      } catch { /* yoksay */ }
+    }
+  }
+  return out;
 }
 
 // JSONC (yorumlu + trailing-virgüllü JSON) -> temiz JSON metni.
