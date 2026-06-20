@@ -13,6 +13,18 @@ import { contextCommand } from "./context.mjs";
 import { hooksCommand } from "./hooks.mjs";
 import { validateCommand } from "./validate.mjs";
 import { searchCommand } from "./search.mjs";
+import { briefCommand } from "./brief.mjs";
+import { touchCommand } from "./touch.mjs";
+import { captureCommand } from "./capture.mjs";
+import { impactCommand } from "./impact.mjs";
+import { hotspotCommand } from "./hotspot.mjs";
+import { layersCommand } from "./layers.mjs";
+import { checkCommand } from "./check.mjs";
+import { lintCommand } from "./lint.mjs";
+import { riskCommand } from "./risk.mjs";
+import { clusterCommand } from "./cluster.mjs";
+import { reviewCommand } from "./review.mjs";
+import { guardCommand } from "./guard.mjs";
 import { mcpCommand } from "./mcp.mjs";
 import { relatedCommand } from "./related.mjs";
 import { pruneCommand } from "./prune.mjs";
@@ -32,6 +44,18 @@ const COMMANDS = {
   context: { handler: contextCommand,  help: "Claude bagliami uret (--module <X> ile filtre)" },
   hooks:   { handler: hooksCommand,    help: "Hook migration plan/dry-run (apply Faz 8'de devre disi)" },
   search:  { handler: searchCommand,   help: "Hafizada yapisal + tam-metin arama ('text' --type --status --priority --module --tag --json --limit)" },
+  brief:   { handler: briefCommand,    help: "Oturum-acilisi 'neredeyiz' ozeti: aktif bug/karar + son dokunulan + park kuyrugu (--module --days N --json)" },
+  touch:   { handler: touchCommand,    help: "Bir dosyaya dokunmadan once ilgili hafiza: o dosya/modulun karar + bug'lari (yara izi dahil) <dosya> --module --json" },
+  guard:   { handler: guardCommand,    help: "Edit-oncesi BIRLESIK brifing: touch+impact+risk+lint tek cikti (verdict + kararlar + blast + imza) <dosya> --json" },
+  capture: { handler: captureCommand,  help: "Git commit'lerinden aday bug/karar oner (write-back). Dry-run; --apply yazar (--days N --json)" },
+  impact:  { handler: impactCommand,    help: "Canli blast-radius: bir dosyayi degistirirsem ne kirilir (gecisli bagimlilar + etkilenen modul + hafiza) <dosya> --json" },
+  hotspot: { handler: hotspotCommand,   help: "Tehlike bolgesi: churn × merkezilik + modul bug yogunlugu fuzyonu (--days N --limit N --json)" },
+  layers:  { handler: layersCommand,    help: "Mimari katman ihlalleri (config layer_rules: ui→db yasak gibi). Ihlal varsa exit 2 (--json)" },
+  check:   { handler: checkCommand,     help: "PostEdit graf saglik: bir dosyada katman ihlali + dongu + god-file <dosya> (--json)" },
+  lint:    { handler: lintCommand,      help: "Projeye-ozel bug imza linter (config bug_signatures). Eslesme varsa exit 2 [dosya...] (--json)" },
+  risk:    { handler: riskCommand,      help: "Tek dosya edit-ani risk skoru: churn+merkezilik+modul/dosya bug+imza fuzyonu <dosya> (--days N --json)" },
+  cluster: { handler: clusterCommand,   help: "Bug'lari benzerlige gore grupla — olasi ayni-kok-neden kumeleri (--threshold N --json)" },
+  review:  { handler: reviewCommand,    help: "Pre-commit kapi: degisen dosyalarda check (katman/dongu/god) + lint (imza). Sorun varsa exit 2 (--ref --json)" },
   related: { handler: relatedCommand,  help: "Bir objeye otomatik kesfedilen iliskili objeler (modul/etiket/metin benzerligi) <id> --limit --json" },
   prune:   { handler: pruneCommand,    help: "Stale + otomasyon churn objelerini guvenle arsivle (dry-run; --apply, --days N)" },
   mcp:     { handler: mcpCommand,       help: "MCP sunucusu (stdio/JSON-RPC) — Claude Code brain'i canli okur (brain_search/get/context/related)" },
@@ -53,7 +77,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "related", "prune", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Aktif komutlar (Faz 2-8):`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);

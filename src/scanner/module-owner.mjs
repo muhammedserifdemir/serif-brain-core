@@ -48,6 +48,23 @@ export function ownerOf(relPath) {
   return "unknown";
 }
 
+// Config-farkinda surum: once .serif-brain/config.yaml'daki `module_paths`'e bakar
+// (yorumda vaat edilmis ama implement edilmemisti), sonra hardcoded RULES'a duser.
+// module_paths sekli: { "src/auth/": "auth", "packages/billing/": "billing" }
+// veya [["src/auth/","auth"], ...]. Mevcut ownerOf'a dokunmaz (graph build aynen calisir).
+export function ownerOfConfigured(relPath, config) {
+  const paths = config?.module_paths;
+  if (paths) {
+    const entries = Array.isArray(paths) ? paths : Object.entries(paths);
+    // Daha spesifik (uzun) prefix once eslessin.
+    const sorted = [...entries].sort((a, b) => String(b[0]).length - String(a[0]).length);
+    for (const [prefix, mod] of sorted) {
+      if (typeof prefix === "string" && relPath.startsWith(prefix)) return mod;
+    }
+  }
+  return ownerOf(relPath);
+}
+
 export function moduleStats(files) {
   const byMod = new Map();
   for (const f of files) {

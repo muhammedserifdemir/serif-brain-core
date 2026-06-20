@@ -2,6 +2,100 @@
 
 Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
+## [Unreleased]
+
+### YAML — block scalar okuma + çok-satırlı string
+- **Block scalar desteği** (`|` literal, `>` folded, chomp `-`/`+`) — `collapseBlockScalars`
+  ön-geçişi block'u tek-satır quoted scalar'a indirir; çekirdek parser değişmez, her indent
+  seviyesinde + nested çalışır. Block içindeki `#` yorum sayılmaz. (`test/faz20`, 9 test).
+- **Çok-satırlı string serialize** — `\n`/`\r`/`\t` içeren string artık tırnaklanır (escaped),
+  round-trip korunur (önceki latent açık: çok-satır tırnaksız serialize → bozuk YAML).
+
+### Init — config şablonları (keşfedilebilirlik)
+- `serif-brain init` artık config.yaml'a **yorumlu** `module_paths` / `layer_rules` /
+  `bug_signatures` örnekleri yazar (parser görmez; yorumu kaldırıp doldur). Faz 2-3
+  özellikleri kutudan keşfedilebilir.
+
+### Performans — MCP obje cache'i (inceleme #2 kapatıldı)
+- **`loadObjectsCached`** (`query/object-cache.mjs`) — uzun-ömürlü MCP process'inde her
+  çağrıda tüm markdown'ı yeniden parse etmek yerine cache'ten döner. **Sadece-stat imza**
+  (dosya sayısı + mtime + boyut) ile invalidation: ekle/sil/değiştir → otomatik tazelenir.
+  **Hızlı ama asla bayat değil.** MCP server `loadObjects`'i bu sürümle alias'lar (minimal diff);
+  CLI kısa-ömürlü olduğu için kullanmaz. 5 test (hit/miss + 3 invalidation senaryosu).
+
+### Agent-UX — birleşik edit-öncesi brifing
+- **`guard <dosya>`** — `touch`+`impact`+`risk`+`lint`'i TEK çıktıda toplar: verdict
+  (DİKKAT/TEMİZ) + ihlal-etme kararları + açık bug + çözülmüş "yara izi" + blast-radius +
+  imza eşleşmeleri. Ajan dört ayrı çağrı yerine bir çağrı (token-ucuz). **MCP `brain_guard`**.
+- `query/guard.mjs` — saf `composeGuard()` + `formatGuard()` + `gatherGuard()` (query
+  katmanında; mcp→cli bağımlılığından kaçınıldı). Canlı: schema.mjs → DİKKAT, 45 dosya etkilenir.
+
+### Sağlamlaştırma — YAML parser audit
+- **14 fuzz/round-trip testi** (`test/faz17`) — serialize→parse kararlılığı + adversarial probe.
+  Sonuç: **sessiz veri kaybı bulunamadı**; ilk incelemenin "#1 risk" endişesi düzeltildi.
+- **Fail-loud sözleşmesi teste sabitlendi:** desteklenmeyen girdi (liste-içi nested object serialize,
+  tab girinti) sessizce kaybedilmez — throw eder. Regresyon koruması.
+- `yaml.mjs` başlık yorumu gerçeğe göre düzeltildi ("max 2 level" → çok-seviye nesting çalışıyor).
+
+### Faz: Bug Signatures (tamamlandı — çekirdek)
+- **`lint [dosya...]`** — projeye-özel bug imza linter: config `bug_signatures` (regex +
+  glob + severity) ile geçmiş hataların "şekli" yeni koda karşı taranır. Generic ESLint'in
+  görmediği domain bug'ları. **MCP `brain_lint`**. `query/signatures.mjs`.
+- **`risk <dosya>`** — edit-anı risk skoru: `2×churn + bağımlı + 3×modül_bug + 4×dosya_bug +
+  5×imza` → low/medium/high/critical. Şeffaf ağırlıklar. **MCP `brain_risk`**. `query/risk.mjs`.
+- **`cluster`** — bug'ları benzerliğe (modül/etiket/metin, union-find) göre gruplar →
+  olası aynı-kök-neden kümeleri. **MCP `brain_cluster`**. `query/cluster.mjs`.
+- **`review [--ref]`** — pre-commit kapı: değişen dosyalarda `check` (katman/döngü/god) +
+  `lint` (imza); sorunda exit 2. `getChangedFiles()` git helper'ı.
+
+### Faz: Symbol Graph (çekirdek tamamlandı; sembol-seviyesi call-graph ertelendi)
+- **`layers`** — mimari katman ihlalleri: config `layer_rules` (`{from,to,reason}`, `*` joker)
+  ile yasak import'lar (ör. `ui→db`). İhlalde exit 2. **MCP `brain_layers`**. `query/layers.mjs`.
+- **`check <dosya>`** — PostEdit graf sağlığı (Active Memory'den devralındı): tek dosyada
+  katman ihlali + döngü (yol ile) + god-file. **MCP `brain_check`**. `query/check.mjs`.
+- _Ertelendi:_ sembol-seviyesi call-graph — kırılgan çok-dilli sembol parser'ı kalite riski;
+  kendi odaklı turunu hak ediyor. impact/hotspot/layers/check dosya-seviyesinde değer veriyor.
+
+### Faz: Symbol Graph (ilk dilim)
+- **`impact <dosya>`** — canlı blast-radius: bir dosyayı değiştirirsem ne kırılır?
+  Mevcut import grafı (graph.json) üzerinden geçişli bağımlı kapanışı + etkilenen
+  modüller + yaprak-dosya sinyali; `touch` ile modül hafızasını çapraz-referanslar.
+  Döngü-güvenli BFS. `--json`. **MCP `brain_impact`**.
+- `query/impact.mjs` (saf `computeImpact`/`resolveFileNode`/`formatImpact`).
+- **`hotspot`** — tehlike bölgesi füzyonu: `score = churn × (1 + bağımlı) + 2 × açık_modül_bug`.
+  Git churn + import-grafı merkeziliği + modül bug yoğunluğu birleşir; şeffaf/ayarlanabilir
+  ağırlıklar. churn=0 & bug=0 dosyalar elenir. **MCP `brain_hotspot`**. `query/hotspot.mjs`.
+- _Sonraki:_ sembol-seviyesi call-graph, katman-ihlali kuralları, PostEdit graf-delta.
+
+### Faz: Active Memory (tamamlandı)
+
+### Eklendi
+- **`brief`** — oturum-açılışı "neredeyiz" özeti: aktif kritik/yüksek bug + aktif
+  kararlar + son dokunulan kalemler + **park (queued) faz kuyruğu** + git sinyali
+  (son N günde değişen dosya/modül). `--module --days N --json --no-git`.
+  SessionStart hook'unun çağıracağı temel komut.
+- **MCP `brain_brief`** aracı — Claude oturum başında tek çağrıyla brief çeker (saf-hafıza).
+- `query/brief.mjs` — saf `compileBrief()` + `formatBrief()` (I/O'suz, test edilebilir).
+- **`touch <dosya>`** — Edit ÖNCESİ ilgili hafıza: dosyaya doğrudan bağlı + modülünün
+  kararları (ihlal etme) ve bug'ları (çözülmüş "yara izi" dahil, açık olanlar önce).
+  PreToolUse(Edit) hook'unun çağıracağı komut. `--module --json --limit`.
+- **MCP `brain_touch`** aracı + `query/touch.mjs` (saf `compileTouch()`/`formatTouch()`).
+- **`ownerOfConfigured()`** — config'teki `module_paths`'i nihayet okur (vaat edilmişti);
+  en uzun prefix kazanır, yoksa hardcoded kurallara düşer (mevcut `ownerOf` korunur).
+- **`capture`** — git commit'lerinden aday bug/karar **önerir** (write-back). Yüksek-precision
+  sınıflama: `fix:` → çözülmüş bug, `refactor/perf:` → karar, `feat/chore/merge/release` →
+  atla. Dry-run varsayılan; `--apply` yazar. Hash ile dedup (commit iki kez yakalanmaz).
+  `fix` commit'leri Faz: Bug Signatures için tohum (geçmiş hata şekilleri).
+- `query/capture.mjs` (saf `classifyCommit`/`proposeFromCommits`/`dominantModule`) +
+  `getRecentCommits()` git helper'ı.
+
+### Değişti
+- Git aktivite helper'ları `query/git-activity.mjs`'e çıkarıldı; `stale` + `brief` + `capture` paylaşır (DRY).
+
+### Test
+- 64 → **89 test** (brief + touch + capture çekirdeği, TR-eklemeli sınıflama, prefix
+  önceliği, hash dedup, modül çözümü, git sinyali, MCP brain_brief/brain_touch).
+
 ## [1.0.0] — 2026-06-18 — "Dünya klasmanı"
 
 Bağımsız proje hafızası + bilgi ağı + kod graf analizi. Saf-Node, sıfır bağımlılık.

@@ -3,34 +3,11 @@
 // SessionStart hook'unda kullanilmak uzere lightweight: hicbir sey yoksa cikis 0 ve sessiz.
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
-import { execSync } from "node:child_process";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
+import { getRecentChangedFiles, getRecentCommitTitles } from "../query/git-activity.mjs";
 
 const OPEN_STATUSES = new Set(["in_progress", "open", "active", "queued"]);
 const CLOSED_STATUSES = new Set(["done", "closed", "completed", "rejected", "archived"]);
-
-function getRecentChangedFiles(projectRoot, days) {
-  try {
-    const out = execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --name-only --pretty=format:`,
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
-    );
-    return new Set(out.split("\n").map(s => s.trim()).filter(Boolean));
-  } catch {
-    return new Set();
-  }
-}
-
-function getRecentCommitTitles(projectRoot, days) {
-  try {
-    return execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --pretty=format:%s`,
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
-    ).toLowerCase();
-  } catch {
-    return "";
-  }
-}
 
 export async function staleCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());

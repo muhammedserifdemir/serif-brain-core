@@ -42,6 +42,18 @@ serif-brain context              # aktif iş bağlamı (Claude için)
 | `stale` | Açık kalemleri son commit aktivitesine göre tara |
 | `rebuild-indexes` | Tüm indexleri yeniden üret |
 | `search` | Yapısal + tam-metin arama (`--type --status --priority --module --tag --json`) |
+| `brief` | Oturum-açılışı "neredeyiz" özeti: aktif bug/karar + son dokunulan + park kuyruğu (`--module --days N --json`) |
+| `guard` | **Edit-öncesi birleşik brifing** (tek çağrı = touch+impact+risk+lint): verdict + kararlar + blast + imza (`<dosya> --json`) |
+| `touch` | Bir dosyaya dokunmadan önce ilgili hafıza: o dosya/modülün karar + bug'ları (`<dosya> --module --json`) |
+| `capture` | Git commit'lerinden aday bug/karar öner (write-back). Dry-run; `--apply` yazar (`--days N --json`) |
+| `impact` | Canlı blast-radius: bir dosyayı değiştirirsem ne kırılır (geçişli bağımlılar + etkilenen modül + hafıza) (`<dosya> --json`) |
+| `hotspot` | Tehlike bölgesi: git churn × merkezilik + modül bug yoğunluğu füzyonu (`--days N --limit N --json`) |
+| `layers` | Mimari katman ihlalleri (config `layer_rules`: `ui→db` yasak gibi); ihlalde exit 2 |
+| `check` | PostEdit graf sağlığı (tek dosya): katman ihlali + döngü + god-file (`<dosya> --json`) |
+| `lint` | Projeye-özel bug imza linter (config `bug_signatures`); eşleşmede exit 2 (`[dosya...] --json`) |
+| `risk` | Tek dosya edit-anı risk skoru: churn+merkezilik+bug+imza füzyonu (`<dosya> --json`) |
+| `cluster` | Bug'ları benzerliğe göre grupla — olası aynı-kök-neden kümeleri (`--threshold N --json`) |
+| `review` | Pre-commit kapı: değişen dosyalarda `check`+`lint`; sorunda exit 2 (`--ref --json`) |
 | `mcp` | MCP sunucusu (stdio) — Claude Code entegrasyonu (bkz. `docs/MCP.md`) |
 | `scan code` | Dosya/import/TODO tarayıcı |
 | `graph build\|report\|viewer` | Kod grafı + 11 mimari bulgu + etkileşimli HTML görüntüleyici |
@@ -49,6 +61,11 @@ serif-brain context              # aktif iş bağlamı (Claude için)
 | `context` | Claude bağlamı üret (`--module`) |
 | `migrate` | Legacy YAML/Obsidian/Graphify ingest (dry-run/apply) |
 | `hooks` | Hook migration plan/apply |
+
+## Kullanım kılavuzu
+
+Yeni proje başlangıcı, devam eden projede oturum döngüsü, çoklu-Claude eşzamanlılığı
+ve komut refleksleri için **[docs/USAGE.md](docs/USAGE.md)**.
 
 ## MCP (AI entegrasyonu)
 

@@ -109,6 +109,20 @@ function buildConfig(projectRoot, storeEngine, projects, { custom = false } = {}
     `  closed: done`,
     `  planned: queued`,
     ``,
+    `# ── Faz 2-3: graf analizi & bug yakalama (opsiyonel — yorumu kaldirip doldur) ──`,
+    `# Dosya yolu -> modul eslemesi (en uzun prefix kazanir). touch/impact/risk/guard kullanir.`,
+    `# module_paths:`,
+    `#   "src/ui/": ui`,
+    `#   "src/db/": db`,
+    ``,
+    `# Mimari katman kurallari — layers/review ihlalde exit 2 verir; '*' joker.`,
+    `# layer_rules:`,
+    `#   - { from: ui, to: db, reason: "UI veriye dogrudan dokunmasin, servis katmani kullan" }`,
+    ``,
+    `# Projeye-ozel bug imzalari — lint/review tarar (gecmis hatalarin 'sekli', regex).`,
+    `# bug_signatures:`,
+    `#   - { name: rls-eksik, pattern: "create table", message: "Yeni tabloda RLS?", severity: high }`,
+    ``,
     // module_normalization yalniz serif-platform default'unda anlamli;
     // custom projelerde atlanir (bos inline map {} config parser'i kirar)
     ...(custom ? [] : [

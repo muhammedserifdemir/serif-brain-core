@@ -4,10 +4,15 @@
 //   - key: "quoted string" (' veya ")
 //   - key: [a, b, c] inline array
 //   - key:\n  - item1\n  - item2 block array
-//   - key:\n  subkey: val nested object (max 2 level)
+//   - key:\n  subkey: val nested object (parseBlock ozyinelemeli — cok-seviye calisir)
+//   - key: | / key: > block scalar (literal/folded, chomp -/+; collapseBlockScalars on-gecisi)
+//   - cok-satirli string serialize → tirnakli (escaped) round-trip
 //   - # comment (line-tail veya tam satir)
 //   - --- delimiter (frontmatter sinirlari)
-// Desteklenmeyen: multi-line strings, block scalars (|, >), anchors, tags.
+// Desteklenmeyen: anchors, tags, liste-ogesi-ICINDE nested object serialize'i
+//   (serializeInline THROW eder — SESSIZ degil), tab girinti (parse THROW eder).
+//   GARANTI: desteklenmeyen girdi sessizce KAYBETMEZ, sesli hata verir.
+//   (Bkz. test/faz17-yaml-roundtrip + faz20-block-scalar — fail-loud + block scalar sozlesmesi.)
 
 const NULL_TOKENS = new Set(["~", "null", "Null", "NULL", ""]);
 const TRUE_TOKENS = new Set(["true", "True", "TRUE", "yes", "Yes", "YES"]);
@@ -105,8 +110,54 @@ function getIndent(line) {
   return n;
 }
 
+// Block scalar (| literal, > folded) ON-GECISI: `key: |` / `key: >` bloklarini
+// TEK satirlik quoted scalar'a cevirir. Boylece cekirdek parser'a (parseDict/List)
+// hic dokunmadan multi-line deger desteklenir; herhangi bir indent seviyesinde calisir.
+// Chomp: default/'-' clip (sondaki newline'lar kirpilir), '+' korunur.
+function collapseBlockScalars(text) {
+  const lines = text.split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\s*)([^:#\n]+):[ \t]*([|>])([-+]?)[ \t]*(#.*)?$/);
+    if (!m) { out.push(lines[i]); continue; }
+
+    const indent = m[1].length, key = m[2], style = m[3], chomp = m[4];
+    const block = [];
+    let j = i + 1;
+    while (j < lines.length) {
+      const l = lines[j];
+      if (l.trim() === "") { block.push(""); j++; continue; }
+      if (getIndent(l) > indent) { block.push(l); j++; continue; }
+      break;
+    }
+    if (!block.length) { out.push(lines[i]); continue; } // bos blok → dokunma
+
+    const nonBlank = block.filter((b) => b.trim() !== "");
+    const minIndent = nonBlank.length ? Math.min(...nonBlank.map(getIndent)) : indent + 1;
+    const content = block.map((b) => (b.trim() === "" ? "" : b.slice(minIndent)));
+
+    let value;
+    if (style === "|") {
+      value = content.join("\n");
+    } else {
+      // folded: bos satirla ayrilmis paragraflar; paragraf-ici satirlar bosluk ile birlesir.
+      const paras = []; let cur = [];
+      for (const c of content) { if (c === "") { paras.push(cur.join(" ")); cur = []; } else cur.push(c); }
+      paras.push(cur.join(" "));
+      value = paras.join("\n");
+    }
+    value = value.replace(/\n*$/, ""); // clip (sondaki bos satirlari kirp)
+    if (chomp === "+") value += "\n";  // keep: tek trailing newline
+
+    out.push(`${m[1]}${key}: ${JSON.stringify(value)}`);
+    i = j - 1;
+  }
+  return out.join("\n");
+}
+
 export function parseYaml(text) {
-  const rawLines = text.split("\n");
+  // Block scalar'lari once tek-satir quoted scalar'a indir (cekirdek parser degismez).
+  const rawLines = collapseBlockScalars(text).split("\n");
   // Yorum + bos satir + delimiter temizle
   const lines = rawLines
     .map((l, i) => ({ raw: l, line: stripComment(l), n: i + 1 }))
@@ -271,7 +322,9 @@ function serializeScalar(v) {
   if (typeof v === "string") {
     if (v === "") return '""';
     // Quote if contains special chars, leading/trailing space, or YAML keywords
-    if (/^(true|false|null|yes|no|~)$/i.test(v) || /^-?\d/.test(v) || /[:#\[\]\{\},&*!|>'"%@`]/.test(v) || /^\s|\s$/.test(v)) {
+    // Kontrol karakteri (\n \r \t) iceren string'i de tirnakla → cok-satirli string
+    // tek satira (escaped) serialize edilir, parseScalar geri cozer (round-trip korunur).
+    if (/^(true|false|null|yes|no|~)$/i.test(v) || /^-?\d/.test(v) || /[:#\[\]\{\},&*!|>'"%@`]/.test(v) || /^\s|\s$/.test(v) || /[\n\r\t]/.test(v)) {
       return JSON.stringify(v);
     }
     return v;
