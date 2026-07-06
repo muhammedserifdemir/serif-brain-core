@@ -4,6 +4,20 @@ Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
 ## [Unreleased]
 
+### Dashboard — çok-brain yönetici paneli (`serif-brain dashboard`)
+- **Yeni komut** `dashboard build|add|scan|list|archive|rm` (`src/dashboard/` + `cli/dashboard.mjs`).
+  Tüm `.serif-brain` kurulu projeleri tek **statik HTML** yönetici panelinde toplar: % done halkası,
+  son git aktivitesi, port, kopyalanır çalıştırma komutu, açık/biten/kritik sayıları, biten işler
+  listesi, arşiv/iptal bölümü. Açık tema, sıfır bağımlılık.
+- **Merkezi registry** `~/.serif-brain-registry.json` (env `SERIF_BRAIN_REGISTRY`) — izlenen brain'ler
+  + kullanıcı override'ları (port/run/live/progressTarget/note/archived). Brain objelerine DOKUNMAZ.
+- **Otomatik tespit** (`detect.mjs`) — port (dev script > .env, db portları ayıklanır), çalıştırma
+  komutu, prereq (pg/redis), son git aktivitesi paket.json/.env/git'ten tohumlanır.
+- **Status normalizasyonu** (`normalize.mjs`) — tutarsız status'lar (active/done/in-progress/...) 4
+  kovaya iner (done/open/blocked/dropped); % = done/(done+open+blocked), sadece bug+decision. Tutarsız
+  brain'ler için "status bakımı gerek" uyarısı + `--progress` manuel hedef override.
+- 8 yeni test (`test/dashboard.test.mjs`); toplam 164 geçer.
+
 ### YAML — block scalar okuma + çok-satırlı string
 - **Block scalar desteği** (`|` literal, `>` folded, chomp `-`/`+`) — `collapseBlockScalars`
   ön-geçişi block'u tek-satır quoted scalar'a indirir; çekirdek parser değişmez, her indent

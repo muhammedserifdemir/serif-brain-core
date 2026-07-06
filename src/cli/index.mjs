@@ -28,6 +28,7 @@ import { guardCommand } from "./guard.mjs";
 import { mcpCommand } from "./mcp.mjs";
 import { relatedCommand } from "./related.mjs";
 import { pruneCommand } from "./prune.mjs";
+import { dashboardCommand } from "./dashboard.mjs";
 
 const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
@@ -58,6 +59,7 @@ const COMMANDS = {
   review:  { handler: reviewCommand,    help: "Pre-commit kapi: degisen dosyalarda check (katman/dongu/god) + lint (imza). Sorun varsa exit 2 (--ref --json)" },
   related: { handler: relatedCommand,  help: "Bir objeye otomatik kesfedilen iliskili objeler (modul/etiket/metin benzerligi) <id> --limit --json" },
   prune:   { handler: pruneCommand,    help: "Stale + otomasyon churn objelerini guvenle arsivle (dry-run; --apply, --days N)" },
+  dashboard:{ handler: dashboardCommand, help: "Cok-brain yonetici paneli: statik HTML uret (build|add <yol>|scan|list|archive|rm). Tum projelerin durumu/port/calistirma/biten isler" },
   mcp:     { handler: mcpCommand,       help: "MCP sunucusu (stdio/JSON-RPC) — Claude Code brain'i canli okur (brain_search/get/context/related)" },
   archive: { handler: stubCommand("archive", "Faz 1 kapsami — su an manuel apply ile yapildi") },
   ingest:  { handler: stubCommand("ingest",  "Faz 5 — legacy kaynaklari oku, normalize et") },
@@ -77,7 +79,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "dashboard", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Aktif komutlar (Faz 2-8):`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);

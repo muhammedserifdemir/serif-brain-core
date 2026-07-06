@@ -1,0 +1,143 @@
+// serif-brain dashboard — tüm brain'leri tarayıp tek statik HTML yönetici paneli üretir.
+// Alt komutlar: build (varsayılan) | add <yol> | scan [dir] | list | archive <ad> | rm <ad>
+import { writeFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join, resolve, basename } from "node:path";
+import { homedir } from "node:os";
+import { execFile } from "node:child_process";
+import { loadRegistry, saveRegistry, upsertBrain, findBrain, brainRootOf, repoOf } from "../dashboard/registry.mjs";
+import { detectProject } from "../dashboard/detect.mjs";
+import { collectAll } from "../dashboard/collect.mjs";
+import { renderDashboard } from "../dashboard/render.mjs";
+
+function defaultOut() {
+  return process.env.SERIF_BRAIN_DASHBOARD_OUT || join(homedir(), "Desktop", "serif-brain-dashboard.html");
+}
+
+// Bir kök altında (maxdepth 4) tüm .serif-brain dizinlerini bul
+function findBrains(root, depth = 0, acc = []) {
+  if (depth > 4 || !existsSync(root)) return acc;
+  let entries;
+  try { entries = readdirSync(root, { withFileTypes: true }); } catch { return acc; }
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    if (e.name === ".serif-brain") { acc.push(join(root, e.name)); continue; }
+    if (e.name === "node_modules" || e.name.startsWith(".") || e.name === "dist" || e.name === "build") continue;
+    findBrains(join(root, e.name), depth + 1, acc);
+  }
+  return acc;
+}
+
+function buildHtml(flags) {
+  const reg = loadRegistry();
+  if (!reg.brains.length) {
+    console.log(`[dashboard] Registry boş. Önce ekle: 'serif-brain dashboard add <yol>' veya 'dashboard scan'`);
+    return 1;
+  }
+  const data = collectAll(reg, Date.now());
+  const html = renderDashboard(data);
+  const out = resolve(flags.out || defaultOut());
+  writeFileSync(out, html);
+  console.log(`[dashboard] ${data.active.length} aktif + ${data.archived.length} arşiv proje → ${out}`);
+  for (const p of data.active) {
+    const pct = p.percent == null ? "  —" : `${String(p.percent).padStart(3)}%`;
+    console.log(`  ${pct}  ${p.name.padEnd(22)} ${p.last.padEnd(5)} ${(p.port || "—").padEnd(12)} ${p.error ? "⚠ " + p.error : ""}`);
+  }
+  if (flags.open) execFile("open", [out], () => {});
+  return 0;
+}
+
+function cmdAdd(repoArg, flags) {
+  if (!repoArg) { console.error("[dashboard add] kullanım: dashboard add <proje-yolu>"); return 1; }
+  const brainRoot = brainRootOf(repoArg);
+  if (!existsSync(brainRoot)) { console.error(`[dashboard add] brain yok: ${brainRoot} — önce 'serif-brain init'`); return 1; }
+  const repo = repoOf(brainRoot);
+  const det = detectProject(repo);
+  const reg = loadRegistry();
+  const override = {};
+  if (flags.port) override.port = String(flags.port);
+  if (flags.run) override.run = String(flags.run);
+  if (flags.live) override.liveUrl = String(flags.live);
+  if (flags.progress) override.progressTarget = parseInt(flags.progress, 10);
+  if (flags.note) override.note = String(flags.note);
+  const entry = upsertBrain(reg, {
+    repo,
+    name: flags.name ? String(flags.name) : (det.name || basename(repo)),
+    archived: !!flags.archived,
+    override,
+  });
+  saveRegistry(reg);
+  console.log(`[dashboard add] eklendi: ${entry.name}`);
+  console.log(`  repo:    ${repo}`);
+  console.log(`  port:    ${override.port || det.port}  (oto)`);
+  console.log(`  çalıştır: ${override.run || det.run || "—"}  (oto)`);
+  if (det.prereqs.length) console.log(`  prereq:  ${det.prereqs.join(", ")}  (oto)`);
+  console.log(`  Override için: dashboard add ${repo} --port 3001 --run "next dev -p 3001" --live x.com --progress 60 --note "..."`);
+  return 0;
+}
+
+function cmdScan(dirArg) {
+  const root = resolve(dirArg || join(homedir(), "Desktop"));
+  const brains = findBrains(root);
+  const reg = loadRegistry();
+  let added = 0;
+  for (const b of brains) {
+    const repo = repoOf(b);
+    const det = detectProject(repo);
+    const existed = !!findBrain(reg, repo);
+    upsertBrain(reg, { repo, name: det.name || basename(repo) });
+    if (!existed) added++;
+    console.log(`  ${existed ? "·" : "+"} ${basename(repo)}`);
+  }
+  saveRegistry(reg);
+  console.log(`[dashboard scan] ${root} → ${brains.length} brain bulundu, ${added} yeni eklendi.`);
+  return 0;
+}
+
+function cmdList() {
+  const reg = loadRegistry();
+  if (!reg.brains.length) { console.log("[dashboard] registry boş."); return 0; }
+  for (const b of reg.brains) {
+    const flags = [b.archived ? "arşiv" : "aktif", ...(b.override?.progressTarget != null ? [`hedef:${b.override.progressTarget}%`] : [])];
+    console.log(`  ${(b.name || basename(b.repo)).padEnd(24)} [${flags.join(", ")}]  ${b.repo}`);
+  }
+  return 0;
+}
+
+function cmdArchive(nameArg, flags, archived = true) {
+  const reg = loadRegistry();
+  const b = findBrain(reg, nameArg);
+  if (!b) { console.error(`[dashboard] bulunamadı: ${nameArg}`); return 1; }
+  b.archived = archived;
+  if (flags.reason) { b.archiveReason = String(flags.reason); }
+  saveRegistry(reg);
+  console.log(`[dashboard] ${b.name} → ${archived ? "arşiv" : "aktif"}${flags.reason ? " (" + flags.reason + ")" : ""}`);
+  return 0;
+}
+
+function cmdRm(nameArg) {
+  const reg = loadRegistry();
+  const before = reg.brains.length;
+  reg.brains = reg.brains.filter((b) => !(findBrain({ brains: [b] }, nameArg)));
+  saveRegistry(reg);
+  console.log(`[dashboard] ${before - reg.brains.length} kayıt silindi.`);
+  return 0;
+}
+
+export async function dashboardCommand({ args, subcommand }) {
+  const sub = subcommand[0];
+  const rest = subcommand.slice(1);
+  const f = args.flags;
+  switch (sub) {
+    case undefined:
+    case "build": return buildHtml(f);
+    case "add":   return cmdAdd(rest[0], f);
+    case "scan":  return cmdScan(rest[0]);
+    case "list":  return cmdList();
+    case "archive": return cmdArchive(rest[0], f, true);
+    case "unarchive": return cmdArchive(rest[0], f, false);
+    case "rm":    return cmdRm(rest[0]);
+    default:
+      console.error(`[dashboard] bilinmeyen alt komut: ${sub} (build|add|scan|list|archive|unarchive|rm)`);
+      return 1;
+  }
+}

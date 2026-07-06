@@ -11,6 +11,7 @@
     "bin/",
     "src/",
     "templates/",
+    "skill/",
     "README.md",
     "CHANGELOG.md",
     "ROADMAP.md",

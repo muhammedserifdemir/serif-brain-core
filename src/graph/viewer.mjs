@@ -129,14 +129,31 @@ function renderViewerHtml(graph) {
     }
     .row:hover { color: var(--accent); }
     .row small { display: block; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    svg { width: 100%; height: 100%; display: block; }
-    .edge { stroke: rgba(154, 164, 190, 0.22); stroke-width: 1; }
-    .edge.hot { stroke: rgba(52, 213, 255, 0.52); stroke-width: 1.6; }
-    .node { cursor: pointer; }
-    .node circle { stroke: rgba(255,255,255,0.55); stroke-width: 1; }
-    .node text { fill: var(--text); paint-order: stroke; stroke: rgba(7,9,18,0.92); stroke-width: 4px; font-size: 10px; pointer-events: none; }
-    .node.dim { opacity: 0.18; }
-    .edge.dim { opacity: 0.06; }
+    canvas#graph {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas#graph.grabbing { cursor: grabbing; }
+    canvas#graph.pointing { cursor: pointer; }
+    #tooltip {
+      position: fixed;
+      z-index: 5;
+      pointer-events: none;
+      display: none;
+      max-width: 280px;
+      padding: 7px 10px;
+      background: rgba(9, 13, 24, 0.95);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    #tooltip b { color: var(--accent); }
+    #tooltip small { display: block; color: var(--muted); margin-top: 2px; }
     .toolbar {
       position: absolute;
       top: 12px;
@@ -163,6 +180,7 @@ function renderViewerHtml(graph) {
       color: var(--text);
       padding: 0 10px;
       cursor: pointer;
+      pointer-events: auto;
     }
     button:hover { border-color: var(--accent); color: var(--accent); }
     .details { padding: 16px; }
@@ -219,10 +237,11 @@ function renderViewerHtml(graph) {
     </aside>
     <main>
       <div class="toolbar">
-        <div class="badge" id="viewportLabel">Drag canvas. Click a node.</div>
+        <div class="badge" id="viewportLabel">Scroll = zoom · drag node = physics · drag bg = pan</div>
         <button id="reset">Reset View</button>
       </div>
-      <svg id="graph" role="img" aria-label="Serif Brain graph visualization"></svg>
+      <canvas id="graph" role="img" aria-label="Serif Brain graph visualization"></canvas>
+      <div id="tooltip"></div>
     </main>
     <aside class="right">
       <header>
@@ -237,7 +256,8 @@ function renderViewerHtml(graph) {
     const colors = {
       project: "#ffffff", module: "#34d5ff", file: "#8fb3ff", component: "#c792ea",
       route: "#ffcc66", api: "#ff9f68", bug: "#ff657a", decision: "#42d392",
-      task: "#f78fb3", concept: "#7bdff2", dependency: "#b8c0d9", session: "#a3e635"
+      task: "#f78fb3", concept: "#7bdff2", dependency: "#b8c0d9", session: "#a3e635",
+      note: "#7bdff2"
     };
     const moduleColors = {
       contentx: "#4cc9f0", presentx: "#80ed99", animatorx: "#ffd166", studiox: "#c77dff",
@@ -245,21 +265,32 @@ function renderViewerHtml(graph) {
       auth: "#a7f3d0", billing: "#fdba74", unknown: "#94a3b8"
     };
 
-    const state = {
-      q: "", type: "all", module: "all", selected: null,
-      zoom: 1, tx: 0, ty: 0, dragging: false, dragStart: null
-    };
-
-    const nodes = GRAPH.nodes.map((n, i) => ({ ...n, idx: i }));
+    // ----- data -----
+    const nodes = GRAPH.nodes.map((n, i) => ({ ...n, idx: i, x: 0, y: 0, vx: 0, vy: 0, fx: null, fy: null }));
     const edges = GRAPH.edges;
     const byId = new Map(nodes.map(n => [n.id, n]));
+
+    // resolved links (node refs), used by sim + render
+    const links = [];
+    for (const e of edges) {
+      const s = byId.get(e.source), t = byId.get(e.target);
+      if (s && t && s !== t) links.push({ s, t, type: e.type, raw: e });
+    }
+    // adjacency + degree
+    const adj = new Map();
+    const deg = new Map();
+    for (const n of nodes) deg.set(n, 0);
+    function addAdj(a, b) { let s = adj.get(a); if (!s) { s = new Set(); adj.set(a, s); } s.add(b); }
+    for (const L of links) {
+      addAdj(L.s.id, L.t.id); addAdj(L.t.id, L.s.id);
+      deg.set(L.s, deg.get(L.s) + 1); deg.set(L.t, deg.get(L.t) + 1);
+    }
 
     function shortLabel(n) {
       if (n.label) return n.label;
       if (n.path) return n.path.split("/").slice(-2).join("/");
       return n.id.replace(/^(file|module|bug|decision|component|route):/, "");
     }
-
     function moduleOf(n) {
       if (n.module) {
         const value = Array.isArray(n.module) ? n.module[0] : n.module;
@@ -271,7 +302,6 @@ function renderViewerHtml(graph) {
       }
       return "unknown";
     }
-
     function nodeSize(n) {
       if (n.type === "project") return 15;
       if (n.type === "module") return 12;
@@ -281,99 +311,509 @@ function renderViewerHtml(graph) {
       if (n.type === "component") return 6;
       return 4.5;
     }
-
     function colorOf(n) {
       if (n.type === "file" || n.type === "route" || n.type === "component") {
         return moduleColors[moduleOf(n)] || colors[n.type] || "#9aa4be";
       }
       return colors[n.type] || "#9aa4be";
     }
-
-    function seedLayout() {
-      const modules = [...new Set(nodes.map(moduleOf))].sort();
-      const moduleIndex = new Map(modules.map((m, i) => [m, i]));
-      const W = 1400, H = 1000;
-      for (const n of nodes) {
-        const mi = moduleIndex.get(moduleOf(n)) || 0;
-        const ring = mi / Math.max(1, modules.length);
-        const base = ring * Math.PI * 2;
-        const hash = hashCode(n.id);
-        const r = 120 + (Math.abs(hash) % 390);
-        const jitter = ((hash % 1000) / 1000 - 0.5) * 0.9;
-        n.x = W / 2 + Math.cos(base + jitter) * r + ((hash >> 3) % 90);
-        n.y = H / 2 + Math.sin(base + jitter) * r + ((hash >> 5) % 90);
-      }
-    }
-
     function hashCode(str) {
       let h = 0;
       for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
       return h;
     }
 
+    // ----- filter state -----
+    const filter = { q: "", type: "all", module: "all" };
+    let visibleSet = new Set();
+    let visibleLinks = [];
+
     function pass(n) {
-      const q = state.q.toLowerCase();
-      const hay = [n.id, n.label, n.path, n.title, n.type, moduleOf(n)].filter(Boolean).join(" ").toLowerCase();
-      if (q && !hay.includes(q)) return false;
-      if (state.type !== "all" && n.type !== state.type) return false;
-      if (state.module !== "all" && moduleOf(n) !== state.module) return false;
+      const q = filter.q.toLowerCase();
+      if (q) {
+        const hay = [n.id, n.label, n.path, n.title, n.type, moduleOf(n)].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filter.type !== "all" && n.type !== filter.type) return false;
+      if (filter.module !== "all" && moduleOf(n) !== filter.module) return false;
       return true;
     }
-
-    function visibleSets() {
-      const visible = new Set(nodes.filter(pass).map(n => n.id));
-      const visibleEdges = edges.filter(e => visible.has(e.source) && visible.has(e.target));
-      return { visible, visibleEdges };
+    function applyFilter() {
+      visibleSet = new Set();
+      for (const n of nodes) if (pass(n)) visibleSet.add(n);
+      visibleLinks = links.filter(L => visibleSet.has(L.s) && visibleSet.has(L.t));
+      document.getElementById("visibleCount").textContent = visibleSet.size;
+      wake();
     }
 
-    function render() {
-      const svg = document.getElementById("graph");
-      const { visible, visibleEdges } = visibleSets();
-      document.getElementById("visibleCount").textContent = visible.size;
-      svg.innerHTML = "";
-      const g = el("g", { transform: \`translate(\${state.tx} \${state.ty}) scale(\${state.zoom})\` });
-      const edgeLayer = el("g", {});
-      const nodeLayer = el("g", {});
-      const selected = state.selected;
-      const neighbors = selected ? new Set([selected]) : null;
-      if (selected) {
-        for (const e of edges) {
-          if (e.source === selected) neighbors.add(e.target);
-          if (e.target === selected) neighbors.add(e.source);
+    // ----- seed layout (phyllotaxis, centered at origin) -----
+    function seedPositions() {
+      const golden = Math.PI * (3 - Math.sqrt(5));
+      nodes.forEach((n, i) => {
+        const r = 16 * Math.sqrt(i + 0.5);
+        const a = i * golden;
+        n.x = Math.cos(a) * r;
+        n.y = Math.sin(a) * r;
+        n.vx = 0; n.vy = 0; n.fx = null; n.fy = null;
+      });
+    }
+
+    // ===== Force simulation (self-contained, Barnes-Hut quadtree) =====
+    const VELOCITY_DECAY = 0.6;
+    const ALPHA_DECAY = 0.0228;
+    const ALPHA_MIN = 0.0016;
+    const CHARGE = -54;       // many-body repulsion (negative)
+    const DMAX = 440;         // charge interaction cutoff (world)
+    const DMAX2 = DMAX * DMAX;
+    const MIND2 = 16;         // min squared distance clamp
+    const THETA2 = 0.81;      // Barnes-Hut accuracy (theta = 0.9)
+    const LINK_DIST = 36;
+    const GRAVITY = 0.042;    // pull toward origin
+    let alpha = 1;
+    const alphaTarget = 0;
+
+    function mkq(x0, y0, x1, y1) { return { x0, y0, x1, y1, children: null, points: null, mass: 0, cx: 0, cy: 0 }; }
+    function subdiv(q) {
+      const mx = (q.x0 + q.x1) / 2, my = (q.y0 + q.y1) / 2;
+      q.children = [mkq(q.x0, q.y0, mx, my), mkq(mx, q.y0, q.x1, my), mkq(q.x0, my, mx, q.y1), mkq(mx, my, q.x1, q.y1)];
+    }
+    function qput(q, p, depth) {
+      const mx = (q.x0 + q.x1) / 2, my = (q.y0 + q.y1) / 2;
+      const i = (p.x >= mx ? 1 : 0) + (p.y >= my ? 2 : 0);
+      qinsert(q.children[i], p, depth + 1);
+    }
+    function qinsert(q, p, depth) {
+      if (q.children) { qput(q, p, depth); return; }
+      if (!q.points) { q.points = [p]; return; }
+      if (depth >= 22) { q.points.push(p); return; } // coincident-point guard
+      const pts = q.points; q.points = null; subdiv(q);
+      for (const o of pts) qput(q, o, depth);
+      qput(q, p, depth);
+    }
+    function qaccum(q) {
+      q.mass = 0; let cx = 0, cy = 0;
+      if (q.children) {
+        for (const c of q.children) { qaccum(c); if (c.mass) { q.mass += c.mass; cx += c.cx * c.mass; cy += c.cy * c.mass; } }
+      } else if (q.points) {
+        for (const p of q.points) { q.mass++; cx += p.x; cy += p.y; }
+      }
+      if (q.mass) { q.cx = cx / q.mass; q.cy = cy / q.mass; }
+    }
+    function qapply(q, n, a) {
+      if (!q.mass) return;
+      const dx = q.cx - n.x, dy = q.cy - n.y;
+      let d2 = dx * dx + dy * dy;
+      const w = q.x1 - q.x0;
+      if (q.children && (w * w > THETA2 * d2)) {
+        qapply(q.children[0], n, a); qapply(q.children[1], n, a);
+        qapply(q.children[2], n, a); qapply(q.children[3], n, a);
+        return;
+      }
+      if (q.points) {
+        for (const p of q.points) {
+          if (p === n) continue;
+          let ex = p.x - n.x, ey = p.y - n.y, e2 = ex * ex + ey * ey;
+          if (e2 > DMAX2) continue;
+          if (e2 < MIND2) {
+            if (ex === 0 && ey === 0) { ex = ((hashCode(p.id) % 21) - 10) * 0.05; ey = ((hashCode(n.id) % 21) - 10) * 0.05; }
+            e2 = MIND2;
+          }
+          const f = CHARGE * a / e2;
+          n.vx += ex * f; n.vy += ey * f;
         }
+        return;
       }
-      for (const e of visibleEdges) {
-        const s = byId.get(e.source), t = byId.get(e.target);
-        if (!s || !t) continue;
-        const hot = selected && (e.source === selected || e.target === selected);
-        const dim = selected && !hot;
-        edgeLayer.appendChild(el("line", {
-          class: "edge" + (hot ? " hot" : "") + (dim ? " dim" : ""),
-          x1: s.x, y1: s.y, x2: t.x, y2: t.y
-        }));
-      }
+      if (d2 > DMAX2) return;
+      if (d2 < MIND2) d2 = MIND2;
+      const f = CHARGE * q.mass * a / d2;
+      n.vx += dx * f; n.vy += dy * f;
+    }
+    function manyBody(a) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const n of nodes) {
-        const isVisible = visible.has(n.id);
-        if (!isVisible) continue;
-        const dim = selected && !neighbors.has(n.id);
-        const group = el("g", { class: "node" + (dim ? " dim" : ""), transform: \`translate(\${n.x} \${n.y})\` });
-        group.appendChild(el("circle", { r: nodeSize(n), fill: colorOf(n) }));
-        if (["project", "module", "bug", "decision", "route"].includes(n.type)) {
-          group.appendChild(el("text", { x: nodeSize(n) + 4, y: 4 }, shortLabel(n).slice(0, 34)));
-        }
-        group.addEventListener("click", evt => {
-          evt.stopPropagation();
-          state.selected = n.id;
-          renderDetails(n);
-          render();
-        });
-        nodeLayer.appendChild(group);
+        if (n.x < x0) x0 = n.x; if (n.x > x1) x1 = n.x;
+        if (n.y < y0) y0 = n.y; if (n.y > y1) y1 = n.y;
       }
-      g.appendChild(edgeLayer);
-      g.appendChild(nodeLayer);
-      svg.appendChild(g);
+      if (!isFinite(x0)) return;
+      const size = Math.max(x1 - x0, y1 - y0, 1);
+      const root = mkq(x0, y0, x0 + size, y0 + size);
+      for (const n of nodes) qinsert(root, n, 0);
+      qaccum(root);
+      for (const n of nodes) qapply(root, n, a);
+    }
+    function linkForce(a) {
+      for (const L of links) {
+        const s = L.s, t = L.t;
+        let dx = (t.x + t.vx) - (s.x + s.vx);
+        let dy = (t.y + t.vy) - (s.y + s.vy);
+        let l = Math.sqrt(dx * dx + dy * dy) || 1e-6;
+        const ds = deg.get(s), dt = deg.get(t);
+        const strength = 1 / Math.min(ds, dt);
+        l = (l - LINK_DIST) / l * a * strength;
+        dx *= l; dy *= l;
+        const bias = ds / (ds + dt);
+        t.vx -= dx * bias; t.vy -= dy * bias;
+        s.vx += dx * (1 - bias); s.vy += dy * (1 - bias);
+      }
+    }
+    function gravityForce(a) {
+      const k = GRAVITY * a;
+      for (const n of nodes) { n.vx += (0 - n.x) * k; n.vy += (0 - n.y) * k; }
+    }
+    function integrate() {
+      for (const n of nodes) {
+        if (n.fx != null) { n.x = n.fx; n.vx = 0; } else { n.vx *= VELOCITY_DECAY; n.x += n.vx; }
+        if (n.fy != null) { n.y = n.fy; n.vy = 0; } else { n.vy *= VELOCITY_DECAY; n.y += n.vy; }
+      }
+    }
+    function tick() {
+      alpha += (alphaTarget - alpha) * ALPHA_DECAY;
+      manyBody(alpha);
+      linkForce(alpha);
+      gravityForce(alpha);
+      integrate();
+      buildGrid();
     }
 
+    // ----- spatial hash grid for hit-testing -----
+    const CELL = 55;
+    let grid = new Map();
+    function gkey(gx, gy) { return gx + "," + gy; }
+    function buildGrid() {
+      grid = new Map();
+      for (const n of nodes) {
+        const gx = Math.floor(n.x / CELL), gy = Math.floor(n.y / CELL);
+        const k = gkey(gx, gy);
+        let a = grid.get(k); if (!a) { a = []; grid.set(k, a); } a.push(n);
+      }
+    }
+    function nodeAt(screenX, screenY) {
+      const wx = (screenX - cam.tx) / cam.zoom, wy = (screenY - cam.ty) / cam.zoom;
+      const gx = Math.floor(wx / CELL), gy = Math.floor(wy / CELL);
+      let best = null, bestD = Infinity;
+      for (let ix = gx - 1; ix <= gx + 1; ix++) {
+        for (let iy = gy - 1; iy <= gy + 1; iy++) {
+          const a = grid.get(gkey(ix, iy)); if (!a) continue;
+          for (const n of a) {
+            if (!visibleSet.has(n)) continue;
+            const dx = n.x - wx, dy = n.y - wy, d = dx * dx + dy * dy;
+            const rad = nodeSize(n) + 5 / cam.zoom;
+            if (d < rad * rad && d < bestD) { bestD = d; best = n; }
+          }
+        }
+      }
+      return best;
+    }
+
+    // ----- camera (target + lerped actual) -----
+    const cam = { tx: 0, ty: 0, zoom: 1 };
+    const camTarget = { tx: 0, ty: 0, zoom: 1 };
+    let userMoved = false;
+    let autoFit = true;
+
+    function boundsAll() {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const src = visibleSet.size ? visibleSet : nodes;
+      for (const n of src) {
+        if (n.x < x0) x0 = n.x; if (n.x > x1) x1 = n.x;
+        if (n.y < y0) y0 = n.y; if (n.y > y1) y1 = n.y;
+      }
+      if (!isFinite(x0)) { x0 = -100; y0 = -100; x1 = 100; y1 = 100; }
+      return { x0, y0, x1, y1 };
+    }
+    function fitTo(b, instant) {
+      const pad = 70;
+      const w = (b.x1 - b.x0) + pad * 2, h = (b.y1 - b.y0) + pad * 2;
+      const z = Math.max(0.05, Math.min(2, Math.min(cssW / w, cssH / h)));
+      const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+      camTarget.zoom = z;
+      camTarget.tx = cssW / 2 - cx * z;
+      camTarget.ty = cssH / 2 - cy * z;
+      if (instant) { cam.zoom = z; cam.tx = camTarget.tx; cam.ty = camTarget.ty; }
+    }
+
+    // ----- focus / hover / selection -----
+    let hoverNode = null;
+    let selectedNode = null;
+    let focusNode = null;
+    let focusNeighbors = new Set();
+    let focusCur = 0, focusTarget = 0;
+    function setFocus() {
+      focusNode = hoverNode || selectedNode;
+      if (focusNode) {
+        focusNeighbors = new Set([focusNode]);
+        const a = adj.get(focusNode.id);
+        if (a) for (const id of a) { const nb = byId.get(id); if (nb) focusNeighbors.add(nb); }
+        focusTarget = 1;
+      } else {
+        focusTarget = 0; // keep focusNeighbors until faded out
+      }
+      wake();
+    }
+
+    // ----- canvas / render -----
+    const main = document.querySelector("main");
+    const canvas = document.getElementById("graph");
+    const ctx = canvas.getContext("2d");
+    const tooltip = document.getElementById("tooltip");
+    let cssW = 800, cssH = 600, dpr = 1;
+
+    function resize() {
+      const rect = main.getBoundingClientRect();
+      cssW = Math.max(1, rect.width); cssH = Math.max(1, rect.height);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      wake();
+    }
+
+    function drawEdges() {
+      const f = focusCur;
+      if (cam.zoom < 0.12 && f < 0.01) return; // too far out, skip edge mush
+      if (f > 0.01) {
+        ctx.lineWidth = 1 / cam.zoom;
+        ctx.strokeStyle = "rgba(154,164,190,1)";
+        ctx.globalAlpha = 0.05 + 0.05 * (1 - f);
+        ctx.beginPath();
+        for (const L of visibleLinks) {
+          if (L.s === focusNode || L.t === focusNode) continue;
+          ctx.moveTo(L.s.x, L.s.y); ctx.lineTo(L.t.x, L.t.y);
+        }
+        ctx.stroke();
+        ctx.lineWidth = 1.7 / cam.zoom;
+        ctx.strokeStyle = "rgba(52,213,255,1)";
+        ctx.globalAlpha = 0.2 + 0.6 * f;
+        ctx.beginPath();
+        for (const L of visibleLinks) {
+          if (L.s === focusNode || L.t === focusNode) { ctx.moveTo(L.s.x, L.s.y); ctx.lineTo(L.t.x, L.t.y); }
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.lineWidth = 1 / cam.zoom;
+        ctx.strokeStyle = "rgba(154,164,190,1)";
+        ctx.globalAlpha = 0.16;
+        ctx.beginPath();
+        for (const L of visibleLinks) { ctx.moveTo(L.s.x, L.s.y); ctx.lineTo(L.t.x, L.t.y); }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function drawNodes() {
+      const f = focusCur;
+      for (const n of nodes) {
+        if (!visibleSet.has(n)) continue;
+        let a = 1;
+        if (f > 0.01) a = focusNeighbors.has(n) ? 1 : (1 - 0.84 * f);
+        ctx.globalAlpha = a;
+        const r = nodeSize(n);
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, 6.283185307179586);
+        ctx.fillStyle = colorOf(n);
+        ctx.fill();
+        if (r >= 6 || (f > 0.01 && n === focusNode)) {
+          ctx.lineWidth = (n === focusNode ? 2 : 1) / cam.zoom;
+          ctx.strokeStyle = n === focusNode ? "rgba(52,213,255,0.95)" : "rgba(255,255,255,0.5)";
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+      drawLabels(f);
+    }
+
+    function drawLabels(f) {
+      const fs = 12 / cam.zoom;
+      ctx.font = fs + "px Inter, ui-sans-serif, system-ui, sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 3.5 / cam.zoom;
+      ctx.lineJoin = "round";
+      const allowTiny = cam.zoom > 1.6 && visibleSet.size < 400;
+      for (const n of nodes) {
+        if (!visibleSet.has(n)) continue;
+        const big = n.type === "project" || n.type === "module";
+        const med = n.type === "bug" || n.type === "decision" || n.type === "route";
+        let show = false;
+        if (n === hoverNode || n === focusNode) show = true;
+        else if (f > 0.5 && focusNeighbors.has(n)) show = true;
+        else if (big && cam.zoom > 0.22) show = true;
+        else if (med && cam.zoom > 0.7) show = true;
+        else if (allowTiny) show = true;
+        if (!show) continue;
+        let a = 1;
+        if (f > 0.01 && !focusNeighbors.has(n)) a = 1 - 0.9 * f;
+        ctx.globalAlpha = a;
+        const r = nodeSize(n);
+        const tx = n.x + r + 4 / cam.zoom, ty = n.y;
+        const text = shortLabel(n).slice(0, 34);
+        ctx.strokeStyle = "rgba(7,9,18,0.92)";
+        ctx.strokeText(text, tx, ty);
+        ctx.fillStyle = "#e8ecf7";
+        ctx.fillText(text, tx, ty);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function draw() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.save();
+      ctx.translate(cam.tx, cam.ty);
+      ctx.scale(cam.zoom, cam.zoom);
+      drawEdges();
+      drawNodes();
+      ctx.restore();
+    }
+
+    // ----- rAF loop (idle = stopped) -----
+    let running = false, rafId = 0;
+    let momX = 0, momY = 0;
+    let dragNode = null, dragging = false, panning = false;
+    let panStart = null, lastPan = null, downNode = null, downPos = null;
+
+    function wake() { if (!running) { running = true; rafId = requestAnimationFrame(frame); } }
+
+    function frame() {
+      const hot = alpha > ALPHA_MIN;
+      if (hot) tick();
+
+      if (autoFit && !userMoved && alpha > 0.12) fitTo(boundsAll(), false);
+
+      if (!panning && (Math.abs(momX) > 0.05 || Math.abs(momY) > 0.05)) {
+        camTarget.tx += momX; camTarget.ty += momY;
+        cam.tx += momX; cam.ty += momY;
+        momX *= 0.9; momY *= 0.9;
+      }
+
+      const e = 0.2;
+      cam.tx += (camTarget.tx - cam.tx) * e;
+      cam.ty += (camTarget.ty - cam.ty) * e;
+      cam.zoom += (camTarget.zoom - cam.zoom) * e;
+
+      focusCur += (focusTarget - focusCur) * 0.18;
+      if (focusTarget === 0 && focusCur < 0.02 && focusNeighbors.size) focusNeighbors = new Set();
+
+      draw();
+      updateBadge();
+
+      const camMoving = Math.abs(camTarget.tx - cam.tx) > 0.3 || Math.abs(camTarget.ty - cam.ty) > 0.3 || Math.abs(camTarget.zoom - cam.zoom) > 0.0005;
+      const focusMoving = Math.abs(focusTarget - focusCur) > 0.01;
+      const momMoving = Math.abs(momX) > 0.05 || Math.abs(momY) > 0.05;
+      if (hot || camMoving || focusMoving || momMoving || dragging) {
+        rafId = requestAnimationFrame(frame);
+      } else {
+        running = false;
+      }
+    }
+
+    function updateBadge() {
+      const label = document.getElementById("viewportLabel");
+      const settling = alpha > 0.05 ? " · settling…" : "";
+      label.textContent = Math.round(cam.zoom * 100) + "% · " + visibleSet.size + " visible" + settling;
+    }
+
+    // ----- pointer / wheel interaction -----
+    function rel(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+    canvas.addEventListener("pointerdown", e => {
+      canvas.setPointerCapture(e.pointerId);
+      const p = rel(e);
+      downPos = p;
+      downNode = nodeAt(p.x, p.y);
+      momX = 0; momY = 0;
+      if (downNode) {
+        dragNode = downNode; dragging = true;
+        dragNode.fx = dragNode.x; dragNode.fy = dragNode.y;
+        alpha = Math.max(alpha, 0.5);
+        canvas.classList.add("grabbing");
+      } else {
+        panning = true;
+        panStart = { tx: camTarget.tx, ty: camTarget.ty, cx: e.clientX, cy: e.clientY };
+        lastPan = { x: e.clientX, y: e.clientY };
+        canvas.classList.add("grabbing");
+      }
+      wake();
+    });
+
+    canvas.addEventListener("pointermove", e => {
+      const p = rel(e);
+      if (dragNode) {
+        userMoved = true; autoFit = false;
+        const wx = (p.x - cam.tx) / cam.zoom, wy = (p.y - cam.ty) / cam.zoom;
+        dragNode.fx = wx; dragNode.fy = wy; dragNode.x = wx; dragNode.y = wy;
+        alpha = Math.max(alpha, 0.3);
+        moveTooltip(e);
+        wake();
+        return;
+      }
+      if (panning) {
+        userMoved = true; autoFit = false;
+        const dx = e.clientX - panStart.cx, dy = e.clientY - panStart.cy;
+        camTarget.tx = panStart.tx + dx; camTarget.ty = panStart.ty + dy;
+        cam.tx = camTarget.tx; cam.ty = camTarget.ty;
+        momX = e.clientX - lastPan.x; momY = e.clientY - lastPan.y;
+        lastPan = { x: e.clientX, y: e.clientY };
+        wake();
+        return;
+      }
+      const n = nodeAt(p.x, p.y);
+      if (n !== hoverNode) {
+        hoverNode = n;
+        canvas.classList.toggle("pointing", !!n);
+        setFocus();
+      }
+      if (n) showTooltip(n, e); else hideTooltip();
+    });
+
+    function endPointer(e) {
+      const p = rel(e);
+      const moved = downPos ? Math.hypot(p.x - downPos.x, p.y - downPos.y) : 99;
+      if (dragNode) { dragNode.fx = null; dragNode.fy = null; dragNode = null; dragging = false; alpha = Math.max(alpha, 0.06); }
+      if (panning) panning = false;
+      canvas.classList.remove("grabbing");
+      if (moved < 4) {
+        if (downNode) { selectedNode = downNode; renderDetails(downNode); }
+        else { selectedNode = null; renderDetails(null); }
+        setFocus();
+      }
+      downNode = null; downPos = null;
+      wake();
+    }
+    canvas.addEventListener("pointerup", endPointer);
+    canvas.addEventListener("pointercancel", e => { if (dragNode) { dragNode.fx = null; dragNode.fy = null; dragNode = null; } dragging = false; panning = false; canvas.classList.remove("grabbing"); wake(); });
+
+    canvas.addEventListener("pointerleave", () => { if (!dragging && !panning) { hoverNode = null; canvas.classList.remove("pointing"); setFocus(); hideTooltip(); } });
+
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      userMoved = true; autoFit = false;
+      const p = rel(e);
+      const wx = (p.x - camTarget.tx) / camTarget.zoom;
+      const wy = (p.y - camTarget.ty) / camTarget.zoom;
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      camTarget.zoom = Math.max(0.04, Math.min(4.5, camTarget.zoom * factor));
+      camTarget.tx = p.x - wx * camTarget.zoom;
+      camTarget.ty = p.y - wy * camTarget.zoom;
+      wake();
+    }, { passive: false });
+
+    // ----- tooltip -----
+    function showTooltip(n, e) {
+      tooltip.style.display = "block";
+      tooltip.innerHTML = "<b>" + escapeHtml(shortLabel(n)) + "</b><small>" + escapeHtml(n.type) + " · " + escapeHtml(moduleOf(n)) + "</small>";
+      moveTooltip(e);
+    }
+    function moveTooltip(e) {
+      if (tooltip.style.display !== "block") return;
+      let x = e.clientX + 14, y = e.clientY + 14;
+      const w = tooltip.offsetWidth, h = tooltip.offsetHeight;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+      if (y + h > window.innerHeight - 8) y = e.clientY - h - 14;
+      tooltip.style.left = x + "px"; tooltip.style.top = y + "px";
+    }
+    function hideTooltip() { tooltip.style.display = "none"; }
+
+    // ----- right details panel (preserved behavior) -----
     function renderDetails(n) {
       if (!n) {
         document.getElementById("details").innerHTML = '<div class="empty">No node selected.</div>';
@@ -394,7 +834,6 @@ function renderViewerHtml(graph) {
         \`<h2>Incoming</h2>\${edgeList(incoming, "source")}\`
       ].join("");
     }
-
     function edgeList(list, key) {
       if (!list.length) return '<div class="empty">None</div>';
       return list.slice(0, 40).map(e => {
@@ -402,50 +841,43 @@ function renderViewerHtml(graph) {
         return \`<div class="row" data-node="\${escapeAttr(e[key])}"><b>\${escapeHtml(e.type)}</b><small>\${escapeHtml(n ? shortLabel(n) : e[key])}</small></div>\`;
       }).join("");
     }
-
     function kv(k, v) {
       return \`<div class="kv"><b>\${escapeHtml(k)}</b><span>\${typeof v === "string" ? v : escapeHtml(String(v))}</span></div>\`;
     }
-
-    function el(name, attrs, text) {
-      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
-      for (const [k, v] of Object.entries(attrs || {})) node.setAttribute(k, v);
-      if (text) node.textContent = text;
-      return node;
-    }
-
     function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+      return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }
     function escapeAttr(s) { return escapeHtml(s).replace(/"/g, "&quot;"); }
 
+    // ----- left controls (preserved) -----
     function setupControls() {
-      document.getElementById("generated").textContent = new Date(GRAPH.generated_at).toLocaleString();
-      document.getElementById("nodeCount").textContent = GRAPH.stats.node_count || nodes.length;
-      document.getElementById("edgeCount").textContent = GRAPH.stats.edge_count || edges.length;
-      document.getElementById("fileCount").textContent = GRAPH.stats.file_count || GRAPH.stats.files_scanned || 0;
+      document.getElementById("generated").textContent = GRAPH.generated_at ? new Date(GRAPH.generated_at).toLocaleString() : "";
+      document.getElementById("nodeCount").textContent = (GRAPH.stats && GRAPH.stats.node_count) || nodes.length;
+      document.getElementById("edgeCount").textContent = (GRAPH.stats && GRAPH.stats.edge_count) || edges.length;
+      document.getElementById("fileCount").textContent = (GRAPH.stats && (GRAPH.stats.file_count || GRAPH.stats.files_scanned)) || 0;
       const types = ["all", ...new Set(nodes.map(n => n.type).sort())];
       const modules = ["all", ...new Set(nodes.map(moduleOf).sort())];
       fillSelect("typeFilter", types);
       fillSelect("moduleFilter", modules);
       fillChips("typeChips", types, "type");
       fillChips("moduleChips", modules, "module");
-      document.getElementById("search").addEventListener("input", e => { state.q = e.target.value; render(); });
-      document.getElementById("typeFilter").addEventListener("change", e => { state.type = e.target.value; syncChips(); render(); });
-      document.getElementById("moduleFilter").addEventListener("change", e => { state.module = e.target.value; syncChips(); render(); });
-      document.getElementById("reset").addEventListener("click", () => { state.zoom = 1; state.tx = 0; state.ty = 0; state.selected = null; renderDetails(null); render(); });
+      document.getElementById("search").addEventListener("input", e => { filter.q = e.target.value; applyFilter(); });
+      document.getElementById("typeFilter").addEventListener("change", e => { filter.type = e.target.value; syncChips(); applyFilter(); });
+      document.getElementById("moduleFilter").addEventListener("change", e => { filter.module = e.target.value; syncChips(); applyFilter(); });
+      document.getElementById("reset").addEventListener("click", () => {
+        selectedNode = null; hoverNode = null; renderDetails(null); setFocus();
+        userMoved = false; alpha = Math.max(alpha, 0.05);
+        fitTo(boundsAll(), false);
+        wake();
+      });
       document.getElementById("details").addEventListener("click", e => {
         const row = e.target.closest("[data-node]");
         if (!row) return;
         const n = byId.get(row.dataset.node);
         if (!n) return;
-        state.selected = n.id;
-        renderDetails(n);
-        render();
+        selectedNode = n; renderDetails(n); setFocus();
       });
-      setupPanZoom();
     }
-
     function fillSelect(id, values) {
       document.getElementById(id).innerHTML = values.map(v => \`<option value="\${escapeAttr(v)}">\${escapeHtml(v)}</option>\`).join("");
     }
@@ -454,53 +886,29 @@ function renderViewerHtml(graph) {
       document.getElementById(id).addEventListener("click", e => {
         const chip = e.target.closest(".chip");
         if (!chip) return;
-        state[chip.dataset.field] = chip.dataset.value;
+        filter[chip.dataset.field] = chip.dataset.value;
         document.getElementById(chip.dataset.field + "Filter").value = chip.dataset.value;
         syncChips();
-        render();
+        applyFilter();
       });
     }
     function syncChips() {
       document.querySelectorAll(".chip").forEach(chip => {
-        chip.classList.toggle("active", state[chip.dataset.field] === chip.dataset.value);
+        chip.classList.toggle("active", filter[chip.dataset.field] === chip.dataset.value);
       });
     }
 
-    function setupPanZoom() {
-      const svg = document.getElementById("graph");
-      svg.addEventListener("click", () => { state.selected = null; renderDetails(null); render(); });
-      svg.addEventListener("pointerdown", e => {
-        state.dragging = true;
-        state.dragStart = { x: e.clientX, y: e.clientY, tx: state.tx, ty: state.ty };
-        svg.setPointerCapture(e.pointerId);
-      });
-      svg.addEventListener("pointermove", e => {
-        if (!state.dragging) return;
-        state.tx = state.dragStart.tx + e.clientX - state.dragStart.x;
-        state.ty = state.dragStart.ty + e.clientY - state.dragStart.y;
-        render();
-      });
-      svg.addEventListener("pointerup", () => { state.dragging = false; });
-      svg.addEventListener("wheel", e => {
-        e.preventDefault();
-        const rect = svg.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const graphX = (mouseX - state.tx) / state.zoom;
-        const graphY = (mouseY - state.ty) / state.zoom;
-        const factor = e.deltaY < 0 ? 1.08 : 0.92;
-        const nextZoom = Math.max(0.25, Math.min(3, state.zoom * factor));
-        state.tx = mouseX - graphX * nextZoom;
-        state.ty = mouseY - graphY * nextZoom;
-        state.zoom = nextZoom;
-        render();
-      }, { passive: false });
-    }
-
-    seedLayout();
+    // ----- boot -----
+    seedPositions();
+    buildGrid();
     setupControls();
+    applyFilter();
     renderDetails(null);
-    render();
+    resize();
+    fitTo(boundsAll(), true);
+    new ResizeObserver(resize).observe(main);
+    window.addEventListener("resize", resize);
+    wake();
   </script>
 </body>
 </html>`;
