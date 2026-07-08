@@ -1,6 +1,6 @@
 // serif-brain init — .serif-brain/ yapisini olustur
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
@@ -25,10 +25,40 @@ function buildDirLayout(projects) {
   return [...projectDirs, ...ROOT_LAYOUT_DIRS];
 }
 
-function resolveProjects(args) {
+function slugify(name) {
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "project";
+}
+
+// package.json "name" varsa onu, yoksa klasor adini kullanarak proje id'sini
+// kurulu klasore gore otomatik turetir (her yeni kurulumda elle --name gerekmesin diye).
+function deriveDefaultProjectId(projectRoot) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(projectRoot, "package.json"), "utf8"));
+    if (typeof pkg.name === "string" && pkg.name.trim()) return slugify(pkg.name);
+  } catch {
+    // package.json yok/parse edilemedi — klasor adina dus
+  }
+  return slugify(basename(projectRoot));
+}
+
+// Bu paketin kendi flagship reposu (serif-platform) icin eski 4-projeli
+// bootstrap listesi (legacy migration icin) korunur. Baska HERHANGI bir
+// klasorde 'serif-brain init' calistirinca bu liste asla varsayilan OLMAMALI —
+// eskiden oyleydi ve her yeni kurulumda yanlislikla "serif-platform" projesi
+// olusuyordu.
+function isFlagshipSelfHost(projectRoot) {
+  return deriveDefaultProjectId(projectRoot) === "serif-platform";
+}
+
+function resolveProjects(args, projectRoot) {
   // --name ve --project_id es anlamli (--name onceden sessizce yutuluyordu)
-  const customId = args.flags.name || args.flags.project_id;
-  if (!customId) return DEFAULT_PROJECTS;
+  const explicitId = args.flags.name || args.flags.project_id;
+  if (!explicitId && isFlagshipSelfHost(projectRoot)) return DEFAULT_PROJECTS;
+
+  const customId = explicitId || deriveDefaultProjectId(projectRoot);
   const description =
     typeof args.flags.description === "string"
       ? args.flags.description
@@ -173,13 +203,18 @@ function copyTemplateIfMissing(src, dst, label) {
 export async function initCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
   const brainRoot = join(projectRoot, ".serif-brain");
-  const projects = resolveProjects(args);
-  const customId = args.flags.name ?? args.flags.project_id ?? null;
+  const explicitId = args.flags.name ?? args.flags.project_id ?? null;
+  const projects = resolveProjects(args, projectRoot);
+  const isFlagship = !explicitId && isFlagshipSelfHost(projectRoot);
 
   console.log(`[serif-brain init]`);
   console.log(`  Project:     ${projectRoot}`);
   console.log(`  Brain root:  ${brainRoot}`);
-  if (customId) console.log(`  Project ID:  ${customId} (custom, migrate=false)`);
+  if (explicitId) {
+    console.log(`  Project ID:  ${explicitId} (custom, migrate=false)`);
+  } else if (!isFlagship) {
+    console.log(`  Project ID:  ${projects[0].id} (auto-detected from folder, migrate=false)`);
+  }
   console.log(``);
 
   if (!existsSync(projectRoot)) {
@@ -209,7 +244,7 @@ export async function initCommand({ args }) {
 
   console.log(``);
   console.log(`Konfigurasyon ve template'ler:`);
-  writeIfMissing(join(brainRoot, "config.yaml"), buildConfig(projectRoot, storeEngine, projects, { custom: !!customId }), "config.yaml");
+  writeIfMissing(join(brainRoot, "config.yaml"), buildConfig(projectRoot, storeEngine, projects, { custom: !isFlagship }), "config.yaml");
   writeIfMissing(join(brainRoot, ".gitignore"), gitignoreContent(), ".gitignore");
   writeIfMissing(join(brainRoot, "README.md"), readmeContent(), "README.md");
 

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { initCommand } from "../src/cli/init.mjs";
 import { buildCompactJson, writeContext } from "../src/context/compile.mjs";
@@ -41,7 +41,7 @@ test("buildCompactJson explicit primary — passed argument used", () => {
   assert.equal(json.project, "custom-project-id");
 });
 
-test("writeContext with default init — compact.json project = serif-platform", async () => {
+test("writeContext with default init — compact.json project = klasor adindan otomatik turetilen id", async () => {
   const tmp = makeTmpProject("write-default");
   try {
     await suppressLogs(() =>
@@ -53,7 +53,7 @@ test("writeContext with default init — compact.json project = serif-platform",
     const compact = JSON.parse(
       readFileSync(join(brainRoot, "context", "compact.json"), "utf8"),
     );
-    assert.equal(compact.project, "serif-platform");
+    assert.equal(compact.project, basename(tmp).toLowerCase());
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

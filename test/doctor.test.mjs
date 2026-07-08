@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { initCommand } from "../src/cli/init.mjs";
 import { doctorCommand } from "../src/doctor/doctor.mjs";
@@ -51,7 +51,7 @@ function extractSection3(output) {
   return out.join("\n");
 }
 
-test("default init: doctor Section 3 reports serif-platform without error", async () => {
+test("default init: doctor Section 3 reports klasor-turevi proje id'sini, serif-platform DEGIL", async () => {
   const tmp = makeTmpProject("default");
   try {
     await suppressLogs(() =>
@@ -62,9 +62,11 @@ test("default init: doctor Section 3 reports serif-platform without error", asyn
       doctorCommand({ args: { flags: { project: tmp }, _: [] } }),
     );
 
+    const autoId = basename(tmp).toLowerCase();
     const sec3 = extractSection3(output);
-    assert.match(sec3, /Active Project — serif-platform/, "Section 3 header");
-    assert.match(sec3, /objects\/projects\/serif-platform/, "project dir mentioned");
+    assert.match(sec3, new RegExp(`Active Project — ${autoId}`), "Section 3 header");
+    assert.match(sec3, new RegExp(`objects/projects/${autoId}`), "project dir mentioned");
+    assert.doesNotMatch(sec3, /Active Project — serif-platform/, "yanlislikla serif-platform OLMAMALI");
     assert.doesNotMatch(sec3, /\[!✗\] Project dir/, "no project dir error");
     assert.match(sec3, /bugs\//);
     assert.match(sec3, /decisions\//);

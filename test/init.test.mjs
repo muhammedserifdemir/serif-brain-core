@@ -1,12 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { initCommand } from "../src/cli/init.mjs";
 
 function makeTmpProject(prefix) {
   return mkdtempSync(join(tmpdir(), `sb-init-${prefix}-`));
+}
+
+// Rastgele tmpdir'in altina 'serif-platform' adinda bir alt klasor kurup
+// flagship self-host tespitini (package.json/klasor adi) tetiklemek icin.
+function makeFlagshipProject() {
+  const parent = mkdtempSync(join(tmpdir(), `sb-init-flagship-parent-`));
+  const dir = join(parent, "serif-platform");
+  mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 function suppressLogs(fn) {
@@ -17,7 +26,7 @@ function suppressLogs(fn) {
   });
 }
 
-test("init default — serif-platform layout korunur", async () => {
+test("init default (isimsiz) — klasor adindan otomatik custom proje turetilir, serif-platform DEGIL", async () => {
   const tmp = makeTmpProject("default");
   try {
     const exit = await suppressLogs(() =>
@@ -31,23 +40,54 @@ test("init default — serif-platform layout korunur", async () => {
     assert.ok(existsSync(join(brainRoot, ".gitignore")), ".gitignore yok");
     assert.ok(existsSync(join(brainRoot, "README.md")), "README.md yok");
 
+    const autoId = basename(tmp).toLowerCase();
     for (const sub of ["bugs", "decisions", "notes", "modules", "sessions", "sprints"]) {
       assert.ok(
-        existsSync(join(brainRoot, "objects/projects/serif-platform", sub)),
-        `serif-platform/${sub} yaratılmadı`,
+        existsSync(join(brainRoot, "objects/projects", autoId, sub)),
+        `${autoId}/${sub} yaratılmadı (klasor adindan otomatik turetilen id)`,
       );
     }
     for (const root of ["graph", "reports", "context", "indexes", "archive-index"]) {
       assert.ok(existsSync(join(brainRoot, root)), `${root} yaratılmadı`);
     }
 
+    assert.ok(
+      !existsSync(join(brainRoot, "objects/projects/serif-platform")),
+      "baska klasorde init serif-platform projesi YARATMAMALI (asil bug)",
+    );
+    assert.ok(!existsSync(join(brainRoot, "objects/projects/mevzuat-ai")));
+
+    const cfg = readFileSync(join(brainRoot, "config.yaml"), "utf8");
+    assert.match(cfg, new RegExp(`id: ${autoId}`));
+    assert.doesNotMatch(cfg, /id: serif-platform/);
+    assert.doesNotMatch(cfg, /id: mevzuat-ai/);
+    assert.doesNotMatch(cfg, /legacy_sources:/);
+    assert.doesNotMatch(cfg, /SerifBrainArchive/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("init default — flagship (serif-platform klasoru/paketi) icin eski 4-projeli layout korunur", async () => {
+  const dir = makeFlagshipProject();
+  const parent = join(dir, "..");
+  try {
+    const exit = await suppressLogs(() =>
+      initCommand({ args: { flags: { project: dir }, _: [] } }),
+    );
+    assert.equal(exit, 0);
+
+    const brainRoot = join(dir, ".serif-brain");
+    for (const sub of ["bugs", "decisions", "notes", "modules", "sessions", "sprints"]) {
+      assert.ok(existsSync(join(brainRoot, "objects/projects/serif-platform", sub)));
+    }
+
     const cfg = readFileSync(join(brainRoot, "config.yaml"), "utf8");
     assert.match(cfg, /id: serif-platform/);
     assert.match(cfg, /id: mevzuat-ai/);
     assert.match(cfg, /legacy_sources:/);
-    assert.match(cfg, /archive_root: "\/Users\/muhammedserifdemir\/SerifBrainArchive/);
   } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(parent, { recursive: true, force: true });
   }
 });
 
