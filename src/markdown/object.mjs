@@ -12,12 +12,24 @@ const TYPE_DIR = {
   session: "sessions"
 };
 
+// Alias tipler: kendi dizini OLMAYAN, mevcut bir dizine yazilan tipler.
+// 'record' = bitmis is kaydi (status: done dogar); decisions/ altinda yasar.
+// TYPE_DIR'e KOYULMAZ — listAllObjects onun anahtarlarini geziyor, koysaydik
+// decisions/ iki kez taranir ve her karar cift sayilirdi.
+const TYPE_DIR_ALIAS = {
+  record: "decisions"
+};
+
+function dirForType(type) {
+  return TYPE_DIR[type] || TYPE_DIR_ALIAS[type];
+}
+
 export function objectsRoot(brainRoot, project) {
   return join(brainRoot, "objects", "projects", project);
 }
 
 export function objectPath(brainRoot, project, type, id) {
-  const dir = TYPE_DIR[type];
+  const dir = dirForType(type);
   if (!dir) throw new Error(`Unknown object type: ${type}`);
   return join(objectsRoot(brainRoot, project), dir, `${id}.md`);
 }
@@ -44,7 +56,7 @@ export function writeObject(brainRoot, frontmatter, body) {
 }
 
 export function listObjects(brainRoot, project, type) {
-  const dir = join(objectsRoot(brainRoot, project), TYPE_DIR[type]);
+  const dir = join(objectsRoot(brainRoot, project), dirForType(type));
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter(f => f.endsWith(".md") && !f.startsWith("_template-"))

@@ -1,9 +1,13 @@
-// serif-brain add bug | add decision
+// serif-brain add bug | add decision | add record
 // Minimal yapi — yarat + dosyaya yaz. Gelecek fazlarda interaktif TTY eklenebilir.
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { loadConfig } from "../markdown/schema.mjs";
 import { writeObject, makeId, slugify, objectPath } from "../markdown/object.mjs";
+
+// Baslik "is bitti" diyorsa 'decision' bayat bir aktif karar uretir — ipucu bas.
+const DONE_TITLE_RE = /\b(KAPANDI|TAMAMLANDI|BITTI|BİTTİ|GECTI|GEÇTİ|UYGULANDI|DOGRULANDI|DOĞRULANDI|COZULDU|ÇÖZÜLDÜ)\b/i;
 
 const TYPE_DEFAULTS = {
   bug: {
@@ -16,13 +20,38 @@ const TYPE_DEFAULTS = {
     status: "active",
     priority: "medium",
     body: `\n## Baglam\n\n## Karar\n\n## Sonuclari (Consequences)\n- \n\n## Reddedilen Alternatifler\n- \n`
+  },
+  // record = yapilmis isin kaydi. 'done' DOGAR — kapatilmayi beklemez.
+  record: {
+    status: "done",
+    priority: "low",
+    body: `\n## Ne yapildi\n\n## Neden\n\n## Sonuc / Kanit\n- \n`
   }
 };
+
+// --files verilmediyse calisma agacindaki degisen dosyalari relations.files'a
+// doldur. Git yoksa/bos donerse sessizce bos dizi — brain git-bagimsiz calismali.
+function gitTouchedFiles(projectRoot, limit = 12) {
+  const files = new Set();
+  for (const cmd of ["diff --name-only HEAD", "diff --cached --name-only"]) {
+    try {
+      const out = execSync(`git -C "${projectRoot}" ${cmd}`, {
+        encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
+      });
+      for (const f of out.split("\n").map((s) => s.trim()).filter(Boolean)) {
+        if (f.startsWith(".serif-brain/")) continue;
+        files.add(f);
+      }
+    } catch { /* git yok / repo degil / HEAD yok — yoksay */ }
+  }
+  return [...files].slice(0, limit);
+}
 
 export async function addCommand({ args, subcommand }) {
   const type = subcommand[0];
   if (!type || !TYPE_DEFAULTS[type]) {
-    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision> --title "..." [--module testx] [--priority high]`);
+    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|record> --title "..." [--module testx] [--priority high] [--files a,b]`);
+    console.error(`  record = yapilmis is kaydi (status: done dogar, decisions/ altina yazilir)`);
     return 1;
   }
 
@@ -53,6 +82,19 @@ export async function addCommand({ args, subcommand }) {
   const severity = args.flags.severity || priority;
   const status = args.flags.status || TYPE_DEFAULTS[type].status;
   const tags = args.flags.tags ? args.flags.tags.split(",").map(s => s.trim()) : [];
+
+  // Baslik tamamlanma bildiriyorsa kullaniciyi 'record'a yonlendir — davranis
+  // DEGISMEZ, sadece stderr'e ipucu.
+  if (type === "decision" && DONE_TITLE_RE.test(title)) {
+    console.error(`[serif-brain add] IPUCU: baslik tamamlanma bildiriyor — 'add record' bunu status:done olarak yazar (bayat "aktif karar" uretmez).`);
+  }
+
+  // relations.files: --files varsa onu kullan, yoksa git'ten otomatik doldur.
+  const explicitFiles = typeof args.flags.files === "string"
+    ? args.flags.files.split(",").map(s => s.trim()).filter(Boolean)
+    : null;
+  const autoFiles = explicitFiles ? [] : gitTouchedFiles(projectRoot);
+  const files = explicitFiles || autoFiles;
 
   const now = new Date();
   const id = args.flags.id || makeId(type, title, now);
@@ -88,7 +130,7 @@ export async function addCommand({ args, subcommand }) {
     created_at: now.toISOString(),
     updated_at: now.toISOString(),
     source: { kind: "manual", path: "" },
-    relations: { files: [], decisions: [], bugs: [], modules: Array.isArray(module) ? module : [module] },
+    relations: { files, decisions: [], bugs: [], modules: Array.isArray(module) ? module : [module] },
     tags,
     ...(type === "bug" ? { summary: title } : {})
   };
@@ -100,6 +142,9 @@ export async function addCommand({ args, subcommand }) {
   console.log(`  + ${result.path}`);
   console.log(`    id: ${id}`);
   console.log(`    status: ${status}, priority: ${priority}, module: ${module}`);
+  if (!explicitFiles && autoFiles.length > 0) {
+    console.log(`  relations.files: ${autoFiles.length} dosya git'ten otomatik dolduruldu (--files ile ezebilirsin)`);
+  }
   if (result.validation.warnings.length > 0) {
     for (const w of result.validation.warnings) console.log(`    ⚠ ${w}`);
   }

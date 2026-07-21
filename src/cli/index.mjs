@@ -5,6 +5,7 @@ import { rebuildIndexesCommand } from "./rebuild-indexes.mjs";
 import { addCommand } from "./add.mjs";
 import { closeCommand } from "./close.mjs";
 import { staleCommand } from "./stale.mjs";
+import { syncCommitsCommand } from "./sync-commits.mjs";
 import { scanCodeCommand } from "./scan-code.mjs";
 import { graphCommand } from "./graph.mjs";
 import { migrateCommand } from "./migrate.mjs";
@@ -33,9 +34,10 @@ import { dashboardCommand } from "./dashboard.mjs";
 const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
   doctor:  { handler: doctorCommand, help: "Sistem sagligi ve store engine raporu" },
-  add:     { handler: addCommand,    help: "Bug veya decision ekle (add bug | add decision)" },
+  add:     { handler: addCommand,    help: "Bug/decision/record ekle (add bug | add decision | add record — record status:done dogar)" },
   close:   { handler: closeCommand,  help: "Bug/decision kapat (status flip + completed_at + opsiyonel commit/note)" },
   stale:   { handler: staleCommand,  help: "Acik kalemleri son commit aktivitesine gore tara (--days N, --quiet)" },
+  "sync-commits": { handler: syncCommitsCommand, help: "Commit mesajindaki 'Brain-Closes: <id>' trailer'ini okuyup objeleri kapat (--since-days N, --dry-run)" },
   "rebuild-indexes": { handler: rebuildIndexesCommand, help: "Tum indexleri yeniden uret" },
   validate: { handler: validateCommand, help: "Objeleri semaya gore dogrula; hatali dosyalari yol+neden ile listele (--warnings, --project_id)" },
   scan:    { handler: scanCodeCommand, help: "Kod scanner — files/imports/todos (scan code)" },
@@ -79,7 +81,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "close", "stale", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "dashboard", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "sync-commits", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "dashboard", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Aktif komutlar (Faz 2-8):`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);

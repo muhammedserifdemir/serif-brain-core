@@ -37,7 +37,12 @@ export async function contextCommand({ args }) {
   }
   console.log(``);
 
-  const { mdPath, jsonPath, workPath } = writeContext({ brainRoot, data, opts: { module: moduleFilter } });
+  // Token butcesi (2026-07-22): varsayilan KISA. --full tam dokum, --budget N ust sinir.
+  const full = args.flags.full === true || args.flags.full === "true";
+  const budget = args.flags.budget != null ? Number(args.flags.budget) : undefined;
+  const { mdPath, jsonPath, workPath } = writeContext({
+    brainRoot, data, opts: { module: moduleFilter, full, budget },
+  });
 
   console.log(`  + ${mdPath}`);
   console.log(`  + ${jsonPath}`);
