@@ -1,5 +1,5 @@
 // serif-brain init — .serif-brain/ yapisini olustur
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -7,6 +7,7 @@ import { detectStoreEngine } from "../store/engine.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = resolve(HERE, "../../templates");
+const SKILLS_SRC = resolve(HERE, "../../skill");
 
 const PROJECT_SUBDIRS = ["bugs", "decisions", "notes", "modules", "sessions", "sprints"];
 const ROOT_LAYOUT_DIRS = ["graph", "reports", "context", "indexes", "archive-index"];
@@ -200,6 +201,37 @@ function copyTemplateIfMissing(src, dst, label) {
   return true;
 }
 
+// ── Claude skill kurulumu ───────────────────────────────────────────────────
+// Paketle gelen skill'ler (skill/<ad>/) hedef projenin .claude/skills/ dizinine
+// kopyalanir. Boylece 'serif-brain init' calisan her proje, Claude'un calisma
+// disiplinini de otomatik kazanir:
+//   - cerrahi-plan     → koda dokunmadan ONCE tehis/etki/kapsam/bitti-olcutu
+//   - kanit-disiplini  → "bitti" demeden ONCE build/test/TR-tarama kaniti
+//   - serif-brain-core → brain komutlarinin oturum ici kullanimi
+// Var olan dosyalar overwrite EDILMEZ (writeIfMissing ile ayni sozlesme) —
+// kullanicinin skill uzerinde yaptigi yerel duzenlemeler korunur.
+function copySkillDir(src, dst, label) {
+  mkdirSync(dst, { recursive: true });
+  for (const entry of readdirSync(src, { withFileTypes: true })) {
+    const s = join(src, entry.name);
+    const d = join(dst, entry.name);
+    if (entry.isDirectory()) copySkillDir(s, d, `${label}/${entry.name}`);
+    else copyTemplateIfMissing(s, d, `${label}/${entry.name}`);
+  }
+}
+
+function installSkills(projectRoot) {
+  if (!existsSync(SKILLS_SRC)) return;
+  const skillDirs = readdirSync(SKILLS_SRC, { withFileTypes: true }).filter(e => e.isDirectory());
+  if (skillDirs.length === 0) return;
+  const dstRoot = join(projectRoot, ".claude", "skills");
+  console.log(``);
+  console.log(`Claude skill kurulumu (.claude/skills/):`);
+  for (const entry of skillDirs) {
+    copySkillDir(join(SKILLS_SRC, entry.name), join(dstRoot, entry.name), entry.name);
+  }
+}
+
 export async function initCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
   const brainRoot = join(projectRoot, ".serif-brain");
@@ -254,6 +286,8 @@ export async function initCommand({ args }) {
     const dst = join(brainRoot, "indexes", `_template-${tpl}`);
     if (existsSync(src)) copyTemplateIfMissing(src, dst, `indexes/_template-${tpl}`);
   }
+
+  installSkills(projectRoot);
 
   console.log(``);
   console.log(`✓ init complete`);

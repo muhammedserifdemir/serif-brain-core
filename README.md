@@ -62,6 +62,19 @@ serif-brain context              # aktif iş bağlamı (Claude için)
 | `migrate` | Legacy YAML/Obsidian/Graphify ingest (dry-run/apply) |
 | `hooks` | Hook migration plan/apply |
 
+## Claude skill'leri (otomatik kurulum)
+
+`serif-brain init`, paketle gelen Claude skill'lerini hedef projenin
+`.claude/skills/` dizinine otomatik kurar (var olan dosyalar ezilmez):
+
+| Skill | Ne zaman devreye girer |
+|---|---|
+| `cerrahi-plan` | Koda dokunmadan **önce**: kök neden kanıtla bulunur, etki haritası çıkarılır, en küçük kesik seçilir, "bitti" ölçütü önceden yazılır |
+| `kanit-disiplini` | İş bitmeden **önce**: build/test çıktısı olmadan başarı iddiası yok, Türkçe karakter/jargon taraması (`scripts/tr_tarama.py`), lsof port kontrolü, tek satır DURUM raporu |
+| `serif-brain-core` | Brain komutlarının oturum içi kullanımı |
+
+İkisi birlikte görev kelepçesidir: cerrahi-plan işi açar, kanit-disiplini kapatır.
+
 ## Kullanım kılavuzu
 
 Yeni proje başlangıcı, devam eden projede oturum döngüsü, çoklu-Claude eşzamanlılığı
