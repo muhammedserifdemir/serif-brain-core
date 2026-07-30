@@ -4,6 +4,41 @@ Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
 ## [Unreleased]
 
+### Düzeltildi — sıralama: eşitlikte karar verilmiyordu (kritik, sessiz)
+
+`active-work.md`'nin **"Now" listesi en ESKİ kayıtları gösteriyordu.** Aynı
+veriden üretilen `CLAUDE.generated.md` doğru sıralıyordu — iki farklı çıktı,
+tek kaynak: en net kanıt.
+
+**Kök neden** "yanlış sıralama" değil, **eşitlikte karar verilmemesi**:
+
+```js
+.sort((a, b) => pri(a.priority) - pri(b.priority))   // ← tek anahtar
+```
+
+Tüm kayıtlar `critical` olduğunda bu karşılaştırıcı hep `0` döner. V8'in
+`sort`'u **kararlı** olduğu için eşitlikte giriş sırası korunur — o da dosya
+adı sırasıdır, yani en eski kayıt başa geçer. Gözle bakınca sort doğru
+görünüyordu; hata yalnızca gerçek veride ortaya çıkıyordu.
+
+Doğru anahtar (`pinned` > öncelik > tazelik) `compile.mjs` içinde **zaten
+vardı**, ama yalnız iki çağrı yeri onu kullanıyordu.
+
+- **Yeni** `src/util/rank.mjs` — sıralamanın tek kaynağı (`compareObjects`,
+  `rankObjects`, `pri`, `daysSince`). `PRIORITY_ORDER`/`pri` üç dosyada
+  kopyalanmıştı, tek yere indi.
+- Düzeltilen 5 çağrı yeri: `context/compile.mjs` (Now listesi + 2 preview
+  listesi), `reporter/decisions.mjs`, `reporter/bugs.mjs` (2 yer).
+- `summarize()` artık `pinned`'i `compact.json`'a taşıyor — `applyBudget`
+  bütçeyi bu alana göre genişletiyor, düşürülürse sabitlenmiş kayıt
+  kırpılabilirdi.
+- **Yeni kapı** `test/rank-siralama.test.mjs` (9 test). Kritik olanı:
+  eski karşılaştırıcının aynı girdide **farklı** sonuç ürettiğini doğrular —
+  düzeltmenin gerçekten bir şey değiştirdiğinin kanıtı.
+
+**Kural:** kayıt listesi sıralayan her yer `src/util/rank.mjs` kullanır;
+yerel `.sort((a,b) => pri(...) - pri(...))` yazılmaz.
+
 ### Dashboard — çok-brain yönetici paneli (`serif-brain dashboard`)
 - **Yeni komut** `dashboard build|add|scan|list|archive|rm` (`src/dashboard/` + `cli/dashboard.mjs`).
   Tüm `.serif-brain` kurulu projeleri tek **statik HTML** yönetici panelinde toplar: % done halkası,

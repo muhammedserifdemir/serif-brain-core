@@ -2,9 +2,8 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { header, badge } from "./loader.mjs";
+import { pri, rankObjects } from "../util/rank.mjs";
 
-const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
-function pri(p) { return PRIORITY_ORDER[p] ?? 4; }
 
 export function writeDecisionsReport(data, reportsDir) {
   const lines = [];
@@ -46,10 +45,10 @@ export function writeDecisionsReport(data, reportsDir) {
     for (const s of order) {
       const list = byStatus[s] || [];
       if (list.length === 0) continue;
-      list.sort((a, b) => pri(a.priority) - pri(b.priority));
+      const sirali = rankObjects(list);
       lines.push(`### ${badge(s)} ${s} (${list.length})`);
       lines.push(``);
-      for (const d of list) {
+      for (const d of sirali) {
         const m = Array.isArray(d.module) ? d.module.join(",") : d.module;
         lines.push(`- ${badge(d.priority)} **${d.title}** — \`${d.id}\` (${m})`);
       }

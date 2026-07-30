@@ -6,6 +6,7 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../markdown/schema.mjs";
+import { pri, daysSince, rankObjects } from "../util/rank.mjs";
 
 function resolvePrimaryProject(brainRoot) {
   try {
@@ -40,8 +41,6 @@ const CONTEXT_EXCLUDED = new Set([
   "resolved", "fixed", "implemented", "applied", "superseded", "wontfix", "duplicate",
 ]);
 
-const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
-function pri(p) { return PRIORITY_ORDER[p] ?? 4; }
 
 // ─── TOKEN BÜTÇESİ (2026-07-22) ────────────────────────────────────────────
 // SORUN: bu dosya HER TURDA bağlama giriyor. 109 aktif kararın tam listesi
@@ -54,27 +53,7 @@ function pri(p) { return PRIORITY_ORDER[p] ?? 4; }
 const DEFAULT_BUDGET = { decisions: 12, bugs: 8 };
 const FRESH_DAYS = 21;
 
-function daysSince(iso) {
-  if (!iso) return 9999;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return 9999;
-  return (Date.now() - t) / 86400000;
-}
 
-/**
- * Siralama anahtari: sabitlenmis > oncelik > tazelik.
- * `pinned: true` olan kayit butceden bagimsiz HER ZAMAN gorunur — kullanicinin
- * "bu hep gozumun onunde dursun" dedigi anayasa maddeleri icin kacis kapagi.
- */
-function rankObjects(list) {
-  return [...list].sort((a, b) => {
-    const pa = a.pinned ? 0 : 1, pb = b.pinned ? 0 : 1;
-    if (pa !== pb) return pa - pb;
-    const ra = pri(a.priority), rb = pri(b.priority);
-    if (ra !== rb) return ra - rb;
-    return daysSince(a.updated_at || a.created_at) - daysSince(b.updated_at || b.created_at);
-  });
-}
 
 /** Butceye bol: {shown, hidden}. opts.full=true → hic kirpma. */
 function applyBudget(ranked, limit, full) {
@@ -271,8 +250,8 @@ export function buildClaudeMarkdown(data, opts = {}) {
       const previewDecCritical = part.preview_decisions.filter(d => ["critical","high"].includes(d.priority));
       if (previewDecCritical.length > 0) {
         lines.push(`### High-priority preview decisions (top 10)`);
-        previewDecCritical.sort((a, b) => pri(a.priority) - pri(b.priority));
-        for (const d of previewDecCritical.slice(0, 10)) {
+        const previewDecSirali = rankObjects(previewDecCritical);
+        for (const d of previewDecSirali.slice(0, 10)) {
           const m = modulesOf(d).join(",");
           lines.push(`- **[${d.priority}]** ${d.title} _(${m}, ${d.status})_ — _${d._source_kind}_`);
         }
@@ -284,8 +263,8 @@ export function buildClaudeMarkdown(data, opts = {}) {
       const previewBugsCritical = part.preview_bugs.filter(b => ["critical","high"].includes(b.priority));
       if (previewBugsCritical.length > 0) {
         lines.push(`### High-priority preview bugs (top 10)`);
-        previewBugsCritical.sort((a, b) => pri(a.priority) - pri(b.priority));
-        for (const b of previewBugsCritical.slice(0, 10)) {
+        const previewBugsSirali = rankObjects(previewBugsCritical);
+        for (const b of previewBugsSirali.slice(0, 10)) {
           const m = modulesOf(b).join(",");
           lines.push(`- **[${b.priority}]** ${b.title} _(${m}, ${b.status})_ — _${b._source_kind}_`);
         }
@@ -344,6 +323,9 @@ export function buildCompactJson(data, opts = {}, primaryProject = "serif-platfo
       type: fm.type,
       status: fm.status,
       priority: fm.priority,
+      // `pinned` compact.json'a da tasinmali: applyBudget butceyi bu alana
+      // gore genisletiyor, dusurulurse sabitlenmis kayit kirpilabilir.
+      pinned: fm.pinned === true,
       module: modulesOf(fm),
       source: fm._src,
       source_kind: fm._source_kind,
@@ -391,9 +373,13 @@ export function buildActiveWork(data, opts = {}) {
   lines.push(``);
 
   // Top 5 canonical critical/high
-  const top = [...part.canonical_bugs.filter(b => ["critical","high"].includes(b.priority))]
-    .concat(part.canonical_decisions.filter(d => ["critical","high"].includes(d.priority) && ["active","in_progress","queued","blocked"].includes(d.status)))
-    .sort((a, b) => pri(a.priority) - pri(b.priority));
+  // rankObjects ŞART: yalniz oncelige bakan bir sort, hepsi `critical` olan
+  // bir listede hic karar vermez ve kararli sort giris sirasini (dosya adi =
+  // en eski once) birakir. Hata tam olarak buydu.
+  const top = rankObjects(
+    [...part.canonical_bugs.filter(b => ["critical","high"].includes(b.priority))]
+      .concat(part.canonical_decisions.filter(d => ["critical","high"].includes(d.priority) && ["active","in_progress","queued","blocked"].includes(d.status)))
+  );
 
   lines.push(`## Now (canonical, top 5 by priority)`);
   lines.push(``);

@@ -2,10 +2,9 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { header, badge } from "./loader.mjs";
+import { pri, rankObjects } from "../util/rank.mjs";
 
-const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
-function pri(p) { return PRIORITY_ORDER[p] ?? 4; }
 
 export function writeBugsReport(data, reportsDir) {
   const lines = [];
@@ -49,10 +48,10 @@ export function writeBugsReport(data, reportsDir) {
     for (const s of statusOrder) {
       const list = byStatus[s] || [];
       if (list.length === 0) continue;
-      list.sort((a, b) => pri(a.priority) - pri(b.priority));
+      const sirali = rankObjects(list);
       lines.push(`### ${badge(s)} ${s} (${list.length})`);
       lines.push(``);
-      for (const b of list) {
+      for (const b of sirali) {
         const m = Array.isArray(b.module) ? b.module.join(",") : b.module;
         lines.push(`- ${badge(b.priority)} **${b.title}** — \`${b.id}\` (${m})`);
       }
@@ -74,8 +73,8 @@ export function writeBugsReport(data, reportsDir) {
       if (list.length === 0) continue;
       lines.push(`### From \`${src}\` (${list.length})`);
       lines.push(``);
-      list.sort((a, b) => pri(a.priority) - pri(b.priority));
-      for (const b of list) {
+      const sirali = rankObjects(list);
+      for (const b of sirali) {
         const m = Array.isArray(b.module) ? b.module.join(",") : b.module;
         lines.push(`- ${badge(b.priority)} **${b.title}** — _${m}, ${b.status}_`);
       }
