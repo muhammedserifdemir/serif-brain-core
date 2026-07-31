@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { loadObjects } from "./search.mjs";
 import { listProjects } from "../markdown/object.mjs";
 
-const TYPE_DIRS = ["bugs", "decisions", "notes", "sessions"];
+const TYPE_DIRS = ["bugs", "decisions", "plans", "notes", "sessions"];
 const cache = new Map(); // brainRoot -> { sig, objects }
 let hits = 0, misses = 0;
 

@@ -8,6 +8,7 @@ import { validateObject } from "./schema.mjs";
 const TYPE_DIR = {
   bug: "bugs",
   decision: "decisions",
+  plan: "plans",
   note: "notes",
   session: "sessions"
 };

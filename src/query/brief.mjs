@@ -44,6 +44,13 @@ export function compileBrief(objects, opts = {}) {
     module,
   }).map((o) => toResult(o));
 
+  // 2b) Aktif planlar (yol haritasi) — sirayi hatirlatir, en ustte durur
+  const activePlans = searchObjects(objects, {
+    type: "plan",
+    status: ["active", "in_progress"],
+    module,
+  }).map((o) => toResult(o));
+
   // 3) Pencere icinde son dokunulan (aktif) kalemler — "neredeydik".
   // queued ayri "park kuyrugu" bolumunde gosterilir → burada cift-listeleme.
   const recentlyTouched = objects
@@ -92,6 +99,7 @@ export function compileBrief(objects, opts = {}) {
     window_days: days,
     active_bugs: activeBugs,
     active_decisions: activeDecisions,
+    active_plans: activePlans,
     recently_touched: recentlyTouched,
     parked,
     git,
@@ -107,6 +115,11 @@ export function formatBrief(b) {
     const mods = b.git.modules_in_commits.length ? ` · aktif modul: ${b.git.modules_in_commits.join(",")}` : "";
     L.push(`  git: ${b.git.changed_files} dosya degisti${mods}`);
   }
+
+  L.push(``);
+  L.push(`  🗺  Aktif plan (${(b.active_plans || []).length}):`);
+  if (!(b.active_plans || []).length) L.push(`    (yok)`);
+  for (const r of b.active_plans || []) L.push(`    ${r.id} — ${r.title}`);
 
   L.push(``);
   L.push(`  ⛔ Aktif kritik/yuksek bug (${b.active_bugs.length}):`);

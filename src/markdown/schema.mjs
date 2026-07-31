@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseYaml } from "./yaml.mjs";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
-const ID_RE = /^(bug|decision|record|note|session)-[a-z0-9-]+$/;
+const ID_RE = /^(bug|decision|record|plan|note|session)-[a-z0-9-]+$/;
 
 const REQUIRED_BY_TYPE = {
   bug:      ["id", "type", "project", "module", "title", "status", "priority", "created_at", "updated_at"],
@@ -12,6 +12,10 @@ const REQUIRED_BY_TYPE = {
   // record = bitmis is kaydi (status: done dogar). Alan sozlesmesi decision ile
   // ayni; disk uzerinde decisions/ altinda yasar (bkz. object.mjs TYPE_DIR_ALIAS).
   record:   ["id", "type", "project", "module", "title", "status", "priority", "created_at", "updated_at"],
+  // plan = yol haritasi / faz plani. Kendi dizini plans/ altindadir; 'active'
+  // dogar ve faz bitince 'done' yapilir. Bug/karar gibi is kalemi degildir:
+  // sirayi ve cikis olcutlerini tasir.
+  plan:     ["id", "type", "project", "module", "title", "status", "priority", "created_at", "updated_at"],
   note:     ["id", "type", "project", "title", "status", "created_at", "updated_at"],
   session:  ["id", "type", "project", "title", "created_at"]
 };

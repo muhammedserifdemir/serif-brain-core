@@ -1,3 +1,15 @@
+## [Unreleased]
+
+### Eklendi
+- **`plan` tipi (birinci sinif)**: yol haritasi / faz planlari icin. `plans/`
+  altina yazilir, `active` dogar, faz bitince `done` yapilir. `brief` ciktisinda
+  en ustte ayri "🗺 Aktif plan" bolumunde gosterilir.
+  Gerekce: `init` `plans/` dizinini olusturuyordu ama hicbir yerde okunmuyordu;
+  yol haritasini `decision` veya `record` olarak tutmak semantik olarak yanlisti
+  (plan bir is kalemi degil, sirayi ve cikis olcutlerini tasiyan belge).
+  Dokunulan: object.mjs (TYPE_DIR), schema.mjs (ID_RE + REQUIRED_BY_TYPE),
+  object-cache.mjs (TYPE_DIRS), add.mjs (TYPE_DEFAULTS + sablon), brief.mjs.
+
 # Changelog
 
 Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).

@@ -34,7 +34,7 @@ import { dashboardCommand } from "./dashboard.mjs";
 const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
   doctor:  { handler: doctorCommand, help: "Sistem sagligi ve store engine raporu" },
-  add:     { handler: addCommand,    help: "Bug/decision/record ekle (add bug | add decision | add record — record status:done dogar)" },
+  add:     { handler: addCommand,    help: "Bug/decision/plan/record ekle (add bug | add decision | add plan | add record)" },
   close:   { handler: closeCommand,  help: "Bug/decision kapat (status flip + completed_at + opsiyonel commit/note)" },
   stale:   { handler: staleCommand,  help: "Acik kalemleri son commit aktivitesine gore tara (--days N, --quiet)" },
   "sync-commits": { handler: syncCommitsCommand, help: "Commit mesajindaki 'Brain-Closes: <id>' trailer'ini okuyup objeleri kapat (--since-days N, --dry-run)" },

@@ -21,6 +21,12 @@ const TYPE_DEFAULTS = {
     priority: "medium",
     body: `\n## Baglam\n\n## Karar\n\n## Sonuclari (Consequences)\n- \n\n## Reddedilen Alternatifler\n- \n`
   },
+  // plan = yol haritasi / faz plani. plans/ altina yazilir, 'active' dogar.
+  plan: {
+    status: "active",
+    priority: "high",
+    body: `\n## Nerede duruyoruz\n\n## Fazlar\n### FAZ A —\n- Hedef:\n- Cikis olcutu:\n\n### FAZ B —\n- Hedef:\n- Cikis olcutu:\n\n## Elenen yollar (tekrar denenmesin)\n- \n`
+  },
   // record = yapilmis isin kaydi. 'done' DOGAR — kapatilmayi beklemez.
   record: {
     status: "done",
@@ -50,7 +56,8 @@ function gitTouchedFiles(projectRoot, limit = 12) {
 export async function addCommand({ args, subcommand }) {
   const type = subcommand[0];
   if (!type || !TYPE_DEFAULTS[type]) {
-    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|record> --title "..." [--module testx] [--priority high] [--files a,b]`);
+    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|plan|record> --title "..." [--module testx] [--priority high] [--files a,b]`);
+    console.error(`  plan   = yol haritasi/faz plani (status: active dogar, plans/ altina yazilir)`)
     console.error(`  record = yapilmis is kaydi (status: done dogar, decisions/ altina yazilir)`);
     return 1;
   }
