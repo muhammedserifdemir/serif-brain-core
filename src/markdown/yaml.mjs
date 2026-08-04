@@ -195,7 +195,7 @@ function parseDict(lines, startIdx, indent) {
 
     const colon = findKeyColon(trimmed);
     if (colon < 0) throw new Error(`Line ${n}: expected key:value but got '${trimmed}'`);
-    const key = trimmed.slice(0, colon).trim();
+    const key = unquoteKey(trimmed.slice(0, colon).trim());
     const after = trimmed.slice(colon + 1).trim();
 
     if (after === "") {
@@ -216,6 +216,16 @@ function parseDict(lines, startIdx, indent) {
     }
   }
   return { value: obj, nextIdx: i };
+}
+
+// Tirnakli anahtarin tirnagini soy: `'lib/auth/': auth` -> anahtar `lib/auth/`.
+// Eskiden tirnaklar anahtarda kaliyordu; module_paths gibi anahtari VERI olan
+// haritalarda kural sessizce hic eslesmiyordu (yazan hata gormez, sonuc yanlis).
+function unquoteKey(k) {
+  if (k.length >= 2 && ((k[0] === "'" && k.at(-1) === "'") || (k[0] === '"' && k.at(-1) === '"'))) {
+    return k.slice(1, -1);
+  }
+  return k;
 }
 
 function findKeyColon(s) {

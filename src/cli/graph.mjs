@@ -29,7 +29,7 @@ export async function graphCommand({ args, subcommand }) {
     console.log(`[serif-brain graph build]`);
     console.log(`  Project: ${projectRoot} (id=${projectId || "<auto>"})`);
 
-    const graph = await buildGraph({ projectRoot, brainRoot, projectId });
+    const graph = await buildGraph({ projectRoot, brainRoot, projectId, config: cfg });
 
     const jsonPath = writeGraphJson(graph, brainRoot);
     const dotPath = writeGraphDot(graph, brainRoot);

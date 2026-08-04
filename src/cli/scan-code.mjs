@@ -3,8 +3,9 @@ import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
 import { parseImports, parseTodos } from "../scanner/parse-imports.mjs";
-import { ownerOf, moduleStats } from "../scanner/module-owner.mjs";
+import { moduleStats } from "../scanner/module-owner.mjs";
 import { scanPackageJsons, allDependencies } from "../scanner/package-scan.mjs";
+import { loadConfig } from "../markdown/schema.mjs";
 
 export async function scanCodeCommand({ args, subcommand }) {
   const target = subcommand[0];
@@ -20,8 +21,10 @@ export async function scanCodeCommand({ args, subcommand }) {
   console.log(``);
 
   const t0 = Date.now();
-  const files = scanFiles(projectRoot);
-  const stats = moduleStats(files);
+  const brainRoot = join(projectRoot, ".serif-brain");
+  const config = existsSync(brainRoot) ? loadConfig(brainRoot) : null;
+  const files = scanFiles(projectRoot, { exclude_paths: config?.scan_exclude_paths });
+  const stats = moduleStats(files, config);
   const packages = scanPackageJsons(projectRoot);
   const deps = allDependencies(packages);
 

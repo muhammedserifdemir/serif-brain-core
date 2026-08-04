@@ -65,10 +65,11 @@ export function ownerOfConfigured(relPath, config) {
   return ownerOf(relPath);
 }
 
-export function moduleStats(files) {
+// config verilirse `module_paths` kurallari uygulanir; verilmezse eski davranis.
+export function moduleStats(files, config) {
   const byMod = new Map();
   for (const f of files) {
-    const m = ownerOf(f.rel_path);
+    const m = ownerOfConfigured(f.rel_path, config);
     if (!byMod.has(m)) byMod.set(m, { files: 0, kinds: {}, loc: 0 });
     const s = byMod.get(m);
     s.files++;

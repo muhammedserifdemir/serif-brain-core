@@ -33,6 +33,11 @@ export function scanFiles(root, opts = {}) {
   const out = [];
   const includeTests = opts.include_tests ?? false;
   const includeTypes = opts.include_types ?? false;
+  // Projeye ozgu haric tutma: config.yaml'daki `scan_exclude_paths`. Kok-goreli
+  // ONEK listesidir (ornek: "uploads/"). Calisma-zamani yuklenen icerik (SCORM
+  // zip'i, kullanici dosyasi) proje kodu degildir; grafta sayilirsa hotspot/risk
+  // yabanci dosyalari isaret eder.
+  const excludePaths = (opts.exclude_paths || []).filter((p) => typeof p === "string" && p);
 
   function walk(dir) {
     let entries;
@@ -41,6 +46,8 @@ export function scanFiles(root, opts = {}) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (EXCLUDED_DIRS.has(entry.name)) continue;
+        const relDir = relative(root, full);
+        if (excludePaths.some((p) => relDir === p.replace(/\/$/, "") || relDir.startsWith(p))) continue;
         walk(full);
       } else if (entry.isFile()) {
         const ext = extname(entry.name);

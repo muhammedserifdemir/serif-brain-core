@@ -3,7 +3,7 @@ import { resolve as pResolve, basename } from "node:path";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
 import { parseImports, parseTodos, parseIdMentions } from "../scanner/parse-imports.mjs";
 import { resolveImport, loadTsconfigPaths, loadWorkspacePackages, isExternalPackage, isNodeBuiltin } from "../scanner/resolve-import.mjs";
-import { ownerOf } from "../scanner/module-owner.mjs";
+import { ownerOfConfigured } from "../scanner/module-owner.mjs";
 import { scanPackageJsons, allDependencies } from "../scanner/package-scan.mjs";
 import { loadScanCache, saveScanCache } from "../scanner/cache.mjs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
@@ -14,11 +14,17 @@ const EDGE_TYPES = ["imports","uses","owns","mentions","fixes","caused_by","bloc
 
 function nid(type, key) { return `${type}:${key}`; }
 
-export async function buildGraph({ projectRoot, brainRoot, projectId }) {
+export async function buildGraph({ projectRoot, brainRoot, projectId, config }) {
   const startedAt = Date.now();
 
+  // Modul sahipligi config-farkinda: .serif-brain/config.yaml'daki `module_paths`
+  // once, yoksa module-owner.mjs'teki hardcoded RULES. Eskiden buradaki cagrilar
+  // dogrudan ownerOf() idi; ownerOfConfigured yazilmisti ama graph/scan onu hic
+  // cagirmiyordu, bu yuzden config'e kural yazmak grafi HIC etkilemiyordu.
+  const ownerOf = (rel) => ownerOfConfigured(rel, config);
+
   // ─── 1. Code scan ───
-  const files = scanFiles(projectRoot);
+  const files = scanFiles(projectRoot, { exclude_paths: config?.scan_exclude_paths });
   const aliases = loadTsconfigPaths(projectRoot);
   const workspaces = loadWorkspacePackages(projectRoot);
   const packages = scanPackageJsons(projectRoot);
