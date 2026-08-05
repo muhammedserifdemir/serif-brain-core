@@ -1,13 +1,13 @@
 // serif-brain init — .serif-brain/ yapisini olustur
-import { mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
+import { planSkillSync, applySkillSync, listPackageSkills } from "../skills/sync.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = resolve(HERE, "../../templates");
-const SKILLS_SRC = resolve(HERE, "../../skill");
 
 const PROJECT_SUBDIRS = ["bugs", "decisions", "notes", "modules", "sessions", "sprints"];
 const ROOT_LAYOUT_DIRS = ["graph", "reports", "context", "indexes", "archive-index"];
@@ -210,26 +210,15 @@ function copyTemplateIfMissing(src, dst, label) {
 //   - serif-brain-core → brain komutlarinin oturum ici kullanimi
 // Var olan dosyalar overwrite EDILMEZ (writeIfMissing ile ayni sozlesme) —
 // kullanicinin skill uzerinde yaptigi yerel duzenlemeler korunur.
-function copySkillDir(src, dst, label) {
-  mkdirSync(dst, { recursive: true });
-  for (const entry of readdirSync(src, { withFileTypes: true })) {
-    const s = join(src, entry.name);
-    const d = join(dst, entry.name);
-    if (entry.isDirectory()) copySkillDir(s, d, `${label}/${entry.name}`);
-    else copyTemplateIfMissing(s, d, `${label}/${entry.name}`);
-  }
-}
-
+// Kopyalama mantigi src/skills/sync.mjs'te (tek kaynak) — 'skills update' komutu
+// ayni kodu "sync" modunda cagirir. Burada mode "missing": var olan ezilmez.
+// Paket skill'i guncellenmisse init onu TASIMAZ; bunun icin 'serif-brain skills update'.
 function installSkills(projectRoot) {
-  if (!existsSync(SKILLS_SRC)) return;
-  const skillDirs = readdirSync(SKILLS_SRC, { withFileTypes: true }).filter(e => e.isDirectory());
-  if (skillDirs.length === 0) return;
-  const dstRoot = join(projectRoot, ".claude", "skills");
+  if (listPackageSkills().length === 0) return;
   console.log(``);
   console.log(`Claude skill kurulumu (.claude/skills/):`);
-  for (const entry of skillDirs) {
-    copySkillDir(join(SKILLS_SRC, entry.name), join(dstRoot, entry.name), entry.name);
-  }
+  const plan = planSkillSync(projectRoot);
+  applySkillSync(plan, { mode: "missing", apply: true, log: msg => console.log(msg) });
 }
 
 export async function initCommand({ args }) {

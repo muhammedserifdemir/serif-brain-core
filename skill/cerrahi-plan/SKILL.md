@@ -70,8 +70,29 @@ Düzenlemeye başlamadan, "bitti"nin nesnel ölçütünü tek satırda yaz:
 hangi test/komut hangi sonucu verirse iş bitmiş sayılacak? (Ör: "skor.test
 3/3 geçer, tsc 0 hata, çağıran 2 dosyanın testleri yeşil kalır.")
 
+**Ölçüt HANGİ VERİYLE sağlanacağını da söylemeli.** Yoksa kendi yazdığınız
+kolay bir örnekle sağlanır ve iş bitmiş sanılır — gerçek veride çalışmadığı
+sonra ortaya çıkar. "Tarayıcıda tıklama çalışır" yetmez; "repodaki gerçek
+fikstür destesinden üretilen çıktıda tıklama çalışır" ölçüttür. Sayı/oran
+üretecekseniz `olcum-sozlesmesi` skill'i bu kısmı ayrıntılandırır.
+
 Bu ölçüt sonradan yumuşatılamaz; iş sonunda doğrulama (varsa
 kanit-disiplini skill'i ile) bu ölçüte karşı yapılır.
+
+### 5. Tek iş parçacığı — kesik sırasında yön değiştirme
+
+İş sırasında beklenmedik bulgular çıkar; bu teşhisin işe yaradığının
+işaretidir, yön değiştirme daveti değil. Bulgunun peşinden gitmek kolaydır ve
+kullanıcı tarafında "dağıldık" hissi yaratır: açılan işlerin hiçbiri kapanmaz,
+her biri yarım kalır.
+
+Bulgu çıktığında:
+1. Bulguyu **kuyruğa yaz** (kayıt/not/TODO), peşinden gitme.
+2. Plandaki kesiği bitir ya da açıkça durdur.
+3. Bulgu yönü değiştiriyorsa **kullanıcıya sor** — kendi başına rota değiştirme.
+
+Tek istisna: bulgu mevcut işin *doğruluğunu çürütüyorsa* hemen durup söyle.
+Yanlış temel üstüne devam etmek, durup sormaktan pahalıdır.
 
 ## Plan formatı
 
@@ -81,7 +102,7 @@ Zincir bitince, kesime başlamadan önce planı bu kısa blokla sun:
 TEŞHİS: <kök neden — dosya:satır + kanıt (test çıktısı/trace)>
 ETKİ: <çağıranlar ve korunan sözleşmeler>
 KESİK: <dokunulacak dosyalar> | DOKUNULMAZ: <kapsam dışı bırakılanlar>
-BİTTİ ÖLÇÜTÜ: <komut + beklenen sonuç>
+BİTTİ ÖLÇÜTÜ: <komut + HANGİ VERİYLE + beklenen sonuç>
 ```
 
 Basit ve tek dosyalık işlerde blok üç-dört satırı geçmez; yine de yazılır,
@@ -100,3 +121,5 @@ planı görünce itiraz etmezse (veya önceden onay verdiyse) kesime geç.
   önce planı güncelle ve söyle.
 - "Hazır buradayken" düzeltmeleri — kapsam dışı bulguları düzeltme,
   raporla.
+- Bitti ölçütünü hangi veriyle sağlanacağını yazmadan bırakmak.
+- İş sırasında çıkan bulgunun peşine düşüp planlanan kesiği yarım bırakmak.

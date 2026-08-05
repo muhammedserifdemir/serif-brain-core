@@ -160,3 +160,26 @@ serif-brain migrate --dry-run    # SADECE rapor uretir, hicbir sey yazmaz
 - `.claude/settings.json` SessionStart hook'unu elle degistirme. Faz 8 ile
   `serif-brain hooks plan` + `apply` ile yapilir.
 - Graphify cache'i regenerate etme. Faz 4 native graph engine yeterli.
+
+## Bu Skill Yuklendikten Sonra — Disiplin Zinciri
+
+Brain bagliami yuklendiginde is baslamis demektir. Bagliam TEK BASINA yeterli
+degil: brain kayitlari yazildiklari andaki bilgiyle dogru olan bir GOZLEM
+GUNLUGUDUR, olgu kaynagi degil. Icindeki teshisler sik sik dar bir aramayla
+(tek dosyada grep, tek ornekle test) uretilip genel gercek gibi yazilmistir.
+
+Bu yuzden brain'den sonra su uc skill devreye girer:
+
+| Skill | Ne zaman |
+|---|---|
+| `cerrahi-plan` | koda dokunmadan once — teshis/etki/en kucuk kesik/bitti olcutu |
+| `ikiz-kod` | ayni mantigi ikinci kez yazmak uzereyken (gomulu/uretilmis kod, farkli runtime) |
+| `olcum-sozlesmesi` | sayi, oran veya karsilastirma uretmeden once |
+| `kanit-disiplini` | "bitti/tamam/calisiyor" demeden once |
+| `somut-rapor` | is bitince kullaniciya anlatirken |
+
+**Brain'e ozel kural:** bir kayittaki teshisi plana temel yapacaksan O TURDA
+yeniden dogrula. Kayit yanlis ciktiysa duzelt ve `add record` ile not dus —
+yoksa sonraki oturum ayni yanlisi kovalar. (Bu oturumda bir bug kaydinin
+teshisi tam boyle yanlis cikti: "hicbir click listener yok" deniyordu, gercekte
+listener vardi; o grep tek dosyada kosulmustu.)

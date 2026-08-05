@@ -32,6 +32,33 @@ düzenleme girmiş, bir edit yarım kalmış olabilir. Ayrıca diff'te kapsam d�
 değişiklik var mı kontrol et: dokunmaman gereken bir dosya değiştiyse bunu
 raporla — çalışan bir şeyi farkında olmadan kırmanın en erken sinyali budur.
 
+**Hangi ağaçta olduğunu doğrula.** Aynı depo birden çok yerde açık olabilir
+(worktree, ikinci klasör, başka bir oturum). Bulunduğun ağacın commit'i
+beklediğin commit mi? `git rev-parse --short HEAD` + `git worktree list`.
+Bayat bir ağaçta doğru iş yapmak, doğru ağaçta yanlış iş yapmak kadar
+zaman kaybettirir — ve rapor karşı tarafta anlamsız görünür.
+
+### 1b. YOKLUK iddiası — en kolay yanılma
+
+"Bu fonksiyon repoda yok", "hiçbir yerde çağrılmıyor", "böyle bir alan
+tanımlanmamış" cümleleri **pozitif bir bulgu kadar kanıt ister**, çünkü
+yanlış negatif sessizdir: arama bir şey döndürmediğinde hata almazsın,
+yokluğu onaylanmış sanırsın.
+
+Yokluk iddiası yazmadan önce:
+- **Deseni değil, sabit dizeyi ara.** Regex lehçeleri farklıdır (`grep`,
+  `ripgrep`, `ugrep`, `ack` alternasyon ve kaçışları aynı yorumlamaz);
+  `\|` bir araçta alternasyon, diğerinde düz karakterdir. Önce
+  `--fixed-strings` ile ara.
+- **Kapsamı kontrol et:** doğru kök dizin mi, `node_modules`/`dist` dışlaması
+  aramayı da mı kesti, büyük/küçük harf duyarlılığı ne.
+- **En az iki farklı yolla** teyit et (dize araması + dosyayı doğrudan okuma).
+
+Ve bulduğun yokluğun **sebebini uydurma**. "Şu commit'te silinmiş" demek için
+o commit'in gerçekten o dosyaya dokunduğunu göstermen gerekir
+(`git show --stat <commit>`). İnandırıcı bir hikâye, kanıt değildir; hatalı
+sebep açıklaması yanlış bulgudan daha zararlıdır çünkü sorgulanmaz.
+
 ### 2. Derle ve test et — çıktıyı yakala
 
 Projenin gerçek komutlarını çalıştır (type-check, build, test; projede ne
@@ -47,8 +74,11 @@ yavaşladıysa veya test sayısı düştüyse raporda belirt.
 UI'a dokunan her değişiklikten sonra çalıştır:
 
 ```bash
-python scripts/tr_tarama.py <değişen dosyalar veya dizin>
+python3 ~/.claude/skills/kanit-disiplini/scripts/tr_tarama.py <değişen dosyalar veya dizin>
 ```
+
+Script skill ile birlikte gelir — proje içinde aramaya gerek yok. Bulgu varsa
+çıkış kodu 1 döner.
 
 Script iki şey arar:
 - ASCII'leşmiş Türkçe ("egitim turu" → "eğitim türü" olmalı). Kullanıcıya
@@ -61,7 +91,7 @@ Bulguları değerlendir: script sinyal üretir, karar senindir (İngilizce kod
 tanımlayıcıları false positive olabilir). Gerçek bulguysa düzelt ve zinciri
 2. adımdan tekrar işlet.
 
-### 4. Ortam kontrolü (servis/port işlerinde)
+### 4. Ortam kontrolü — "komut çalıştı" ≠ "iş yapıldı"
 
 Bir portun boş olduğunu, bir servisin senin başlattığın servis olduğunu
 veya bir endpoint'in ayakta olduğunu varsayma. Önce bak:
@@ -70,6 +100,23 @@ veya bir endpoint'in ayakta olduğunu varsayma. Önce bak:
 lsof -i :<port> -sTCP:LISTEN
 pm2 ls        # pm2 kullanılıyorsa
 ```
+
+Sessiz başarısızlık kaynakları — hepsi hata vermeden yanlış sonuç üretir:
+
+- **Çalışma dizini kabuk çağrıları arasında kalıcıdır.** Bir önceki komutta
+  `cd` yaptıysan göreli yol başka yere düşer; `rm -f`, `cp`, `mkdir -p` gibi
+  komutlar hata vermeden hiçbir şey yapmaz. Yıkıcı/temizleyici işlerde
+  **mutlak yol** kullan ve sonucu ayrıca listeleyerek doğrula.
+- **Kod üreten dosyalar** (içeriği template literal / backtick içinde tutanlar):
+  yorumlara bile backtick yazamazsın, string erken kapanır ve dosya derlenmez.
+  Üretilmiş çıktıyı bir kez derleyip veya koşup gör.
+- **Kopya ağaçlar** (`worktrees/`, `backups/`) test toplayıcısına girip aynı
+  testi iki kere koşturur; sayı iki katına çıkar veya alias çözülmediği için
+  sahte hata verir. Toplayıcıyı daralt.
+- **Bir şeyi bozmadığını ölçerken**: dosyayı geçici bir yere kopyala →
+  `git checkout <commit> -- <dosya>` → ölç → geri kopyala. `git stash`
+  KULLANMA: başkasının bekleyen çalışması varsa pop yanlış şeyi çalışma
+  ağacına uygular.
 
 Aynı makinede birden çok oturum/proje çalışıyor olabilir; 3000-3001 gibi
 portları başka bir süreç tutuyorsa bunu teşhis olarak raporla, süreci
@@ -103,6 +150,8 @@ Böyle bir satırın ardından iş "tamamlandı" ilan edilmez; önce bulgular
 - Komut çıktısı olmadan sayı veya başarı iddiası yazmak.
 - Başarısız/atlanmış adımı sessizce geçmek.
 - "Çalışması lazım", "muhtemelen geçer" kalıpları.
+- Tek aramayla yokluk ilan etmek (regex lehçesi sessizce yanlış negatif verir).
+- Bulunan bir yokluğun sebebini kanıtlamadan anlatmak (commit suçlamak dahil).
 - Doğrulama bahanesiyle yıkıcı işlem (dosya/tablo silme, süreç öldürme,
   force push) — teşhis koy, kararı kullanıcıya bırak.
 - Rapor satırı dışında uzun kapanış özeti yazmak.
