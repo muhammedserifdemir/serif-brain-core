@@ -63,7 +63,7 @@ const COMMANDS = {
   related: { handler: relatedCommand,  help: "Bir objeye otomatik kesfedilen iliskili objeler (modul/etiket/metin benzerligi) <id> --limit --json" },
   prune:   { handler: pruneCommand,    help: "Stale + otomasyon churn objelerini guvenle arsivle (dry-run; --apply, --days N)" },
   skills:  { handler: skillsCommand,     help: "Paket Claude skill'lerini projeye tasi/guncelle (status|list|update). init var olani ezmez; guncelleme icin: skills update --apply" },
-  dashboard:{ handler: dashboardCommand, help: "Cok-brain yonetici paneli: statik HTML uret (build|add <yol>|scan|list|archive|rm). Tum projelerin durumu/port/calistirma/biten isler" },
+  dashboard:{ handler: dashboardCommand, help: "Cok-brain yonetici paneli: CANLI panel (serve) + statik HTML (build|add <yol>|scan|list|archive|rm). Tum projelerin durumu/port/calistirma/biten isler" },
   mcp:     { handler: mcpCommand,       help: "MCP sunucusu (stdio/JSON-RPC) — Claude Code brain'i canli okur (brain_search/get/context/related)" },
   archive: { handler: stubCommand("archive", "Faz 1 kapsami — su an manuel apply ile yapildi") },
   ingest:  { handler: stubCommand("ingest",  "Faz 5 — legacy kaynaklari oku, normalize et") },

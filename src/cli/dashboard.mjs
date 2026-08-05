@@ -8,6 +8,25 @@ import { loadRegistry, saveRegistry, upsertBrain, findBrain, brainRootOf, repoOf
 import { detectProject } from "../dashboard/detect.mjs";
 import { collectAll } from "../dashboard/collect.mjs";
 import { renderDashboard } from "../dashboard/render.mjs";
+import { serve } from "../dashboard/server.mjs";
+import * as proc from "../dashboard/proc.mjs";
+
+// Canli panel: statik HTML'in yapamadigi uc sey burada olur — surec baslat/durdur,
+// canli brain sorgusu, yeni projeyi kendiliginden kesfetme.
+async function cmdServe(flags) {
+  const port = Number(flags.port) || 4700;
+  const { port: gercek } = await serve({ port });
+  console.log(`[dashboard] canli panel: http://127.0.0.1:${gercek}`);
+  console.log(`[dashboard] durdurmak icin Ctrl+C`);
+  const kapat = async () => {
+    const n = await proc.stopAll();          // panelin baslattigi surecleri birak
+    if (n) console.log(`[dashboard] ${n} surec durduruldu`);
+    process.exit(0);
+  };
+  process.on("SIGINT", kapat);
+  process.on("SIGTERM", kapat);
+  return new Promise(() => {});              // sunucu acik kalir
+}
 
 function defaultOut() {
   return process.env.SERIF_BRAIN_DASHBOARD_OUT || join(homedir(), "Desktop", "serif-brain-dashboard.html");
@@ -129,6 +148,7 @@ export async function dashboardCommand({ args, subcommand }) {
   const f = args.flags;
   switch (sub) {
     case undefined:
+    case "serve": return await cmdServe(f);
     case "build": return buildHtml(f);
     case "add":   return cmdAdd(rest[0], f);
     case "scan":  return cmdScan(rest[0]);
