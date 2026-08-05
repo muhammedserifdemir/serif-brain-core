@@ -8,10 +8,13 @@ import { getChangedFiles } from "../query/git-activity.mjs";
 import { resolveFileNode } from "../query/impact.mjs";
 import { checkFile } from "../query/check.mjs";
 import { lintContent } from "../query/signatures.mjs";
-import { readFileSafe } from "../scanner/scan-files.mjs";
+import { readFileSafe, classifyFile } from "../scanner/scan-files.mjs";
 
 const SRC_RE = /\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte)$/;
 const STALE_GRAPH_MIN = 7 * 24 * 60; // 7 gun — bunun otesinde graf "bayat" sayilir
+// Tarayicinin (scan-files.mjs) grafa ALMADIGI siniflar. Bunlar icin "grafta yok"
+// bir eksiklik degil, tasarim karari — "graph build kos" demek eyleme donusmez.
+const GRAPH_EXCLUDED_KINDS = new Set(["test", "type-declaration"]);
 
 export async function reviewCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -32,21 +35,50 @@ export async function reviewCommand({ args }) {
   // olmayan (yeni/yeni-adlandirilmis) dosyalar sessizce "temiz" gorunmesin —
   // denetlenemeyen dosya, denetlenip temiz cikan dosya DEGILDIR. Sayilir ve
   // raporlanir; yoksa kapi yanlis guven uretir.
+  //
+  // AMA "grafta yok" IKI AYRI sey demekti ve kapi ikisini karistiriyordu
+  // (2026-08-05'te olculdu):
+  //   a) DENETLENEMEDI — grafta OLMASI GEREKEN kaynak dosya orada degil
+  //      (yeni eklendi, graf bayat). Gercek sinyal; uyarilmali.
+  //   b) KAPSAM DISI — grafa ZATEN girmeyecek dosya. scan-files.mjs
+  //      `kind === "test"` ve `type-declaration` olanlari BILEREK almiyor
+  //      (olcum: serif-platform grafi 2537 dugum, 0 test dosyasi).
+  //      Bunlara "graph build kos" demek eyleme donusmez — graf onlari
+  //      hicbir zaman indekslemeyecek.
+  // (b)'yi uyari saymak kapinin degerini sifirliyordu: test yazilan HER
+  // oturumda ayni satir tekrarlaniyor, okunmaz hale geliyordu (bir oturumda
+  // ~40 ayni satir olculdu). Artik ayrilar: (a) uyarir, (b) yalnizca sayilir.
+  //
+  // Sinifi classifyFile'dan okur — desen kopyalanmaz, tarayici politikasi
+  // degisince rapor kendiliginden uyar (ikiz kod yok).
   const uncovered = [];
+  const outOfScope = [];
+
+  // Projeye ozgu tarama disi yollar — graph build ile AYNI config anahtari
+  // (scan-files.mjs `exclude_paths`). Buradaki dosya da grafa girmez; onun
+  // icin "graph build kos" demek yine eyleme donusmez.
+  const excludePaths = (config?.scan_exclude_paths || []).filter((p) => typeof p === "string" && p);
+  const taramaDisiYol = (rel) =>
+    excludePaths.some((p) => { const q = p.replace(/\/$/, ""); return rel === q || rel.startsWith(q + "/"); });
 
   const report = [];
   for (const rel of changed) {
     const abs = join(projectRoot, rel);
     const issues = [];
+    const grafaGirmez = GRAPH_EXCLUDED_KINDS.has(classifyFile(rel)) || taramaDisiYol(rel);
 
     if (graph) {
       const node = resolveFileNode(graph, rel);
       if (node) {
         const c = checkFile(graph, node.id, { rules, god_threshold: config?.god_threshold });
         if (!c.ok) for (const i of c.issues) issues.push({ kind: "graph", detail: i });
+      } else if (grafaGirmez) {
+        outOfScope.push(rel);
       } else {
         uncovered.push(rel);
       }
+    } else if (grafaGirmez) {
+      outOfScope.push(rel);
     } else {
       uncovered.push(rel);
     }
@@ -57,9 +89,12 @@ export async function reviewCommand({ args }) {
   }
 
   const coverage = {
-    checked: changed.length - uncovered.length,
+    checked: changed.length - uncovered.length - outOfScope.length,
     uncovered: uncovered.length,
     uncovered_files: uncovered,
+    /** Grafa tasarim geregi girmeyen dosyalar (test/type-decl) — uyari DEGIL. */
+    out_of_scope: outOfScope.length,
+    out_of_scope_files: outOfScope,
     graph_missing: !graph,
     graph_age_min: graphAgeMin(graphPath),
   };
@@ -106,6 +141,11 @@ function printCoverage(cov) {
     console.log(`    ${cov.uncovered} dosya grafta YOK — bu dosyalar icin katman/dongu/god sonucu YOK:`);
     for (const f of cov.uncovered_files) console.log(`      · ${f}`);
     console.log(`    Duzelt: serif-brain graph build`);
+  }
+  // Kapsam disi dosyalar UYARI degil — bilgi. Graf onlari hicbir zaman
+  // indekslemeyecegi icin "duzelt" onerisi de yok.
+  if (cov.out_of_scope) {
+    console.log(`  · ${cov.out_of_scope} dosya yapisal denetim KAPSAMI DISINDA (test / tip bildirimi / scan_exclude_paths) — grafa tasarim geregi girmez.`);
   }
   if (cov.graph_age_min != null && cov.graph_age_min > STALE_GRAPH_MIN) {
     const days = Math.round(cov.graph_age_min / 1440);
