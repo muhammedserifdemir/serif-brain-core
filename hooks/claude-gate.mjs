@@ -55,20 +55,36 @@ function pre(projectRoot, file) {
   const g = brainJson(projectRoot, ["guard", file]);
   if (!g) return;
 
+  const title = (x) => x?.title || x?.id || String(x);
   const lines = [];
-  for (const d of g.must_not_violate || []) lines.push(`  ⛔ KISIT: ${d.title || d.id || d}`);
-  for (const b of g.open_bugs || []) lines.push(`  🐞 ACIK BUG: ${b.title || b.id || b}`);
-  for (const s of g.scars || []) lines.push(`  🩹 YARA IZI: ${s.title || s.id || s}`);
-  for (const h of g.signature_hits || []) lines.push(`  ⚠ IMZA: ${h.message || h.name} @${h.line ?? "?"}`);
 
+  // 1) TAM BU DOSYAYA ozel olanlar — tamami gosterilir, en degerli sinyal bunlar.
+  for (const h of g.signature_hits || []) lines.push(`  ⚠ IMZA: ${h.message || h.name} @${h.line ?? "?"}`);
+  for (const f of g.file_hits || []) lines.push(`  🔗 BU DOSYA: ${f.type || "kayit"} — ${title(f)} [${f.status ?? "?"}]`);
+
+  // 2) Modul geneli kayitlar — OZETLENIR. Bunlar modulun her dosyasinda ayni
+  // cikar; her Edit'te tam liste basmak kapiyi bir gunde okunmaz hale getirir.
+  // Oturum acilisindaki 'serif-brain context' zaten tam listeyi veriyor.
+  const modul = [
+    ...(g.must_not_violate || []).map(d => ({ tag: "aktif karar", t: title(d) })),
+    ...(g.open_bugs || []).map(b => ({ tag: "ACIK BUG", t: title(b) })),
+    ...(g.scars || []).map(s => ({ tag: "yara izi", t: title(s) })),
+  ];
+  if (modul.length) {
+    const bas = modul[0];
+    const kalan = modul.length - 1;
+    lines.push(`  📎 Modul (${g.module || "?"}) geneli: ${bas.tag} — ${bas.t}` +
+               (kalan > 0 ? ` · +${kalan} kayit daha` : ""));
+  }
+
+  // 3) Bu duzenlemeye ozel risk sinyalleri
   const risk = g.risk?.level;
-  const blast = g.blast_radius?.transitive_dependent_count ?? null;
-  if (risk && risk !== "low") lines.push(`  📈 RISK: ${risk} (skor ${g.risk.score})`);
-  if (blast && blast >= 10) lines.push(`  💥 BLAST: ${blast} dosya bu dosyaya bagli`);
+  const blast = g.blast_radius?.transitive ?? null;
+  if (risk === "high" || risk === "critical") lines.push(`  📈 RISK: ${risk} (skor ${g.risk.score})`);
+  if (blast && blast >= 10) lines.push(`  💥 BLAST: ${blast} dosya bu dosyaya (gecisli) bagli`);
 
   if (!lines.length) return; // temiz → sus
-  emit([`[serif-brain] ${file} — bu dosyada hafiza kaydi var:`, ...lines,
-        `  (Kaynak: serif-brain guard ${file})`]);
+  emit([`[serif-brain] ${file}:`, ...lines, `  (Tamami: serif-brain guard ${file})`]);
 }
 
 // Edit'ten HEMEN SONRA: yapisal bozulma. Grafta olmayan dosyada susar —

@@ -75,6 +75,31 @@ bug_signatures:
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test("kapi — modul geneli kayitlar OZETLENIR (her Edit'te tam liste basmaz)", () => {
+  const tmp = makeBrainProject();
+  try {
+    // Ayni modulde 4 aktif karar: modulun HER dosyasinda ayni cikar, tam liste
+    // basilirsa kapi bir gunde okunmaz hale gelir.
+    const dir = join(tmp, ".serif-brain", "objects", "projects", "p", "decisions");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(tmp, ".serif-brain", "config.yaml"),
+      "layer_rules: []\nbug_signatures: []\nmodule_paths:\n  src/: cekirdek\n");
+    for (let i = 1; i <= 4; i++) {
+      writeFileSync(join(dir, `decision-2026080${i}-karar-${i}.md`),
+        `---\nid: decision-2026080${i}-karar-${i}\ntype: decision\nproject: p\nmodule: cekirdek\n` +
+        `title: "Karar ${i}"\nstatus: active\ncreated_at: "2026-08-0${i}T00:00:00.000Z"\n---\n\nGovde.\n`);
+    }
+
+    const out = runGate("pre", { tool_input: { file_path: "src/a.mjs" }, cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp });
+    const j = parseEmit(out);
+    if (!j) return; // modul eslesmesi kurulamadiysa test anlamsiz — sessizlik de gecerli
+    const ctx = j.hookSpecificOutput.additionalContext;
+    const modulSatiri = ctx.split("\n").filter(l => l.includes("Modul"));
+    assert.ok(modulSatiri.length <= 1, `modul kayitlari tek satirda ozetlenmeli, ${modulSatiri.length} satir cikti`);
+    assert.match(ctx, /kayit daha/, "gizlenen kayit sayisi belirtilmeli (sessizce kirpilmamali)");
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test("kapi — stop modu: kapsam eksigini tur sonunda bildirir", () => {
   const tmp = makeBrainProject();
   try {

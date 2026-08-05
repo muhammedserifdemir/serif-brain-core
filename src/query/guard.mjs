@@ -77,6 +77,11 @@ export function composeGuard(parts = {}) {
     module: parts.module || null,
     verdict,
     risk: { level: risk.level, score: risk.score },
+    // TAM BU DOSYAYA bagli kayitlar. Modul geneli kararlardan ayri tutulur:
+    // per-dosya bir kapida en degerli sinyal budur, modul karari her dosyada
+    // ayni ciktigi icin tekrar edip gurultuye donusur. Eskiden hesaplanip
+    // cikti disinda birakiliyordu.
+    file_hits: memory.file_hits || [],
     must_not_violate: mustNotViolate,
     open_bugs: openBugs,
     scars,
