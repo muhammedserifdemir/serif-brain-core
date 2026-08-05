@@ -129,3 +129,17 @@ test("server — arayuz servis edilir ve API uclari cevap verir", async () => {
     assert.equal(yok.status, 404);
   } finally { server.close(); }
 });
+
+test("cli — argumansiz 'dashboard' sunucu BASLATMAZ (varsayilan degismedi)", async () => {
+  // 'serve' sonradan eklendi. Varsayilani ona cevirmek, komutu bilmeden
+  // calistiran kullaniciyi bitmeyen bir sunucuya dusururdu.
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/cli/dashboard.mjs", import.meta.url), "utf8");
+  const i = src.indexOf("case undefined:");
+  const j = src.indexOf("case \"build\":", i);
+  const k = src.indexOf("case \"serve\":");
+  assert.ok(i >= 0 && j > i, "'case undefined' hemen 'build' dalina dusmeli");
+  assert.ok(k < i || j < src.indexOf("cmdServe", i),
+    "'case undefined' ile 'build' arasina baska bir dal girmemeli (serve'e dusmesin)");
+  assert.ok(!src.slice(i, j).includes("cmdServe"), "argumansiz dashboard serve'e DUSMEMELI");
+});

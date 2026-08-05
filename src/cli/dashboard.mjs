@@ -147,8 +147,11 @@ export async function dashboardCommand({ args, subcommand }) {
   const rest = subcommand.slice(1);
   const f = args.flags;
   switch (sub) {
-    case undefined:
     case "serve": return await cmdServe(f);
+    // Argumansiz 'dashboard' ESKIDEN BERI statik HTML uretir. 'serve' bu listeye
+    // sonradan eklendi; varsayilani ona cevirmek, komutu bilmeden calistiran
+    // kullaniciyi bitmeyen bir sunucuya dusururdu. Varsayilan degismedi.
+    case undefined:
     case "build": return buildHtml(f);
     case "add":   return cmdAdd(rest[0], f);
     case "scan":  return cmdScan(rest[0]);
@@ -157,7 +160,7 @@ export async function dashboardCommand({ args, subcommand }) {
     case "unarchive": return cmdArchive(rest[0], f, false);
     case "rm":    return cmdRm(rest[0]);
     default:
-      console.error(`[dashboard] bilinmeyen alt komut: ${sub} (build|add|scan|list|archive|unarchive|rm)`);
+      console.error(`[dashboard] bilinmeyen alt komut: ${sub} (serve|build|add|scan|list|archive|unarchive|rm)`);
       return 1;
   }
 }
