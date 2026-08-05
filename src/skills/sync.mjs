@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const SKILLS_SRC = resolve(HERE, "../../skill");
@@ -36,55 +37,109 @@ function sameContent(a, b) {
   try { return readFileSync(a).equals(readFileSync(b)); } catch { return false; }
 }
 
+// ── Kurulum manifesti ───────────────────────────────────────────────────────
+// Manifest olmadan "paket yenilendi, projedeki eski" (BAYAT) ile "kullanici
+// dosyayi elle degistirdi" (DUZENLENMIS) ayirt edilemez; ikisi de sadece
+// "farkli" gorunur. O zaman --apply ya emegi siler ya da guncellemeyi hic
+// yapamaz. Manifest, kurulum anindaki icerigin ozetini saklar; boylece uclu
+// karsilastirma mumkun olur:
+//     dosya == paket                      → same
+//     dosya != paket, dosya == manifest   → stale  (dokunulmamis, GUVENLE guncellenir)
+//     dosya != paket, dosya != manifest   → edited (YEREL EMEK, --force ister)
+// Manifest yoksa/kayit yoksa DUZENLENMIS sayilir — bilinmeyen kokende
+// varsayilan, kullanicinin emegini korumaktir.
+export const MANIFEST_NAME = ".serif-brain-skills.json";
+
+function hashFile(p) {
+  try { return createHash("sha256").update(readFileSync(p)).digest("hex"); } catch { return null; }
+}
+
+export function readManifest(dstRoot) {
+  try {
+    const raw = JSON.parse(readFileSync(join(dstRoot, MANIFEST_NAME), "utf8"));
+    return raw && typeof raw.installed === "object" ? raw.installed : {};
+  } catch { return {}; }
+}
+
+function writeManifest(dstRoot, installed) {
+  try {
+    mkdirSync(dstRoot, { recursive: true });
+    writeFileSync(join(dstRoot, MANIFEST_NAME),
+      JSON.stringify({ schema: 1, tool: "serif-brain", installed }, null, 2) + "\n");
+  } catch { /* manifest yazilamazsa akis bozulmaz — sadece koken izi kaybolur */ }
+}
+
 // Hedef projenin skill durumunu cikarir — hicbir sey YAZMAZ.
-// Her dosya uc durumdan biri: missing (yok) | same (ayni) | differs (bayat/duzenlenmis)
+// Durumlar: missing | same | stale | edited
 export function planSkillSync(projectRoot) {
   const dstRoot = skillsDirOf(projectRoot);
+  const manifest = readManifest(dstRoot);
   const skills = [];
   for (const name of listPackageSkills()) {
     const srcDir = join(SKILLS_SRC, name);
     const files = walkFiles(srcDir).map(rel => {
+      const key = `${name}/${rel}`;
       const src = join(srcDir, ...rel.split("/"));
       const dst = join(dstRoot, name, ...rel.split("/"));
-      const status = !existsSync(dst) ? "missing" : sameContent(src, dst) ? "same" : "differs";
-      return { rel, label: `${name}/${rel}`, src, dst, status };
+      let status;
+      if (!existsSync(dst)) status = "missing";
+      else if (sameContent(src, dst)) status = "same";
+      else status = manifest[key] && manifest[key] === hashFile(dst) ? "stale" : "edited";
+      return { rel, label: key, src, dst, status };
     });
     skills.push({ name, files });
   }
-  return { dstRoot, skills };
+  return { dstRoot, skills, has_manifest: Object.keys(manifest).length > 0 };
 }
 
-// Plani uygular. mode "missing" → sadece eksikleri yazar (init sozlesmesi).
-// mode "sync" → eksikleri yazar VE farkli olanlari gunceller.
+// Plani uygular.
+//   mode "missing" (init)          → sadece eksikleri yazar; var olana ASLA dokunmaz.
+//   mode "sync"    (skills update) → eksikleri + BAYAT olanlari yazar.
+//                                    DUZENLENMIS dosya yalniz force ile ezilir.
 // apply=false ise hicbir sey yazilmaz (dry-run); sayimlar yine dondurulur.
-export function applySkillSync(plan, { mode = "missing", apply = true, log = () => {} } = {}) {
-  const counts = { created: 0, updated: 0, unchanged: 0, kept: 0 };
+export function applySkillSync(plan, { mode = "missing", apply = true, force = false, log = () => {} } = {}) {
+  const counts = { created: 0, updated: 0, overwritten: 0, kept: 0, unchanged: 0 };
+  const installed = apply ? readManifest(plan.dstRoot) : null;
+
+  const write = (file) => {
+    if (!apply) return;
+    mkdirSync(dirname(file.dst), { recursive: true });
+    writeFileSync(file.dst, readFileSync(file.src));
+    installed[file.label] = hashFile(file.src);
+  };
+
   for (const skill of plan.skills) {
     for (const file of skill.files) {
       if (file.status === "missing") {
-        if (apply) {
-          mkdirSync(dirname(file.dst), { recursive: true });
-          writeFileSync(file.dst, readFileSync(file.src));
-        }
+        write(file);
         counts.created++;
         log(`  + created: ${file.label}`);
-      } else if (file.status === "differs" && mode === "sync") {
-        if (apply) {
-          mkdirSync(dirname(file.dst), { recursive: true });
-          writeFileSync(file.dst, readFileSync(file.src));
-        }
+      } else if (file.status === "stale" && mode === "sync") {
+        write(file);
         counts.updated++;
         log(`  ~ updated: ${file.label}`);
-      } else if (file.status === "differs") {
-        // sadece mode "missing": var olan farkli dosya korunur (init sozlesmesi)
+      } else if (file.status === "edited" && mode === "sync" && force) {
+        write(file);
+        counts.overwritten++;
+        log(`  ! EZILDI (yerel duzenleme): ${file.label}`);
+      } else if (file.status === "edited" && mode === "sync") {
+        counts.kept++;
+        log(`  ⊘ korundu (yerel duzenleme, --force ister): ${file.label}`);
+      } else if (file.status === "same") {
+        counts.unchanged++;
+        // Koken izi kendini onarir: icerik pakete BIREBIR esitse koken kesindir,
+        // manifest'i olmayan eski kurulumlar da boylece bir kez calisinca
+        // "bayat mi duzenlenmis mi" ayrimini kazanir.
+        if (apply) installed[file.label] = hashFile(file.src);
+        log(mode === "sync" ? `  = guncel: ${file.label}` : `  - skipped (exists): ${file.label}`);
+      } else {
+        // mode "missing": var olan dosya (stale/edited) korunur — init sozlesmesi
         counts.kept++;
         log(`  - skipped (exists): ${file.label}`);
-      } else {
-        counts.unchanged++;
-        // "same" durumu: init icin "zaten var", sync icin "zaten guncel"
-        log(mode === "sync" ? `  = guncel: ${file.label}` : `  - skipped (exists): ${file.label}`);
       }
     }
   }
+
+  if (apply) writeManifest(plan.dstRoot, installed);
   return counts;
 }
