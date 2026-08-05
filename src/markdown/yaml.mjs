@@ -269,6 +269,24 @@ function parseList(lines, startIdx, indent) {
       continue;
     }
 
+    // - { k: v, ... } / - [a, b] satir-ici (flow) oge.
+    // BU DAL findKeyColon'DAN ONCE GELMELI: findKeyColon susu parantez ICINDEKI
+    // ilk kolonu bulur ve `- { from: ui, to: db }`'yi {"{ from": "ui, to: db"}
+    // diye kurardi. Sonuc sessizce bozuk kuraldi: layer_rules/bug_signatures
+    // yuklenmis gorunur, .from/.pattern undefined olur, kapilar kural yokmus
+    // gibi yesil yanardi. init/layers/USAGE.md tam bu biçimi onerdigi icin
+    // kullanici araca uydukca kurallarini kaybediyordu.
+    if (after.startsWith("{") || after.startsWith("[")) {
+      const close = after.startsWith("{") ? "}" : "]";
+      if (!after.endsWith(close)) {
+        // Yarim flow oge: sessizce string'e dusurme — okunamayan kural SESSIZ KALMAZ.
+        throw new Error(`Line ${n}: kapanmamis satir-ici ${after[0]}...${close} — '${after}'`);
+      }
+      arr.push(parseScalar(after));
+      i++;
+      continue;
+    }
+
     // - key: value (inline first-key of mapping)
     const colon = findKeyColon(after);
     if (colon > 0) {
