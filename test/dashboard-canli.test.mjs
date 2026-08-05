@@ -177,3 +177,67 @@ test("arayuz — prefers-reduced-motion'a saygi duyar", async () => {
   const { renderApp } = await import("../src/dashboard/ui.mjs");
   assert.match(renderApp(), /prefers-reduced-motion/);
 });
+
+/* ── Kurulunca otomatik acilan panel ── */
+
+test("panel — CI ve etkilesimsiz oturumda OTOMATIK ACILMAZ", async () => {
+  // Kurulum betigi tarayici acmamali: CI'de gorunmez bir surec birakir,
+  // otomasyonda beklenmedik yan etki olur.
+  const { otomatikUygun } = await import("../src/dashboard/launch.mjs");
+  const eskiCI = process.env.CI, eskiTTY = process.stdout.isTTY;
+  try {
+    process.env.CI = "1";
+    assert.equal(otomatikUygun({}).ok, false, "CI'da acilmamali");
+    delete process.env.CI;
+
+    Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
+    assert.equal(otomatikUygun({}).ok, false, "etkilesimsiz oturumda acilmamali");
+
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+    assert.equal(otomatikUygun({}).ok, true, "insan oturumunda acilmali");
+    assert.equal(otomatikUygun({ "no-panel": true }).ok, false, "--no-panel devre disi birakmali");
+    process.env.SERIF_BRAIN_NO_PANEL = "1";
+    assert.equal(otomatikUygun({}).ok, false, "SERIF_BRAIN_NO_PANEL devre disi birakmali");
+  } finally {
+    delete process.env.SERIF_BRAIN_NO_PANEL;
+    if (eskiCI === undefined) delete process.env.CI; else process.env.CI = eskiCI;
+    Object.defineProperty(process.stdout, "isTTY", { value: eskiTTY, configurable: true });
+  }
+});
+
+test("panel — ayaktaMi() YABANCI servisi bizimki sanmaz", async () => {
+  const { ayaktaMi } = await import("../src/dashboard/launch.mjs");
+  const { createServer } = await import("node:http");
+  const sahte = createServer((q, s) => s.end("baska uygulama"));
+  await new Promise(r => sahte.listen(0, "127.0.0.1", r));
+  const port = sahte.address().port;
+  try {
+    assert.equal(await ayaktaMi(port), false,
+      "4700'u baska bir uygulama tutuyorsa panel oraya BAGLANMAMALI");
+  } finally { sahte.close(); }
+});
+
+test("panel — /api/health kimlik imzasi doner", async () => {
+  const { server, port } = await serve({ port: 0 });
+  try {
+    const j = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
+    assert.equal(j.serif_brain, true, "kimlik imzasi olmadan 'tek sunucu' kurali kurulamaz");
+  } finally { server.close(); }
+});
+
+test("panel — sunucuyuGarantile IKINCI sunucu acmaz", async () => {
+  const { sunucuyuGarantile } = await import("../src/dashboard/launch.mjs");
+  const { createServer } = await import("node:http");
+  // Bizim imzamizi veren bir sunucu zaten ayakta olsun
+  const mevcut = createServer((q, s) => {
+    s.writeHead(200, { "content-type": "application/json" });
+    s.end(JSON.stringify({ serif_brain: true, ok: true }));
+  });
+  await new Promise(r => mevcut.listen(0, "127.0.0.1", r));
+  const port = mevcut.address().port;
+  try {
+    const r = await sunucuyuGarantile(port);
+    assert.equal(r.baslatildi, false, "ayakta olan varken yeni surec baslatilmamali");
+    assert.equal(r.url, `http://127.0.0.1:${port}`);
+  } finally { mevcut.close(); }
+});

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
 import { planSkillSync, applySkillSync, listPackageSkills } from "../skills/sync.mjs";
+import { initSonrasiPanel } from "../dashboard/launch.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = resolve(HERE, "../../templates");
@@ -283,6 +284,11 @@ export async function initCommand({ args }) {
   console.log(``);
   console.log(`Sonraki adim:`);
   console.log(`  serif-brain doctor --project ${projectRoot}`);
+
+  // Merkezi paneli ac. Kurulan proje orada kart olarak zaten gorunur — "brain
+  // kurdum, nerede?" sorusu hic olusmasin. Panel bir KOLAYLIK: acilamazsa
+  // init'i basarisiz etmez, CI/etkilesimsiz oturumda hic denenmez.
+  await initSonrasiPanel(args.flags);
   return 0;
 }
 

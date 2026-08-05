@@ -39,6 +39,12 @@ async function handle(req, res, url) {
     return res.end(renderApp());
   }
 
+  // Kimlik imzasi: "4700'u tutan bu mu?" sorusunun cevabi. launch.mjs bunu
+  // sorar; baska bir uygulama portu tutuyorsa panel oraya baglanmaz.
+  if (p === "/api/health") {
+    return send(res, 200, { serif_brain: true, ok: true, pid: process.pid });
+  }
+
   if (p === "/api/projects") {
     const sync = url.searchParams.get("sync") !== "0";
     return send(res, 200, api.listProjects({ sync }));

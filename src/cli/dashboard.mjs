@@ -10,6 +10,7 @@ import { collectAll } from "../dashboard/collect.mjs";
 import { renderDashboard } from "../dashboard/render.mjs";
 import { serve } from "../dashboard/server.mjs";
 import * as proc from "../dashboard/proc.mjs";
+import { sunucuyuGarantile, tarayicidaAc, ayaktaMi, VARSAYILAN_PORT } from "../dashboard/launch.mjs";
 
 // Canli panel: statik HTML'in yapamadigi uc sey burada olur — surec baslat/durdur,
 // canli brain sorgusu, yeni projeyi kendiliginden kesfetme.
@@ -26,6 +27,59 @@ async function cmdServe(flags) {
   process.on("SIGINT", kapat);
   process.on("SIGTERM", kapat);
   return new Promise(() => {});              // sunucu acik kalir
+}
+
+// Dock uygulamasi (Electron) AYRI pakette: cekirdek "sifir bagimlilik"
+// garantisini korusun diye. Bu komut kabugu bulur, kuruluysa acar; degilse
+// tam olarak ne yapilacagini soyler — sessizce basarisiz olmaz.
+function electronAdaylari() {
+  const ev = homedir();
+  return [
+    process.env.SERIF_BRAIN_APP,
+    "/Applications/serif-brain.app",
+    join(ev, "Applications", "serif-brain.app"),
+    join(ev, "Desktop", "seriftech-packages", "serif-brain-dashboard", "dist", "mac-arm64", "serif-brain.app"),
+    join(ev, "Desktop", "seriftech-packages", "serif-brain-dashboard", "dist", "mac-x64", "serif-brain.app"),
+  ].filter(Boolean);
+}
+
+function cmdApp() {
+  const bulunan = electronAdaylari().find(existsSync);
+  if (bulunan) {
+    execFile("open", [bulunan], () => {});
+    console.log(`[dashboard] Dock uygulamasi acildi: ${bulunan}`);
+    return 0;
+  }
+  const kaynak = join(homedir(), "Desktop", "seriftech-packages", "serif-brain-dashboard");
+  console.log(`[dashboard] Dock uygulamasi bulunamadi.`);
+  console.log(``);
+  console.log(`Tarayici paneli her zaman calisir (kurulum gerekmez):`);
+  console.log(`  serif-brain dashboard serve`);
+  console.log(``);
+  if (existsSync(kaynak)) {
+    console.log(`Dock uygulamasini uretmek icin:`);
+    console.log(`  cd ${kaynak}`);
+    console.log(`  npm install && npm run dist`);
+    console.log(`  open dist/mac-arm64/serif-brain.app   # sonra Dock'ta Tut`);
+  } else {
+    console.log(`Dock uygulamasi ayri pakette (serif-brain-dashboard) — cekirdegin`);
+    console.log(`sifir bagimlilik garantisi bozulmasin diye Electron buraya konmadi.`);
+    console.log(`Kaynak beklenen konum: ${kaynak}`);
+  }
+  console.log(``);
+  console.log(`Baska konumdaysa: SERIF_BRAIN_APP=/yol/serif-brain.app serif-brain dashboard app`);
+  return 0;
+}
+
+// Paneli ac: ayakta degilse arka planda baslat, sonra tarayicida goster.
+async function cmdOpen(flags) {
+  const port = Number(flags.port) || VARSAYILAN_PORT;
+  const vardi = await ayaktaMi(port);
+  const { url, hata } = await sunucuyuGarantile(port);
+  if (!url) { console.error(`[dashboard] acilamadi: ${hata}`); return 1; }
+  tarayicidaAc(url);
+  console.log(`[dashboard] ${url}  ${vardi ? "(zaten calisiyordu)" : "(baslatildi)"}`);
+  return 0;
 }
 
 function defaultOut() {
@@ -148,6 +202,8 @@ export async function dashboardCommand({ args, subcommand }) {
   const f = args.flags;
   switch (sub) {
     case "serve": return await cmdServe(f);
+    case "open":  return await cmdOpen(f);
+    case "app":   return cmdApp();
     // Argumansiz 'dashboard' ESKIDEN BERI statik HTML uretir. 'serve' bu listeye
     // sonradan eklendi; varsayilani ona cevirmek, komutu bilmeden calistiran
     // kullaniciyi bitmeyen bir sunucuya dusururdu. Varsayilan degismedi.
@@ -160,7 +216,7 @@ export async function dashboardCommand({ args, subcommand }) {
     case "unarchive": return cmdArchive(rest[0], f, false);
     case "rm":    return cmdRm(rest[0]);
     default:
-      console.error(`[dashboard] bilinmeyen alt komut: ${sub} (serve|build|add|scan|list|archive|unarchive|rm)`);
+      console.error(`[dashboard] bilinmeyen alt komut: ${sub} (serve|open|app|build|add|scan|list|archive|unarchive|rm)`);
       return 1;
   }
 }
