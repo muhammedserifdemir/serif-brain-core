@@ -101,6 +101,15 @@ async function handle(req, res, url) {
     return send(res, 200, { port, pids: pids.map(pid => ({ pid, cmd: proc.pidCommand(pid) })) });
   }
 
+  // Panelden kaldirma — silinen/tasinan projeyi listeden dusurur.
+  // Diskteki dosyalara DOKUNMAZ, yalnizca registry kaydini siler.
+  if (req.method === "POST" && p === "/api/forget") {
+    const body = await readBody(req);
+    const repo = requireRepo(res, body.repo);
+    if (!repo) return;
+    return send(res, 200, api.forgetProject(repo));
+  }
+
   if (req.method === "POST" && p === "/api/override") {
     const body = await readBody(req);
     const repo = requireRepo(res, body.repo);

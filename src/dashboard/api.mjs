@@ -123,6 +123,32 @@ export function searchAll(q, { limit = 60 } = {}) {
   return { q, results: results.slice(0, limit) };
 }
 
+/**
+ * Bir projeyi panelden kaldirir (registry kaydini siler).
+ *
+ * NEDEN OTOMATIK DEGIL: klasor diskte yok diye kaydi kendiliginden silmek,
+ * harici disk cikarildiginda / klasor yeniden adlandirildiginda kullanicinin
+ * AYARLARINI (port, calistirma komutu, ilerleme hedefi, arsiv gerekcesi)
+ * sessizce yok ederdi. Kayip proje arayuzde "KAYIP" olarak isaretlenir,
+ * silme kararini kullanici verir — tek tikla.
+ */
+export function forgetProject(repo) {
+  const abs = knownRepo(repo);
+  if (!abs) return { ok: false, error: "bilinmeyen proje" };
+  const reg = loadRegistry();
+  const once = reg.brains.length;
+  reg.brains = reg.brains.filter(b => resolve(repoOf(brainRootOf(b.repo))) !== abs);
+  saveRegistry(reg);
+  return { ok: true, removed: once - reg.brains.length };
+}
+
+/** Registry'de kayitli ama diskte brain'i olmayan projeler. */
+export function missingProjects() {
+  return loadRegistry().brains
+    .map(b => ({ name: b.name, repo: repoOf(brainRootOf(b.repo)) }))
+    .filter(p => !existsSync(brainRootOf(p.repo)));
+}
+
 /** Bir repo gercekten registry'de mi — API'ye gelen yolu dogrulamak icin. */
 export function knownRepo(repo) {
   if (!repo) return null;

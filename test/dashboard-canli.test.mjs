@@ -143,3 +143,37 @@ test("cli — argumansiz 'dashboard' sunucu BASLATMAZ (varsayilan degismedi)", a
     "'case undefined' ile 'build' arasina baska bir dal girmemeli (serve'e dusmesin)");
   assert.ok(!src.slice(i, j).includes("cmdServe"), "argumansiz dashboard serve'e DUSMEMELI");
 });
+
+test("silinen proje — OTOMATIK kaldirilmaz, KAYIP olarak isaretlenir", async () => {
+  // Klasor diskte yok diye registry kaydini kendiliginden silmek, kullanicinin
+  // AYARLARINI (port, calistirma komutu, hedef, arsiv gerekcesi) yok ederdi:
+  // harici disk cikarildiginda veya klasor yeniden adlandirildiginda geri
+  // alinamaz. Kayit durur, arayuz "KAYIP" der, silmeyi kullanici secer.
+  const { collectBrain } = await import("../src/dashboard/collect.mjs");
+  const yok = "/tmp/kesinlikle-olmayan-proje-" + process.pid;
+  const r = collectBrain({ repo: yok, name: "Hayalet", override: { port: "1234" } });
+  assert.equal(r.error, "brain bulunamadı", "kayip proje hata ile isaretlenmeli");
+  assert.equal(r.name, "Hayalet", "kayit ve adi korunmali (sessizce dusurulmemeli)");
+});
+
+test("arayuz — kayip projede sayilar 'undefined' basmaz", async () => {
+  const { renderApp } = await import("../src/dashboard/ui.mjs");
+  const html = renderApp();
+  assert.match(html, /KAYIP/, "kayip durumu arayuzde adlandirilmali");
+  assert.match(html, /Panelden kaldır/, "tek tikla kaldirma sunulmali");
+  assert.match(html, /p\.objCount \?\? 0/, "eksik sayi 0'a dusmeli, undefined basilmamali");
+});
+
+test("arayuz — emoji ikon KULLANILMAZ (SVG sembol seti)", async () => {
+  const { renderApp } = await import("../src/dashboard/ui.mjs");
+  const html = renderApp();
+  // Tasarim kontrol listesi: ikonlar SVG olmali (Lucide/Heroicons tarzi)
+  const emoji = html.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || [];
+  assert.deepEqual(emoji, [], `arayuzde emoji ikon kalmis: ${emoji.join(" ")}`);
+  assert.match(html, /<symbol id="i-oynat"/, "SVG sembol seti bulunmali");
+});
+
+test("arayuz — prefers-reduced-motion'a saygi duyar", async () => {
+  const { renderApp } = await import("../src/dashboard/ui.mjs");
+  assert.match(renderApp(), /prefers-reduced-motion/);
+});
