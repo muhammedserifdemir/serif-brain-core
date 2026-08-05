@@ -241,3 +241,19 @@ test("panel — sunucuyuGarantile IKINCI sunucu acmaz", async () => {
     assert.equal(r.url, `http://127.0.0.1:${port}`);
   } finally { mevcut.close(); }
 });
+
+test("kesif — SERIF_BRAIN_SCAN_ROOTS varsayilanin YERINE gecer", async () => {
+  // Eskiden ~/Desktop'a EKLENIYORDU; o zaman kok kumesi tam denetlenemiyordu
+  // ve demo/test kosumuna gercek projeler siziyordu.
+  const { scanRoots } = await import("../src/dashboard/api.mjs");
+  const eski = process.env.SERIF_BRAIN_SCAN_ROOTS;
+  try {
+    process.env.SERIF_BRAIN_SCAN_ROOTS = "/tmp/a:/tmp/b";
+    assert.deepEqual(scanRoots(), ["/tmp/a", "/tmp/b"], "verilen kokler TAM kume olmali");
+    delete process.env.SERIF_BRAIN_SCAN_ROOTS;
+    assert.equal(scanRoots().length, 1, "verilmezse tek varsayilan kok (~/Desktop)");
+  } finally {
+    if (eski === undefined) delete process.env.SERIF_BRAIN_SCAN_ROOTS;
+    else process.env.SERIF_BRAIN_SCAN_ROOTS = eski;
+  }
+});

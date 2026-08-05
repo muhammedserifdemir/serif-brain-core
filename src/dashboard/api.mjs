@@ -11,10 +11,15 @@ import * as proc from "./proc.mjs";
 
 const SKIP = new Set(["node_modules", "dist", "build", "out", ".git", "Library", "Applications"]);
 
-/** Otomatik kesif kokleri. Ortam degiskeniyle genisletilebilir (: ile ayrilir). */
+/**
+ * Otomatik kesif kokleri. SERIF_BRAIN_SCAN_ROOTS verilirse varsayilanin
+ * YERINE gecer (eklenmez). Boylece kok kumesi tam olarak denetlenebilir —
+ * demo/ekran-goruntusu ve test icin gercek projelerin panele sizmamasi sart.
+ * Verilmezse ~/Desktop taranir.
+ */
 export function scanRoots() {
-  const extra = (process.env.SERIF_BRAIN_SCAN_ROOTS || "").split(":").map(s => s.trim()).filter(Boolean);
-  return [join(homedir(), "Desktop"), ...extra];
+  const ozel = (process.env.SERIF_BRAIN_SCAN_ROOTS || "").split(":").map(s => s.trim()).filter(Boolean);
+  return ozel.length ? ozel : [join(homedir(), "Desktop")];
 }
 
 /** Bir kok altinda .serif-brain iceren repo'lari bul (maxdepth 4). */

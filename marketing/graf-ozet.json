@@ -1,0 +1,38 @@
+{
+ "n": 2537,
+ "e": 11583,
+ "mods": [
+  {
+   "ad": "modul-1",
+   "adet": 1854
+  },
+  {
+   "ad": "modul-2",
+   "adet": 212
+  },
+  {
+   "ad": "modul-3",
+   "adet": 183
+  },
+  {
+   "ad": "modul-4",
+   "adet": 163
+  },
+  {
+   "ad": "modul-5",
+   "adet": 48
+  },
+  {
+   "ad": "modul-6",
+   "adet": 34
+  },
+  {
+   "ad": "modul-7",
+   "adet": 19
+  },
+  {
+   "ad": "modul-8",
+   "adet": 18
+  }
+ ]
+}
