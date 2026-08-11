@@ -17,7 +17,7 @@ import { readFileSafe } from "../scanner/scan-files.mjs";
 import { scoreRisk } from "../query/risk.mjs";
 import { clusterBugs } from "../query/cluster.mjs";
 import { gatherGuard } from "../query/guard.mjs";
-import { ownerOfConfigured } from "../scanner/module-owner.mjs";
+import { ownerOfConfigured, resolveModule } from "../scanner/module-owner.mjs";
 import { loadConfig } from "../markdown/schema.mjs";
 import { getRecentCommits } from "../query/git-activity.mjs";
 import { modulesOf } from "../query/search.mjs";
@@ -251,9 +251,10 @@ function callTool(name, a = {}, brainRoot) {
     const node = resolveFileNode(graph, a.path);
     if (!node) return JSON.stringify({ found: false, path: a.path });
     const im = computeImpact(graph, node.id);
-    const module = node.module || ownerOfConfigured(a.path, loadConfig(brainRoot));
+    const module = resolveModule(node.module, a.path, loadConfig(brainRoot));
     const memory = compileTouch(loadObjects(brainRoot), { relPath: a.path, module });
-    return JSON.stringify({ ...im, memory: memory.empty ? null : memory }, null, 2);
+    // module: grafin ham degeri degil, config ile birlestirilmis olan (CLI ile ayni).
+    return JSON.stringify({ ...im, module, memory: memory.empty ? null : memory }, null, 2);
   }
 
   if (name === "brain_hotspot") {

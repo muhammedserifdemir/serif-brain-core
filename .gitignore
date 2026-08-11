@@ -4,3 +4,8 @@ node_modules/
 .env
 .env.*
 .serif-brain/.cache/
+
+# 'serif-brain skills update' skill/ altindaki KAYNAKTAN buraya KOPYALAR.
+# Uretilmis kopya versiyonlanmaz — kaynak skill/, kurulum artefakti .claude/.
+# (Ayni icerigin iki kopyasini repoda tutmak sessiz ayrisma demektir.)
+.claude/

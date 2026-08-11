@@ -6,7 +6,7 @@ import { loadConfig } from "../markdown/schema.mjs";
 import { loadObjects } from "../query/search.mjs";
 import { compileTouch } from "../query/touch.mjs";
 import { computeImpact, formatImpact, resolveFileNode } from "../query/impact.mjs";
-import { ownerOfConfigured } from "../scanner/module-owner.mjs";
+import { resolveModule } from "../scanner/module-owner.mjs";
 
 export async function impactCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -34,11 +34,12 @@ export async function impactCommand({ args, subcommand }) {
     return 1;
   }
 
-  const im = computeImpact(graph, node.id);
-
   // Modul hafizasini capraz-referansla (touch cekirdegini yeniden kullan).
   const config = loadConfig(brainRoot);
-  const module = node.module || ownerOfConfigured(relPath, config);
+  const module = resolveModule(node.module, relPath, config);
+  // computeImpact grafin HAM cevabini verir (query katmani config bilmez); config
+  // birlestirmesi burada yapilir, yoksa ekranda/JSON'da "modul:unknown" gorunur.
+  const im = { ...computeImpact(graph, node.id), module };
   const objects = loadObjects(brainRoot);
   const memory = compileTouch(objects, { relPath, module });
 

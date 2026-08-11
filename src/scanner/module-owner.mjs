@@ -65,6 +65,26 @@ export function ownerOfConfigured(relPath, config) {
   return ownerOf(relPath);
 }
 
+// "Modul bilinmiyor" sinyali. ownerOf, eslesmeyen her yola bunu dondurur; graf
+// dugumune de bu deger yazilir. Bir yerde string olarak tekrarlanmasin diye burada.
+export const UNKNOWN_MODULE = "unknown";
+
+export function isKnownModule(mod) {
+  return typeof mod === "string" && mod.length > 0 && mod !== UNKNOWN_MODULE;
+}
+
+// Graf dugumunden gelen modul ile config'i BIRLESTIRIR.
+//
+// Cagri yerleri eskiden `node.module || ownerOfConfigured(rel, config)` yaziyordu.
+// Bu yanlisti: graf dugumu eslesmeyen dosyaya "unknown" yazar ve "unknown" TRUTHY
+// oldugu icin fallback HIC calismazdi — config'te dogru kural olsa bile cikti
+// "modul:unknown" derdi (graf, kural yazilmadan once kurulmussa daima boyle olur).
+// Kural: graf yalnizca BILINEN bir modul soyluyorsa kazanir; aksi halde config.
+export function resolveModule(nodeModule, relPath, config) {
+  if (isKnownModule(nodeModule)) return nodeModule;
+  return ownerOfConfigured(relPath, config);
+}
+
 // config verilirse `module_paths` kurallari uygulanir; verilmezse eski davranis.
 export function moduleStats(files, config) {
   const byMod = new Map();

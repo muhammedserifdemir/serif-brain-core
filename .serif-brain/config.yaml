@@ -11,36 +11,59 @@ store:
   jsonl_dir: objects-jsonl
   node_version: "24.11.1"
 
+# NOT: bu brain 2026-05-08'de, init'in eski (isimsiz kurulumda sabit 4 proje yazan)
+# surumuyle kuruldu; bu yuzden AKTIF proje serif-platform gorunuyor, oysa buradaki
+# 8 objenin hepsi seriftech-packages altinda. 'add' bu yuzden yanlis dizine yaziyordu.
+# init 13919b3'te duzeldi, bu dosya geride kaldi — 2026-08-11'de elle duzeltildi.
 projects:
-  - id: serif-platform
-    active: true
-    migrate: true
-    description: "Flagship: SerifX 360 Electron desktop suite"
-  - id: mevzuat-ai
-    active: false
-    migrate: false
-    description: "Archive-only — pre-multi-project schema"
-  - id: serifLms
-    active: false
-    migrate: false
-    description: "Archive-only"
   - id: seriftech-packages
-    active: false
+    active: true
     migrate: false
-    description: "Archive-only — npm packages"
+    description: "serif-brain-core — paketin kendi hafizasi (dogfood)"
 
+# serif-brain-core'un KENDI modulleri (src/<modul>). Eskiden buraya SerifX360'in
+# uygulama isimleri (contentx/presentx/...) yaziliydi — hicbiri bu repoda yok,
+# bu yuzden 8 objenin hepsi 'infra'ya dusmustu.
 valid_modules:
-  - contentx
-  - presentx
-  - animatorx
-  - studiox
-  - testx
+  - cli
+  - query
+  - graph
+  - scanner
+  - markdown
+  - mcp
   - dashboard
-  - auth
-  - billing
-  - shared
+  - context
+  - reporter
+  - skills
+  - hooks
+  - test
+  - docs
   - infra
   - unknown
+
+# Dosya yolu -> modul. graph build / scan code / impact / guard bunu okur.
+module_paths:
+  "src/cli/": cli
+  "src/query/": query
+  "src/graph/": graph
+  "src/scanner/": scanner
+  "src/markdown/": markdown
+  "src/mcp/": mcp
+  "src/dashboard/": dashboard
+  "src/context/": context
+  "src/reporter/": reporter
+  "src/skills/": skills
+  "src/ingest/": markdown
+  "src/migrate/": markdown
+  "src/store/": markdown
+  "src/util/": infra
+  "src/doctor/": infra
+  "src/hooks/": hooks
+  "hooks/": hooks
+  "bin/": cli
+  "test/": test
+  "docs/": docs
+  "skill/": skills
 
 valid_status:
   - queued

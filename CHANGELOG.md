@@ -1,20 +1,61 @@
-## [Unreleased]
-
-### Eklendi
-- **`plan` tipi (birinci sinif)**: yol haritasi / faz planlari icin. `plans/`
-  altina yazilir, `active` dogar, faz bitince `done` yapilir. `brief` ciktisinda
-  en ustte ayri "🗺 Aktif plan" bolumunde gosterilir.
-  Gerekce: `init` `plans/` dizinini olusturuyordu ama hicbir yerde okunmuyordu;
-  yol haritasini `decision` veya `record` olarak tutmak semantik olarak yanlisti
-  (plan bir is kalemi degil, sirayi ve cikis olcutlerini tasiyan belge).
-  Dokunulan: object.mjs (TYPE_DIR), schema.mjs (ID_RE + REQUIRED_BY_TYPE),
-  object-cache.mjs (TYPE_DIRS), add.mjs (TYPE_DEFAULTS + sablon), brief.mjs.
-
 # Changelog
 
 Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
 ## [Unreleased]
+
+### Eklendi — `plan` tipi (birinci sınıf)
+- Yol haritası / faz planları için. `plans/` altına yazılır, `active` doğar, faz
+  bitince `done` yapılır. `brief` çıktısında en üstte ayrı "🗺 Aktif plan"
+  bölümünde gösterilir.
+  Gerekçe: `init` `plans/` dizinini oluşturuyordu ama hiçbir yerde okunmuyordu;
+  yol haritasını `decision` veya `record` olarak tutmak semantik olarak yanlıştı
+  (plan bir iş kalemi değil, sırayı ve çıkış ölçütlerini taşıyan belge).
+  Dokunulan: object.mjs (TYPE_DIR), schema.mjs (ID_RE + REQUIRED_BY_TYPE),
+  object-cache.mjs (TYPE_DIRS), add.mjs (TYPE_DEFAULTS + şablon), brief.mjs.
+
+### Eklendi — dağıtım ve kapılar
+- **6 skill paketle dağıtılıyor** (`skill/`) + `serif-brain skills status|list|update`.
+  Kurulum manifesti sayesinde "bayat kopya" ile "kullanıcının yerel düzenlemesi"
+  ayırt ediliyor; `init` var olan dosyayı ezmiyor.
+- **Claude Code hook kapısı** (`hooks/claude-gate.mjs`) — disiplin tavsiyeden
+  düzenleme anında devreye giren mekanik kapıya çevrildi.
+- **CANLI dashboard** — statik HTML'e ek olarak `dashboard serve|open|app`:
+  süreç kontrolü, brain sorgusu, otomatik keşif. `init` bitince panel açılıyor.
+
+### Düzeltildi — `module_paths` konfigürasyonu sessizce yok sayılıyordu
+- `scan code` / `graph build` / `moduleStats` hardcoded `ownerOf()` çağırıyordu;
+  `ownerOfConfigured()` yazılmıştı ama üretim yolları onu hiç kullanmıyordu.
+  Sonuç: SerifX360 dışındaki her projede config'e kural yazmak **hiçbir şeyi
+  değiştirmiyordu** ve yazan kişi hata görmüyordu.
+- İkinci yarısı (bu tur): `impact` ve MCP `brain_impact`, grafın ham cevabını
+  `node.module || ownerOfConfigured(...)` diye okuyordu. Graf eşleşmeyen dosyaya
+  `"unknown"` yazar ve **`"unknown"` truthy** olduğu için fallback hiç
+  çalışmazdı — kural graf kurulduktan sonra eklendiyse çıktı daima
+  "modul:unknown" derdi. Yeni `resolveModule(nodeModule, relPath, config)`
+  (`src/scanner/module-owner.mjs`) tek karar noktası: graf yalnızca **bilinen**
+  bir modül söylüyorsa kazanır, aksi halde config. Aynı satır iki yerde
+  (CLI + MCP) yaşıyordu, tek kaynağa indi.
+- Ekranda görünen `modul:` satırı `computeImpact`'in ham değerinden geliyordu;
+  config birleştirmesi artık CLI/MCP katmanında yapılıyor (`query/impact.mjs`
+  saf kaldı — grafın cevabını verir, config bilmez).
+- **Yeni kapı** `test/module-paths-kapi.test.mjs` (10 test): `buildGraph`'ın
+  config'teki `module_paths`'i graf düğümlerine yansıttığını, uzun prefix'in
+  kazandığını, configsiz projede eski davranışın korunduğunu ve bayat grafta
+  `impact --json`'ın config'teki modülü döndürdüğünü doğrular. Hardcoded harita
+  bugüne kadar hiçbir testte doğrulanmıyordu.
+
+### Düzeltildi — kapı gürültüsü ve YAML
+- `review`: "grafta yok" iki ayrı şeydi — **denetlenemedi** (graf bayat, gerçek
+  sinyal) ve **kapsam dışı** (tarayıcı zaten indekslemiyor: test dosyaları,
+  `.d.ts`, `scan_exclude_paths`). İkincisi için "graph build koş" demek eyleme
+  dönüşmüyordu; ölçüm: serif-platform grafı 2537 düğüm, içinde 0 test dosyası →
+  test yazılan her oturumda ~40 özdeş uyarı. Artık yalnız sayılıyor, öneri
+  verilmiyor. Kapsam oranının paydası da düzeldi.
+- `review`: kapsam etiketi — "sorun aramadım" artık "sorun yok" gibi görünmüyor.
+- YAML: liste öğesindeki satır-içi nesne (`- { from: ui, to: db }`) sessizce
+  bozuk kurala dönüşüyordu; tırnaklı anahtarın tırnağı soyulmuyordu (anahtarı
+  VERİ olan `module_paths` gibi haritalarda sessiz hata).
 
 ### Düzeltildi — sıralama: eşitlikte karar verilmiyordu (kritik, sessiz)
 

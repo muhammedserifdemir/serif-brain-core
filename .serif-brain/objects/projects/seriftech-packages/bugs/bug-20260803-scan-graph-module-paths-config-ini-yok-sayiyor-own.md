@@ -4,25 +4,23 @@ type: bug
 project: seriftech-packages
 module: infra
 title: "scan/graph module_paths config'ini yok sayiyor; ownerOf hardcoded"
-status: open
+status: done
 priority: high
 severity: high
 owner: ""
 created_at: "2026-08-03T06:05:17.153Z"
-updated_at: "2026-08-03T06:20:00.000Z"
+updated_at: "2026-08-11T18:23:11.507Z"
 source:
   kind: manual
   path: ""
 relations:
-  files:
-    - src/scanner/module-owner.mjs
-    - src/graph/build.mjs
-    - src/cli/scan-code.mjs
+  files: [src/scanner/module-owner.mjs, src/graph/build.mjs, src/cli/scan-code.mjs]
   decisions: []
   bugs: []
   modules: [infra]
 tags: []
 summary: "scan code ve graph build config'teki module_paths'i okumuyor; her projede modul atifi 'unknown'a dusuyor"
+completed_at: "2026-08-11"
 ---
 # scan/graph module_paths config'ini yok sayiyor; ownerOf hardcoded
 
@@ -118,3 +116,47 @@ aliyor ama YANLIS varsayilanla — ayri, kucuk bir kayit konusu.
    yok — hardcoded harita hic dogrulanmiyor.
 4. Hardcoded RULES tamamen silinmemeli (config'siz eski brain'ler icin
    fallback), ama artik SON care olmali.
+
+## Cozum (2026-08-11 — kapandi)
+
+Uc maddenin ucu de kapandi; kayit 8 gun boyunca `open` durdugu icin `brief`
+her oturumda BU kaydi "tek aktif yuksek bug" diye gosteriyordu — birinci
+maddesi 4 Agustos'ta zaten duzelmisti. Kayit bayat kaldigi surece yeni oturum
+yanlis ise bakar; kapanis da duzeltmenin parcasidir.
+
+1. **(9475233, 4 Agustos)** `graph/build.mjs` icinde config-farkinda yerel
+   `ownerOf` sarmalayicisi; `cli/scan-code.mjs` + `moduleStats(files, config)`
+   ayni sekilde. `markdown/yaml.mjs` tirnakli anahtarin tirnagini soyuyor
+   (anahtari VERI olan haritalarda sessiz hataydi).
+
+2. **(bu tur)** `impact` + MCP `brain_impact` -> yeni
+   `resolveModule(nodeModule, relPath, config)` (`scanner/module-owner.mjs`).
+   Kural: graf yalnizca BILINEN bir modul soyluyorsa kazanir. Ek olarak,
+   ekranda gorunen `modul:` satiri `computeImpact`'in HAM degerinden geliyordu
+   — ilk duzeltme yalnizca hafiza aramasini duzeltmisti, kullanicinin gordugu
+   satir hala "unknown" diyordu. Birlestirme artik CLI/MCP katmaninda;
+   `query/impact.mjs` saf kaldi.
+
+3. **(bu tur)** Kapi: `test/module-paths-kapi.test.mjs` (10 test) —
+   `buildGraph` config'teki `module_paths`'i graf dugumune yansitiyor mu,
+   uzun prefix kazaniyor mu, configsiz projede eski davranis duruyor mu,
+   bayat grafta `impact --json` config'teki modulu donduruyor mu.
+
+**Ek gozlemin karsiligi:** kaydin "bu kaydin kendisi" bolumu, `add`'in objeyi
+yanlis projeye yazdigini soyluyordu. Kok neden bulundu ve duzeltildi: bu
+paketin KENDI `.serif-brain/config.yaml`'i 2026-05-08'de init'in eski
+surumuyle kurulmustu — `projects[0].id = serif-platform` (0 obje, `active:true`)
+iken 8 objenin hepsi `seriftech-packages` altindaydi; `valid_modules` da
+SerifX360'in uygulama isimleriydi (contentx/presentx/...), bu yuzden 8 objenin
+hepsi `infra`ya dusmustu. Config projenin kendi yapisina gore yeniden yazildi
++ `module_paths` eklendi. Olcum: kendi grafinda `unknown` modul **131 -> 0**,
+13 gercek modul dogdu.
+
+Ders (tekrarlayan desen, ucuncu kez): **bir kural yaziliyor ama uretim yolu onu
+cagirmiyorsa, yazan kisi hicbir hata gormez.** Bkz.
+[[decision-20260730-siralama-esitlikte-karar-verilmiyordu]] — orada da dogru
+karsilastirici vardi, 7 cagri yerinden 2'si kullaniyordu.
+
+## Tamamlanma (2026-08-11)
+
+module_paths uc maddede de kapandi: uretim yollari config'i okuyor + resolveModule tek karar noktasi + module-paths-kapi.test.mjs (10 test). Paketin kendi config'i de duzeltildi: unknown modul 131->0
