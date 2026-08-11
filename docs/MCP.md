@@ -1,11 +1,10 @@
 # serif-brain MCP Sunucusu
 
 Brain'i **AI tarafından canlı okunabilir** yapar. Claude Code (veya MCP destekleyen
-herhangi bir istemci) `brain_search` / `brain_get` / `brain_context` araçlarıyla
-proje hafızasını CLI'a gerek kalmadan sorgular. Saf-Node, sıfır bağımlılık,
-stdio/JSON-RPC.
+herhangi bir istemci) proje hafızasını CLI'a gerek kalmadan **okur ve yazar**.
+Saf-Node, sıfır bağımlılık, stdio/JSON-RPC.
 
-## Araçlar
+## Araçlar (16: 14 okuma + 2 yazma)
 | Araç | Ne yapar | Parametreler |
 |---|---|---|
 | `brain_search` | Yapısal + tam-metin arama | `text, type, status, priority, module, tag, limit` |
@@ -21,6 +20,17 @@ stdio/JSON-RPC.
 | `brain_lint` | Projeye-özel bug imza linter (config `bug_signatures`) | `path` |
 | `brain_risk` | Tek dosya edit-anı risk skoru (churn+merkezilik+bug+imza füzyonu) | `path, days?` |
 | `brain_cluster` | Bug'ları benzerliğe göre grupla — aynı-kök-neden kümeleri | `threshold?` |
+| `brain_related` | Bir objeye **otomatik keşfedilen** ilişkili objeler (modül/etiket/metin) — elle `[[link]]` gerekmez | `id, limit?` |
+
+### Yazma araçları
+| Araç | Ne yapar | Parametreler |
+|---|---|---|
+| `brain_add` | Hafızaya kayıt yaz: `bug` (yaşanan hata) · `decision` (ihlal edilmeyecek karar) · `plan` (yol haritası) · `record` (yapılmış iş, `done` doğar) | `type, title, module?, priority?, severity?, status?, tags?, files?, project_id?` |
+| `brain_close` | Kaydı kapat (`status → done`, `completed_at` bugün, gövdeye "Tamamlanma" bölümü) | `id, note?, commit?, project_id?, force?` |
+
+> Yazma araçları CLI ile **aynı çekirdeği** çağırır (`src/markdown/write-ops.mjs`).
+> Başarısız yazma sessiz kalmaz: JSON-RPC hatası döner — ajan kaydettiğini sanıp
+> devam etmesin. `project_id` yalnızca id birden fazla projede varsa gerekir.
 
 ## Claude Code'a ekleme
 

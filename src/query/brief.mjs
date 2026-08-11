@@ -31,27 +31,39 @@ export function compileBrief(objects, opts = {}) {
   const limit = opts.limit ?? 5;
   const windowStart = now - days * 86400000;
 
-  // 1) Aktif kritik/yuksek bug'lar
-  const activeBugs = searchObjects(objects, {
+  // 1-2) Aktif kalemler.
+  //
+  // SINIR NEDEN SART: brief ciktisi her oturuma girer. Bu uc liste
+  // SINIRSIZDI — `limit` parametresi vardi ama yalnizca asagidaki iki liste
+  // onu kullaniyordu. Olcum (5000 kayitlik sentetik brain): brief ciktisi
+  // 6.297 token. Hafiza sistemi olmanin sarti bagliami SINIRLI tutmaktir;
+  // sinirsiz buyuyen ozet, ozetlemenin kendisini iptal eder.
+  //
+  // Kirpilan sayi GIZLENMEZ ("+N daha") — sessiz kirpma, "hepsi bu" gibi
+  // okunur ve yanlis guven uretir.
+  const kirp = (arr) => ({ top: arr.slice(0, limit), count: arr.length });
+
+  const bugsAll = searchObjects(objects, {
     type: "bug",
     status: WORKING_STATUSES,
     priority: ["critical", "high"],
     module,
   }).map((o) => toResult(o, { snippet: true }));
-
-  // 2) Aktif kararlar
-  const activeDecisions = searchObjects(objects, {
+  const decisionsAll = searchObjects(objects, {
     type: "decision",
     status: ["active", "in_progress"],
     module,
   }).map((o) => toResult(o));
-
-  // 2b) Aktif planlar (yol haritasi) — sirayi hatirlatir, en ustte durur
-  const activePlans = searchObjects(objects, {
+  const plansAll = searchObjects(objects, {
     type: "plan",
     status: ["active", "in_progress"],
     module,
   }).map((o) => toResult(o));
+
+  const activeBugs = bugsAll.slice(0, limit);
+  const activeDecisions = decisionsAll.slice(0, limit);
+  const activePlans = plansAll.slice(0, limit);
+  const totals = { bugs: bugsAll.length, decisions: decisionsAll.length, plans: plansAll.length };
 
   // 3) Pencere icinde son dokunulan (aktif) kalemler — "neredeydik".
   // queued ayri "park kuyrugu" bolumunde gosterilir → burada cift-listeleme.
@@ -102,12 +114,20 @@ export function compileBrief(objects, opts = {}) {
     active_bugs: activeBugs,
     active_decisions: activeDecisions,
     active_plans: activePlans,
+    // Kirpilan sayilar: liste 'limit' ile sinirli, TOPLAM burada durur.
+    totals,
     recently_touched: recentlyTouched,
     parked,
     since: opts.since ?? null,
     uncaptured: opts.uncaptured ?? null,
     git,
   };
+}
+
+// Kirpilan kayit sayisini ACIKCA soyler. Sessiz kirpma "hepsi bu" gibi okunur.
+function fazla(toplam, gosterilen, komut) {
+  if (!Number.isFinite(toplam) || toplam <= gosterilen) return [];
+  return [`    … +${toplam - gosterilen} daha (serif-brain search ${komut})`];
 }
 
 /** Brief'i kompakt, token-ucuz metne dok (CLI/hook ciktisi). */
@@ -126,16 +146,18 @@ export function formatBrief(b) {
   for (const r of b.active_plans || []) L.push(`    ${r.id} — ${r.title}`);
 
   L.push(``);
-  L.push(`  ⛔ Aktif kritik/yuksek bug (${b.active_bugs.length}):`);
+  L.push(`  ⛔ Aktif kritik/yuksek bug (${b.totals?.bugs ?? b.active_bugs.length}):`);
   if (!b.active_bugs.length) L.push(`    (yok)`);
   for (const r of b.active_bugs) {
     L.push(`    [${r.priority}] ${r.id} — ${r.title}${r.module.length ? ` (${r.module.join(",")})` : ""}`);
   }
+  L.push(...fazla(b.totals?.bugs, b.active_bugs.length, "--type bug --status open"));
 
   L.push(``);
-  L.push(`  📌 Aktif kararlar (${b.active_decisions.length}):`);
+  L.push(`  📌 Aktif kararlar (${b.totals?.decisions ?? b.active_decisions.length}):`);
   if (!b.active_decisions.length) L.push(`    (yok)`);
   for (const r of b.active_decisions) L.push(`    ${r.id} — ${r.title}`);
+  L.push(...fazla(b.totals?.decisions, b.active_decisions.length, "--type decision --status active"));
 
   L.push(``);
   L.push(`  🕑 Son dokunulan (${b.recently_touched.length}):`);

@@ -49,6 +49,8 @@ export async function doctorCommand({ args }) {
 
   let warnings = 0;
   let errors = 0;
+  let config = null;
+  try { config = loadConfig(brainRoot); } catch { /* config yoksa asagida zaten raporlanir */ }
 
   // 1. Node + store engine
   header("1. Runtime & Store Engine");
@@ -206,7 +208,19 @@ export async function doctorCommand({ args }) {
     check("graph-analysis.md", existsSync(reportPath) ? true : "warn", existsSync(reportPath) ? `${statSync(reportPath).size} byte` : "missing — run 'serif-brain graph report'");
   }
 
-  // 4. Migration readiness
+  // 4-5. GOC bolumleri — YALNIZCA gocu olan brain'de gosterilir.
+  //
+  // NEDEN KOSULLU: bu iki bolum paketin YAZARININ eski sistemden gecis
+  // gecmisini denetliyordu (SerifBrainArchive, Obsidian-Dev-Vault,
+  // graphify-out). Temiz oda testinde olculdu: bambaska bir makinede yeni bir
+  // proje kuran kullanici `doctor` calistirinca 3 kirmizi ✗ + 2 uyari
+  // goruyordu — hicbiri kendisiyle ilgili degildi. "Ilk 60 saniye" tam olarak
+  // burada kaybedilir: arac bozukmus gibi gorunur.
+  // Kosul MAKINEYE degil BRAIN'e bakar: `legacy_sources` config'te varsa bu
+  // brain gercekten bir gocten geliyordur. Makinede arsiv klasoru bulunmasi
+  // yetmez — ayni makinede kurulan YENI bir proje de o bolumleri gorurdu.
+  const gocVar = !!config?.legacy_sources;
+  if (gocVar) {
   header("4. Migration Readiness");
   const archiveRoot = join(HOME, "SerifBrainArchive");
   const archiveExists = existsSync(archiveRoot);
@@ -236,6 +250,7 @@ export async function doctorCommand({ args }) {
     const ok = existsSync(src.path);
     check(`  ${src.id}`, ok, ok ? "present (untouched)" : "MOVED/REMOVED");
   }
+  }
 
   // 6a. Claude Code kapisi kurulu mu?
   // Kurulmayan kapi kapi degildir — bu satir olmadan "kapi var" sanilir.
@@ -263,11 +278,9 @@ export async function doctorCommand({ args }) {
   }
 
   // 6b. Legacy hook detection in .claude/settings.json
-  header("7. Legacy Hooks (Faz 8 input)");
   const settingsPath = join(projectRoot, ".claude/settings.json");
-  if (!existsSync(settingsPath)) {
-    check("settings.json", false, "missing");
-  } else {
+  if (gocVar && existsSync(settingsPath)) {
+    header("7. Eski Hook Kalintilari");
     const content = readFileSync(settingsPath, "utf8");
     const matches = [];
     for (const pattern of LEGACY_HOOK_PATTERNS) {

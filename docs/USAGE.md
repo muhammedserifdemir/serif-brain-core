@@ -302,3 +302,34 @@ bug_signatures:              # geçmiş hataların 'şekli' → projeye-özel li
 4. **`done/rejected/archived` gürültüyü context dışına atar** — kapatmayı ihmal etme.
 5. **Fikri park et, dal açma** — yeni özellik fikri `--status queued`, mevcut faz kilitli.
 6. **Kod değişince MCP'yi restart et, araç sözleşmesini bozma.**
+
+## Kapı (otomatik çalışan kısım)
+
+Aşağıdaki komutları elle çalıştırmak zorunda değilsiniz — `serif-brain init`
+Claude Code kapısını kurar ve şunlar kendiliğinden çalışır:
+
+| Ne zaman | Ne çalışır | Ne görürsünüz |
+|---|---|---|
+| Oturum açılışı | `brief` | aktif plan/bug/karar + son bakıştan beri olanlar + hafızaya geçmemiş commit'ler |
+| Edit/Write **öncesi** | `guard <dosya>` | o dosyanın kararları, yara izleri, imza eşleşmeleri, blast-radius |
+| Edit/Write **sonrası** | `check <dosya>` | katman ihlali, döngü, god-file |
+| "Bitti" demeden önce | `review` | değişen dosyalarda bulgular + kapsam etiketi |
+
+Kapı **söyleyecek şey yoksa susar**, ve **söylediğini bir daha söylemez** (aynı
+metin ikinci kez üretilmez — aksi hâlde durma denemesi döngüye girer).
+
+Durum: `serif-brain hooks status` · Kurulum: `serif-brain hooks install --apply`
+
+Global (`~/.claude/settings.json`) kurulum tüm projeleri kapsar; proje-düzeyi
+kurulum yalnız o projeyi. İkisi birden kurulursa kapı iki kez konuşur —
+`hooks status` bunu "(global ayardan)" diye işaretler ve `install` ikinci kaydı
+açmaz.
+
+## Diğer komutlar
+
+| Komut | Ne zaman |
+|---|---|
+| `serif-brain skills status\|update --apply` | paketle gelen disiplin skill'lerini projeye taşı/güncelle |
+| `serif-brain dashboard serve` | tüm brain'li projeleri tek panelde gör (durum, port, çalıştırma) |
+| `serif-brain add plan --title "..."` | faz planı / yol haritası (`brief` çıktısında en üstte durur) |
+| `serif-brain capture --days 14 --apply` | commit'lerden hafızaya geçmemiş bug/kararları yaz |

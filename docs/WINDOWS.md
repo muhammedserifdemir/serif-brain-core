@@ -44,9 +44,10 @@ copy <global-node_modules>\serif-brain-core\skill\serif-brain-core\SKILL.md $env
 
 ## Bilinen Windows Notlari
 
-- `serif-brain doctor` icindeki "Legacy Sources" bolumu Mac'e ozgu yollari
-  (`~/Desktop/serif-platform/.claude/brain`, `~/Obsidian-Dev-Vault` vb.) kontrol
-  eder; Windows'ta bunlar "yok" gorunur — bu normaldir, hata degildir.
+- `serif-brain doctor` icindeki goc bolumleri (eski sistemden aktarim) artik
+  YALNIZCA config'inde `legacy_sources` bulunan brain'lerde gosterilir. Yeni
+  kurulan bir projede o bolumler hic cikmaz — eskiden paket yazarinin Mac
+  yollarini denetleyip yabanci makinede kirmizi ✗ uretiyordu.
 - Proje hafizalari (`.serif-brain/` klasorleri) bu paketin PARCASI DEGILDIR;
   her projenin kendi reposuyla gelir. Windows'ta yeni proje icin `serif-brain init`.
 - Dashboard ciktisi varsayilan olarak `%USERPROFILE%\Desktop\serif-brain-dashboard.html`

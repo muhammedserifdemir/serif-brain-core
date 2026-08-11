@@ -101,3 +101,31 @@ test("brief — uncaptured verilirse sayi + ilk kayitlar + komut basilir", () =>
   assert.match(out, /… \+4 daha/);
   assert.match(out, /capture --days 14 --apply/);
 });
+
+// ── Sinir: brief her oturuma girer, sinirsiz buyuyemez ─────────────────────
+// Bu uc liste SINIRSIZDI; `limit` parametresi vardi ama yalniz iki liste onu
+// kullaniyordu. Olcum (5000 kayit): 6.297 token → 180 token.
+test("brief — aktif listeler 'limit' ile sinirli, cikti olcekle patlamaz", () => {
+  const mk = (i) => ({ frontmatter: {
+    id: `bug-x${i}`, type: "bug", title: `Bug ${i}`, status: "open", priority: "critical",
+    module: ["core"], created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    relations: { files: [] }, tags: [] } });
+  const kucuk = formatBrief(compileBrief(Array.from({ length: 10 }, (_, i) => mk(i)), { days: 7 }));
+  const buyuk = formatBrief(compileBrief(Array.from({ length: 5000 }, (_, i) => mk(i)), { days: 7 }));
+  assert.ok(buyuk.length < kucuk.length * 1.5,
+    `5000 kayitta cikti patlamamali (kucuk ${kucuk.length}, buyuk ${buyuk.length})`);
+});
+
+test("brief — kirpilan sayi GIZLENMEZ ('+N daha' + nasil gorulecegi)", () => {
+  const mk = (i) => ({ frontmatter: {
+    id: `bug-y${i}`, type: "bug", title: `Bug ${i}`, status: "open", priority: "critical",
+    module: ["core"], created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    relations: { files: [] }, tags: [] } });
+  const b = compileBrief(Array.from({ length: 50 }, (_, i) => mk(i)), { days: 7, limit: 5 });
+  assert.equal(b.totals.bugs, 50, "TOPLAM kaybolmamali");
+  assert.equal(b.active_bugs.length, 5);
+  const out = formatBrief(b);
+  assert.match(out, /Aktif kritik\/yuksek bug \(50\)/, "baslikta gercek sayi durmali");
+  assert.match(out, /\+45 daha/, "sessiz kirpma 'hepsi bu' gibi okunur");
+  assert.match(out, /serif-brain search/, "nasil gorulecegini soylemeli");
+});
