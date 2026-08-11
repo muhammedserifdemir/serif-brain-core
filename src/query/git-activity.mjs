@@ -46,21 +46,24 @@ export function getChangedFiles(projectRoot, ref = "HEAD") {
 }
 
 // Son N gundeki commit'ler + degisen dosyalari — auto-capture (write-back) icin.
-// Sekil: [{ hash, subject, files: [...] }]. Git yoksa bos dizi.
+// Sekil: [{ hash, date, subject, files: [...] }]. Git yoksa bos dizi.
+// `date` (ISO, %aI) sonradan eklendi: "son bakisimdan beri" hesabi gun degil AN
+// hassasiyeti ister — gun penceresi, ayni gun icinde bakilani da kacirilan
+// sayar.
 export function getRecentCommits(projectRoot, days) {
   try {
     // \x1e (RS) her commit'i ayirir; \x1f (US) hash ile subject'i ayirir.
     const out = execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --name-only --pretty=format:"%x1e%H%x1f%s"`,
+      `git -C "${projectRoot}" log --since="${days} days ago" --name-only --pretty=format:"%x1e%H%x1f%aI%x1f%s"`,
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 32 * 1024 * 1024 },
     );
     const commits = [];
     for (const rec of out.split("\x1e")) {
       const lines = rec.split("\n").map((s) => s.trim()).filter(Boolean);
       if (!lines.length) continue;
-      const [hash, subject = ""] = lines[0].split("\x1f");
+      const [hash, date = "", subject = ""] = lines[0].split("\x1f");
       if (!hash) continue;
-      commits.push({ hash, subject, files: lines.slice(1) });
+      commits.push({ hash, date, subject, files: lines.slice(1) });
     }
     return commits;
   } catch {

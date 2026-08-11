@@ -111,7 +111,7 @@ function post(projectRoot, file) {
 // yazilir (aktif plan/bug/karar basliklari + yakalanmamis sayisi), gerisi
 // komutla istenir. Hicbiri yoksa SUSAR — bos brain'de gurultu uretmez.
 function session(projectRoot) {
-  const b = brainJson(projectRoot, ["brief", "--days", "7"]);
+  const b = brainJson(projectRoot, ["brief", "--days", "7", "--stamp"]);
   if (!b || b.brain === false) return;
 
   const lines = [];
@@ -125,6 +125,9 @@ function session(projectRoot) {
   if (b.active_decisions?.length) {
     lines.push(`  📌 IHLAL ETME — aktif karar (${b.active_decisions.length}):`);
     for (const r of b.active_decisions.slice(0, 3)) lines.push(bas(r));
+  }
+  if (b.since && !b.since.sessiz) {
+    lines.push(`  🆕 Son bakistan beri (${b.since.gun}g): ${b.since.yeni_kayit} yeni kayit · ${b.since.kapanan_kayit} kapandi · ${b.since.commit} commit`);
   }
   if (b.uncaptured?.count) {
     lines.push(`  📝 ${b.uncaptured.count} commit hafizaya gecmemis (serif-brain capture --days ${b.uncaptured.days} --apply)`);

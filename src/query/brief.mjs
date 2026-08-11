@@ -104,6 +104,7 @@ export function compileBrief(objects, opts = {}) {
     active_plans: activePlans,
     recently_touched: recentlyTouched,
     parked,
+    since: opts.since ?? null,
     uncaptured: opts.uncaptured ?? null,
     git,
   };
@@ -141,6 +142,14 @@ export function formatBrief(b) {
   if (!b.recently_touched.length) L.push(`    (yok)`);
   for (const r of b.recently_touched) {
     L.push(`    ${r.type} ${r.id} — ${r.title} · ${r.status}`);
+  }
+
+  if (b.since && !b.since.sessiz) {
+    L.push(``);
+    L.push(`  🆕 Son bakistan beri (${b.since.gun} gun): ` +
+      `${b.since.yeni_kayit} yeni kayit · ${b.since.kapanan_kayit} kapandi · ${b.since.commit} commit`);
+    for (const r of b.since.ornek_yeni) L.push(`    + [${r.type}] ${r.title}`);
+    for (const r of b.since.ornek_kapanan) L.push(`    ✓ [${r.type}] ${r.title}`);
   }
 
   if (b.uncaptured?.count) {

@@ -7,6 +7,7 @@ import { loadObjects } from "../query/search.mjs";
 import { compileBrief, formatBrief } from "../query/brief.mjs";
 import { gitActivity } from "../query/git-activity.mjs";
 import { scanUncaptured } from "../query/capture-scan.mjs";
+import { summarizeSince, stampLastSeen } from "../query/since.mjs";
 
 export async function briefCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -49,7 +50,13 @@ export async function briefCommand({ args }) {
     } catch { /* git yok / tarama basarisiz → brief yine de calisir */ }
   }
 
-  const brief = compileBrief(objects, { days, module, git, uncaptured });
+  // "Son bakisimdan beri ne oldu" — devralinan oturumun ILK sorusu.
+  // Isaret yalnizca --stamp ile ilerler (SessionStart hook'u damgalar); elle
+  // brief calistirmak farki tuketmez.
+  const since = summarizeSince(brainRoot, projectRoot, objects);
+  if (args.flags.stamp) stampLastSeen(brainRoot);
+
+  const brief = compileBrief(objects, { days, module, git, uncaptured, since });
 
   if (args.flags.json) {
     console.log(JSON.stringify(brief, null, 2));
