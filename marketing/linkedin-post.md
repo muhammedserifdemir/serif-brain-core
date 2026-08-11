@@ -1,7 +1,21 @@
-# LinkedIn — serif-brain fikir postu
+# LinkedIn — serif-brain
 
-**Format:** tek görsel + metin. Ürün lansmanı DEĞİL, fikir postu (repo private, tek kullanıcı).
-**Görsel:** `panel.png` (birincil) — istenirse `graf.png` ikinci kare olarak carousel.
+**Format:** tek görsel + metin. **Görsel:** `panel.png` (birincil) — `graf.png` ikinci kare (carousel).
+
+**Sayı sözleşmesi (2026-08-11'de ölçüldü, yayından önce tekrar doğrula):**
+
+| İddia | Gerçek | Nasıl ölçüldü |
+|---|---|---|
+| Brain'li proje | **20** (boş olmayan) | `find ~ -name .serif-brain` + obje sayımı |
+| Karar/hata kaydı | **1.170** | aynı taramanın toplamı |
+| En büyük kod grafı | **2.599 düğüm** | `graph.json` nodes |
+| Test | **291** | `npm test` |
+| Kapı kurulu | **global** → tüm projeler | `~/.claude/settings.json` |
+
+> ⚠ Önceki taslak "17 proje, 930 kayıt, 229 test" diyordu ve **merkez iddiası
+> 22 projeden 1'inde doğruydu** — kapı yalnız paketin kendi reposunda kuruluydu.
+> Global kuruluma geçildi; artık iddia gerçeği anlatıyor. Sayı değişirse metni
+> değiştir, metni koruyup sayıyı zorlama.
 
 ---
 
@@ -9,77 +23,89 @@
 
 > AI'a "şunu yapma" demek işe yaramıyor. Çünkü tavsiye atlanabilir.
 >
-> Aylardır AI ile kod yazıyorum ve tekrar eden bir sorun var: model her oturuma sıfırdan
-> başlıyor. Geçen ay "bunu şu yüzden böyle yapmıştık" diye verdiğim kararı bu hafta
-> bilmiyor. Aynı hatayı ikinci kez yapıyor.
+> Aylardır AI ile kod yazıyorum ve tekrar eden bir sorun var: model her oturuma
+> sıfırdan başlıyor. Geçen ay "bunu şu yüzden böyle yapmıştık" diye verdiğim
+> kararı bu hafta bilmiyor. Aynı hatayı ikinci kez yapıyor.
 >
-> Önce doküman yazdım. Sonra talimat dosyaları. İkisi de aynı sebepten yetersiz kaldı:
-> **bunlar tavsiyedir, model okumayı atlayabilir.**
+> Önce doküman yazdım. Sonra talimat dosyaları. İkisi de aynı sebepten yetersiz
+> kaldı: **bunlar tavsiyedir, model okumayı atlayabilir.**
 >
-> Yaklaşımı değiştirdim. Projelerimin kararlarını ve hatalarını dosya sistemine yazdım,
-> bunları kod grafına bağladım — sonra en kritik adımı attım: bu bilgiyi *düzenleme anında*
-> devreye giren mekanik bir kapıya çevirdim.
+> Yaklaşımı değiştirdim. Projelerimin kararlarını ve hatalarını dosya sistemine
+> yazdım, bunları kod grafına bağladım — sonra en kritik adımı attım: bu bilgiyi
+> *düzenleme anında* devreye giren mekanik bir kapıya çevirdim.
 >
 > Artık bir dosyaya dokunulmadan önce o dosyanın geçmişi otomatik önüne düşüyor.
-> Düzenlemeden sonra yapısal kontrol çalışıyor. "Bitti" denmeden önce kapı sorguluyor.
-> Atlanamıyor, çünkü tavsiye değil.
+> Düzenlemeden sonra yapısal kontrol çalışıyor. "Bitti" denmeden önce kapı
+> sorguluyor. Atlanamıyor, çünkü tavsiye değil.
 >
-> Bugünkü hâli: 17 proje, 930 karar/hata kaydı, en büyüğü 2.537 düğümlük kod grafı.
-> Sıfır bağımlılık, saf Node, 229 test.
+> İşin ilginç yanı, kapının kendisi de bir disiplin dayatıyor: **söyleyecek şey
+> yoksa susuyor, ve söylediğini bir daha söylemiyor.** İkincisini eklemek zorunda
+> kaldım — çünkü tekrar eden bir uyarı, uyarı değil gürültüdür.
 >
-> En çok şu ders kaldı: bir kuralın işe yaraması için doğru olması yetmiyor — **atlanamaz
-> olması gerekiyor.**
+> Bugünkü hâli: 20 proje, 1.170 karar/hata kaydı, en büyüğü 2.599 düğümlük kod
+> grafı. Sıfır bağımlılık, saf Node, 291 test.
 >
-> Siz AI ile çalışırken bağlamı nasıl kalıcı kılıyorsunuz? Yorumlarda merak ediyorum.
+> En çok şu ders kaldı: bir kuralın işe yaraması için doğru olması yetmiyor —
+> **atlanamaz olması gerekiyor.**
+>
+> Siz AI ile çalışırken bağlamı nasıl kalıcı kılıyorsunuz? Yorumlarda merak
+> ediyorum.
 >
 > #YazılımGeliştirme #YapayZeka #BuildInPublic #SoloFounder #DeveloperTools
 
-**Kelime:** ~185 · **Kanca:** 1. satır · **CTA:** tek soru · **Etiket:** 5
+**Kelime:** ~215 · **Kanca:** 1. satır · **CTA:** tek soru
 
 ---
 
-## B varyantı: "Sessiz hata" (daha teknik, dar kitle)
+## B varyantı — "Sessiz hata" (teknik kitle, en güçlü içerik)
 
-> Bir aracın "sorun yok" demesi, sorun aramadığı anlamına gelebilir.
+> Bir aracın "sorun yok" demesi, sorun **aramadığı** anlamına gelebilir.
 >
-> Kendi geliştirici aracımda bu haftaki en pahalı hatayı buldum: kural dosyalarını
-> okuyan ayrıştırıcı, aracın kendi dokümanının önerdiği yazım biçimini çözemiyordu.
-> Kurallar yüklenmiş *görünüyor*, ama boş geliyordu.
+> Kendi geliştirici aracımda bu haftaki en pahalı hatayı buldum. Kod her
+> düzenlemeden önce projenin hafızasını önüme koyan bir kapı çalıştırıyor.
+> Aylardır sessizdi. "Demek temiz" diye düşündüm.
 >
-> Sonuç: katman ihlallerini denetleyen kapı, denetleyecek kuralı olmadığı için
-> yeşil yanıyordu. Hata veren bir sistem değil — sessizce onaylayan bir sistem.
+> Değildi. Kapının çağırdığı komutlar, **bulgu varsa** sıfır olmayan çıkış kodu
+> veriyor — pre-commit kapısı oldukları için bu doğru davranış. Ama kapıyı
+> çalıştıran kod, sıfır olmayan her çıkışı "komut başarısız" sayıp çıktıyı
+> atıyordu.
 >
-> Bu, hatanın en pahalı sınıfı: kanıt var ama kapsam yanlış. Kullanıcı yeşil ışığa
-> bakıp karar veriyor.
+> Yani kapı, **tam da sorun bulunduğunda susuyordu.** Sorun yokken konuşuyor,
+> sorun varken susuyordu. Bu yüzden aylarca "çalışıyor" göründü.
 >
-> Düzelttikten sonra kapıya bir şey daha ekledim: artık **neyi denetlemediğini** de
-> söylüyor. "5 dosyanın 3'ü grafta yok, bu dosyalar için sonuç YOK" diyor.
+> Aynı hafta ikinci bir örnek: bir yapılandırma kuralı yazdım, hiçbir şey
+> değişmedi. Sebep şuydu — kod `graftanGelen || configtenGelen` diye yazılmıştı;
+> graf eşleşmeyen dosyaya `"unknown"` yazıyor ve **`"unknown"` truthy'dir.**
+> Yani yedek yol hiç çalışmadı. Kuralı yazan kişi hiçbir uyarı görmedi.
 >
-> Bir kapının en tehlikeli hâli, yanlış cevap vermesi değil — kapsamını gizlemesi.
+> İkisinin de ortak dersi şu: **bir kural yazılıp üretim yolu onu çağırmıyorsa,
+> yazan kişi hiçbir hata görmez.** Testin geçmesi bunu yakalamaz; yanlış şeyi
+> ölçen bir kanıt, kanıtsızlıktan daha tehlikelidir — çünkü üstüne karar
+> verirsiniz.
 >
-> Sizin sisteminizde "sorun yok" çıktısı, gerçekten arandığını kanıtlıyor mu?
+> Şimdi kuralım şu: bir kapı eklerken *aynı turda* onun sustuğu durumu da test
+> ediyorum. "Konuşuyor mu" değil, "susması gerektiğinde susuyor, konuşması
+> gerektiğinde konuşuyor mu."
 >
-> #YazılımKalitesi #DeveloperTools #BuildInPublic #Mühendislik
+> Sizin "aylardır sessizdi, meğer bozukmuş" hikâyeniz hangisi?
+>
+> #YazılımGeliştirme #YapayZeka #BuildInPublic #DeveloperTools
 
-**Kelime:** ~160 · Daha dar kitle, daha yüksek teknik güven
+**Kelime:** ~250 · **Not:** A'dan daha dar kitle ama etkileşimi daha derin;
+teknik okuyucu bu tür postu kaydeder ve paylaşır.
 
 ---
 
 ## Yayın notları
 
-**Görsel:** `panel.png` — anonimleştirilmiş demo veri. Gerçek panel ekran görüntüsü
-paylaşılamaz (müşteri adı + açık güvenlik kaydı görünür, bkz. `brand.md`).
-
-**Sunulmayacaklar:**
-- Repo linki (private) — "ilgilenen yazsın" bile deme, veremezsin
-- Kullanıcı/benimsenme iddiası — tek kullanıcı var
-- "Açık kaynağa açıyorum" — `brand.md`'deki 3 koşul tamamlanmadan olmaz
-
-**Yorum gelirse hazır cevap:**
-> "Henüz private — Windows tarafı test edilmedi ve README İngilizce değil.
-> O ikisi bitince açacağım."
-
-**Zamanlama:** Salı–Perşembe 09:00–11:00 TR (LinkedIn TR teknik kitle en aktif).
-
-**Sonraki post fikri (2 hafta sonra):** bir hafta gerçek kullanım sonrası "ne işe yaradı,
-ne gürültü çıktı" ölçümü. Kullanım verisi biriktikten sonra daha güçlü olur.
+- **"Sınırsız bağlam" DEME.** Ürünün yaptığı bunun tersi ve güçlü olanı da o:
+  17 kaydın tamamı ~9.222 token, oturuma giren ~407 token (%4,4). Doğru cümle:
+  *"hafızanın %4'ünü göstererek %100'ünü hatırlatıyor."* Piyasa 2026'da tam
+  buraya yakınsadı (seçici hatırlatma, milyon-token bağlamdan ucuz).
+- **Kategori kalabalık** (Cognee, CodeGraph MCP, Codebase Memory MCP…).
+  "Hafıza sistemi yaptım" postu kaybolur. Ayrıştırıcı olan şey **kapı**:
+  rakipler *sorgulanmayı bekleyen* MCP sunucuları; bu, sorulmadan konuşuyor.
+- **B varyantı ürün övmüyor, yine de ürünü satıyor.** Solo founder için
+  mühendislik-disiplini içeriği, ürün duyurusundan daha uzağa gider.
+- Repo public yapılacaksa önce: `.serif-brain/` içeriği tarandı ve temiz
+  (müşteri/sunucu/kimlik yok), görseller anonim, lisans MIT.
