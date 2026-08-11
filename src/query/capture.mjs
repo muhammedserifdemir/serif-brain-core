@@ -57,6 +57,7 @@ export function proposeFromCommits(commits, opts = {}) {
   for (const c of commits) {
     if (!c || !c.hash) continue;
     if (existing.has(c.hash) || existing.has(c.hash.slice(0, 7))) continue; // zaten yakalanmis
+    if (isMemoryOnlyCommit(c.files)) continue; // hafiza HAKKINDA commit, olayin kendisi degil
     const cls = classifyCommit(c.subject);
     if (!cls) continue;
 
@@ -75,6 +76,20 @@ export function proposeFromCommits(commits, opts = {}) {
     if (proposals.length >= limit) break;
   }
   return proposals;
+}
+
+/**
+ * Yalnizca .serif-brain/ altini degistiren commit, hafiza TUTMA islemidir —
+ * yasanan olayin kendisi degil. Ornek: "brain: siralama hatasi kaydi" commit'i
+ * bir bug KAYDI ekler; onu tekrar bug diye onermek, ayni olayin ikinci kez
+ * yazilmasi demektir (kaydi yazan cezalandirilmis olur). Metin siniflandirmasi
+ * bunu goremez — "hata"/"bug" kelimeleri konu basliginda gecer; ayrimi yapan
+ * sey DOSYALARDIR.
+ */
+export function isMemoryOnlyCommit(files) {
+  const list = Array.isArray(files) ? files.filter(Boolean) : [];
+  if (!list.length) return false; // dosya bilgisi yoksa eleme yapma (yanlis susmaktansa oner)
+  return list.every((f) => String(f).startsWith(".serif-brain/"));
 }
 
 /** Degisen dosyalardan baskin (en cok gecen, unknown-disi) modulu sec. */

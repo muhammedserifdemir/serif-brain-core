@@ -121,8 +121,51 @@ function stop(projectRoot) {
     lines.push(`    Duzelt: serif-brain graph build`);
   }
 
+  lines.push(...yakalanmamis(projectRoot));
+
   if (!lines.length) return; // temiz + tam kapsam → sus
   emit([`[serif-brain review] "bitti" demeden once:`, ...lines]);
+}
+
+// Hafizaya GECMEMIS commit'ler.
+//
+// NEDEN: `capture` (commit → aday bug/karar) uzun suredir vardi ama onu hicbir
+// sey tetiklemiyordu. Olcum (bu paketin kendi reposu, 2026-08-11): 35 commit,
+// 8 obje — 6'si tek gunden. `capture --days 30` o an 9 aday buluyordu. Yani
+// bilgi commit mesajlarinda duruyordu, hafizaya HIC gecmemisti. Hafiza yalniz
+// insan "kaydet" dediginde buyuyordu.
+//
+// NEDEN YAZMIYOR: bu brain'in gecmisinde "otomatik churn yazan yok" karari var
+// (eski bridge emekli edildi, automation_id_patterns + prune o yuzden eklendi).
+// Kapinin isi YAZMAK degil, ATLANANIN GORUNMESI. Yazma karari insanda kalir.
+//
+// Gurultu sozlesmesi: `capture` yuksek-precision'dir (feat/chore/docs/merge/
+// surum commit'leri zaten elenir), oneri yoksa burasi SUSAR ve mesaj tek
+// komutla eyleme donusur. Kapatmak icin config.yaml: capture_reminder: false
+function yakalanmamis(projectRoot) {
+  const cfg = readConfigFlag(projectRoot, "capture_reminder");
+  if (cfg === false) return [];
+  const c = brainJson(projectRoot, ["capture", "--days", "14"]);
+  const p = c?.proposals || [];
+  if (!p.length) return [];
+  const bas = p.slice(0, 3).map(x => `    · [${x.type}] ${x.title}`);
+  return [
+    `  📝 HAFIZAYA GECMEMIS: ${p.length} commit (son 14 gun) hafizada karsiliksiz:`,
+    ...bas,
+    p.length > 3 ? `    · +${p.length - 3} commit daha` : null,
+    `    Yaz: serif-brain capture --days 14 --apply   (once gormek icin --apply'siz calistir)`,
+  ].filter(Boolean);
+}
+
+// config.yaml'dan tek bir bayrak okur. Tam YAML parser'i hook'a tasimamak icin
+// satir taramasi yeter — deger yoksa null doner (varsayilan: acik).
+function readConfigFlag(projectRoot, key) {
+  try {
+    const raw = readFileSync(join(projectRoot, ".serif-brain", "config.yaml"), "utf8");
+    const m = raw.match(new RegExp(`^${key}\\s*:\\s*(\\S+)`, "m"));
+    if (!m) return null;
+    return m[1] === "false" ? false : m[1] === "true" ? true : m[1];
+  } catch { return null; }
 }
 
 // ── Giris ───────────────────────────────────────────────────────────────────

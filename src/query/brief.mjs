@@ -22,6 +22,8 @@ function updatedMs(fm) {
  * @param opts { now, days=7, module=null, limit=5, git=null }
  *   git: { changedFiles:Set, commitTitles:string } | null  (gitActivity ciktisi)
  */
+// opts.uncaptured: { count, top:[{type,title}] } — hafizada karsiligi olmayan
+// commit'ler. compileBrief SAF kalsin diye git'e kendisi bakmaz; CLI doldurur.
 export function compileBrief(objects, opts = {}) {
   const now = opts.now ?? Date.now();
   const days = opts.days ?? 7;
@@ -102,6 +104,7 @@ export function compileBrief(objects, opts = {}) {
     active_plans: activePlans,
     recently_touched: recentlyTouched,
     parked,
+    uncaptured: opts.uncaptured ?? null,
     git,
   };
 }
@@ -138,6 +141,16 @@ export function formatBrief(b) {
   if (!b.recently_touched.length) L.push(`    (yok)`);
   for (const r of b.recently_touched) {
     L.push(`    ${r.type} ${r.id} — ${r.title} · ${r.status}`);
+  }
+
+  if (b.uncaptured?.count) {
+    L.push(``);
+    L.push(`  📝 Hafizaya gecmemis commit (${b.uncaptured.count}):`);
+    for (const r of b.uncaptured.top) L.push(`    [${r.type}] ${r.title}`);
+    if (b.uncaptured.count > b.uncaptured.top.length) {
+      L.push(`    … +${b.uncaptured.count - b.uncaptured.top.length} daha`);
+    }
+    L.push(`    Yaz: serif-brain capture --days ${b.uncaptured.days ?? 14} --apply`);
   }
 
   L.push(``);

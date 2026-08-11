@@ -144,3 +144,57 @@ test("kapi — proje disi dosya yolunu yok sayar", () => {
     assert.equal(out.trim(), "", "proje disindaki dosya bu brain'in konusu degil");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
+
+// ── Hafizaya gecmemis commit'ler (stop modu) ────────────────────────────────
+// `capture` uzun sure vardi ama onu hicbir sey tetiklemiyordu: bilgi commit
+// mesajlarinda kalip hafizaya hic gecmiyordu. Kapi YAZMAZ — atlanani GORUNUR
+// yapar. Yazma karari insanda kalir (bu brain'de "otomatik churn yazan yok").
+function makeRepoWithCommits(subjects, extraConfig = "") {
+  const tmp = makeBrainProject();
+  writeFileSync(join(tmp, ".serif-brain", "config.yaml"),
+    "layer_rules: []\nbug_signatures: []\nprojects:\n  - id: t\n    active: true\n" + extraConfig);
+  mkdirSync(join(tmp, ".serif-brain", "objects", "projects", "t", "bugs"), { recursive: true });
+  mkdirSync(join(tmp, ".serif-brain", "objects", "projects", "t", "decisions"), { recursive: true });
+  // Graf: degisen dosya yok → kapsam uyarisi cikmasin, YALNIZ capture satiri kalsin
+  writeFileSync(join(tmp, ".serif-brain", "graph", "graph.json"), JSON.stringify({ nodes: [], edges: [] }));
+  const git = (...a) => execFileSync("git", ["-C", tmp, ...a], { stdio: "ignore" });
+  git("init", "-q");
+  git("config", "user.email", "t@t.t");
+  git("config", "user.name", "t");
+  git("add", "-A");
+  git("commit", "-qm", "base");
+  for (const [i, s] of subjects.entries()) {
+    writeFileSync(join(tmp, "src", `f${i}.mjs`), `export const f${i} = ${i};\n`);
+    git("add", "-A");
+    git("commit", "-qm", s);
+  }
+  return tmp;
+}
+
+test("kapi — stop: hafizaya gecmemis commit'ler bildirilir (tek komutla eyleme donusur)", () => {
+  const tmp = makeRepoWithCommits(["fix: null deref cokmesi", "fix: yanlis siralama"]);
+  try {
+    const j = parseEmit(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }));
+    assert.ok(j, "yakalanmamis commit varken kapi konusmali");
+    const t = j.hookSpecificOutput.additionalContext;
+    assert.match(t, /HAFIZAYA GECMEMIS: 2 commit/);
+    assert.match(t, /null deref cokmesi/);
+    assert.match(t, /capture --days 14 --apply/, "mesaj eyleme donusen komutu vermeli");
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test("kapi — stop: hafiza-degeri olmayan commit'lerde SUSAR (feat/chore/docs elenir)", () => {
+  const tmp = makeRepoWithCommits(["feat: yeni buton", "docs: readme", "chore: bagimlilik"]);
+  try {
+    assert.equal(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }).trim(), "",
+      "yuksek-precision: hafiza-degeri olmayan commit uyari uretmemeli");
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test("kapi — stop: capture_reminder:false ile kapatilabilir", () => {
+  const tmp = makeRepoWithCommits(["fix: bir sey bozuktu"], "capture_reminder: false\n");
+  try {
+    assert.equal(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }).trim(), "",
+      "kullanici kapatabilmeli — kapatilamayan uyari gurultudur");
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});

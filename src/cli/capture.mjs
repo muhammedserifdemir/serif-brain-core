@@ -4,25 +4,9 @@
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { loadConfig } from "../markdown/schema.mjs";
-import { listAllObjects, listProjects, writeObject, makeId } from "../markdown/object.mjs";
-import { ownerOfConfigured } from "../scanner/module-owner.mjs";
-import { getRecentCommits } from "../query/git-activity.mjs";
-import { proposeFromCommits, dominantModule } from "../query/capture.mjs";
-
-// Daha once capture edilmis commit hash'lerini topla (source.kind === git).
-function collectCapturedHashes(brainRoot) {
-  const set = new Set();
-  for (const project of listProjects(brainRoot)) {
-    for (const o of listAllObjects(brainRoot, project)) {
-      const src = o.frontmatter?.source;
-      if (src && src.kind === "git" && src.path) {
-        set.add(src.path);
-        set.add(String(src.path).slice(0, 7));
-      }
-    }
-  }
-  return set;
-}
+import { writeObject, makeId } from "../markdown/object.mjs";
+// Tarama mantigi capture-scan.mjs'te (tek kaynak) — brief ayni hesabi kullanir.
+import { scanUncaptured } from "../query/capture-scan.mjs";
 
 export async function captureCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -39,14 +23,11 @@ export async function captureCommand({ args }) {
     configProjects.find((p) => p.active)?.id ||
     configProjects[0]?.id;
 
-  const commits = getRecentCommits(projectRoot, days);
-  const existingHashes = collectCapturedHashes(brainRoot);
-  const ownerFor = (files) => dominantModule(files, (f) => ownerOfConfigured(f, config));
-  const proposals = proposeFromCommits(commits, {
-    existingHashes,
-    ownerFor,
+  const { scanned, proposals } = scanUncaptured({
+    projectRoot, brainRoot, config, days,
     limit: args.flags.limit ? parseInt(args.flags.limit, 10) : 20,
   });
+  const commits = { length: scanned };
 
   if (args.flags.json) {
     console.log(JSON.stringify({ scanned: commits.length, project, apply, proposals }, null, 2));

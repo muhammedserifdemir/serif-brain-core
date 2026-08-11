@@ -1,7 +1,7 @@
 // Faz: Active Memory — auto-capture cekirdegi (commit -> aday obje).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyCommit, proposeFromCommits, dominantModule } from "../src/query/capture.mjs";
+import { classifyCommit, proposeFromCommits, dominantModule, isMemoryOnlyCommit } from "../src/query/capture.mjs";
 
 test("classify: fix commit -> cozulmus bug (done)", () => {
   const c = classifyCommit("fix(auth): null deref on login");
@@ -57,4 +57,38 @@ test("dominantModule: en cok gecen unknown-disi modul", () => {
   const files = ["a/1.ts", "a/2.ts", "b/1.ts", "x/1.ts"];
   assert.equal(dominantModule(files, owner), "auth");
   assert.equal(dominantModule(["x/only.ts"], owner), "unknown");
+});
+
+// ── Hafiza HAKKINDA commit'ler ─────────────────────────────────────────────
+// "brain: siralama hatasi kaydi" bir bug KAYDI ekler; onu tekrar bug diye
+// onermek ayni olayi ikinci kez yazmak olur — kaydi tutan cezalandirilir.
+// Metin siniflandirmasi bunu goremez ("hata" kelimesi baslikta); ayrimi
+// DOSYALAR yapar.
+test("capture — yalniz .serif-brain/ degistiren commit ONERILMEZ", () => {
+  const commits = [
+    { hash: "aaa1111", subject: "brain: siralama hatasi kaydi", files: [".serif-brain/objects/projects/t/bugs/b.md"] },
+    { hash: "bbb2222", subject: "fix: gercek bir hata", files: ["src/a.mjs"] },
+  ];
+  const p = proposeFromCommits(commits, {});
+  assert.equal(p.length, 1, "yalniz gercek kod olayi onerilmeli");
+  assert.equal(p[0].hash, "bbb2222");
+});
+
+test("capture — hafiza + KOD birlikte degistiyse ONERILIR (kayit yaninda fix var)", () => {
+  const p = proposeFromCommits([
+    { hash: "ccc3333", subject: "fix: hata + kaydi", files: [".serif-brain/objects/x.md", "src/a.mjs"] },
+  ], {});
+  assert.equal(p.length, 1, "kod dokunuldugu an olay gercektir");
+});
+
+test("capture — dosya bilgisi YOKSA eleme yapilmaz (yanlis susmaktansa oner)", () => {
+  const p = proposeFromCommits([{ hash: "ddd4444", subject: "fix: bir sey", files: [] }], {});
+  assert.equal(p.length, 1);
+});
+
+test("isMemoryOnlyCommit — dogrudan sozlesme", () => {
+  assert.equal(isMemoryOnlyCommit([".serif-brain/a.md", ".serif-brain/b.md"]), true);
+  assert.equal(isMemoryOnlyCommit([".serif-brain/a.md", "src/x.mjs"]), false);
+  assert.equal(isMemoryOnlyCommit([]), false);
+  assert.equal(isMemoryOnlyCommit(undefined), false);
 });

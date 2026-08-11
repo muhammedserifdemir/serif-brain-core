@@ -81,3 +81,23 @@ test("MCP: brain_brief araci listede + cagrilabilir", async () => {
   assert.equal(payload.scope, "global");
   assert.ok(Array.isArray(payload.active_bugs));
 });
+
+// ── Hafizaya gecmemis commit bolumu ────────────────────────────────────────
+// compileBrief SAF kalir (git'e kendisi bakmaz); sayiyi CLI doldurur.
+test("brief — uncaptured verilmezse bolum HIC cikmaz (gurultu yok)", () => {
+  const b = compileBrief([], { days: 7 });
+  assert.equal(b.uncaptured, null);
+  assert.ok(!formatBrief(b).includes("Hafizaya gecmemis"), "veri yokken baslik basilmamali");
+});
+
+test("brief — uncaptured verilirse sayi + ilk kayitlar + komut basilir", () => {
+  const b = compileBrief([], {
+    days: 7,
+    uncaptured: { count: 5, days: 14, top: [{ type: "bug", title: "null deref" }] },
+  });
+  const out = formatBrief(b);
+  assert.match(out, /Hafizaya gecmemis commit \(5\)/);
+  assert.match(out, /\[bug\] null deref/);
+  assert.match(out, /… \+4 daha/);
+  assert.match(out, /capture --days 14 --apply/);
+});

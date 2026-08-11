@@ -6,6 +6,7 @@ import { loadConfig } from "../markdown/schema.mjs";
 import { loadObjects } from "../query/search.mjs";
 import { compileBrief, formatBrief } from "../query/brief.mjs";
 import { gitActivity } from "../query/git-activity.mjs";
+import { scanUncaptured } from "../query/capture-scan.mjs";
 
 export async function briefCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -29,7 +30,26 @@ export async function briefCommand({ args }) {
     project: typeof args.flags.project_id === "string" ? args.flags.project_id : undefined,
   });
   const git = args.flags["no-git"] ? null : gitActivity(projectRoot, days);
-  const brief = compileBrief(objects, { days, module, git });
+
+  // Hafizaya gecmemis commit'ler. Oturum acilisinda gorunmezse hicbir zaman
+  // gorunmuyor: `capture` vardi ama kimse cagirmiyordu. Kapatmak icin
+  // config.yaml -> capture_reminder: false
+  let uncaptured = null;
+  if (config?.capture_reminder !== false && !args.flags["no-git"]) {
+    try {
+      const UNCAPTURED_DAYS = 14;
+      const { proposals } = scanUncaptured({ projectRoot, brainRoot, config, days: UNCAPTURED_DAYS });
+      if (proposals.length) {
+        uncaptured = {
+          count: proposals.length,
+          days: UNCAPTURED_DAYS,
+          top: proposals.slice(0, 3).map((p) => ({ type: p.type, title: p.title })),
+        };
+      }
+    } catch { /* git yok / tarama basarisiz → brief yine de calisir */ }
+  }
+
+  const brief = compileBrief(objects, { days, module, git, uncaptured });
 
   if (args.flags.json) {
     console.log(JSON.stringify(brief, null, 2));
