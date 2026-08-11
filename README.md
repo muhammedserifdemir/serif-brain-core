@@ -1,118 +1,185 @@
-# serif-brain-core
+# serif-brain
 
-Bağımsız **proje hafızası + bilgi ağı + kod graf analizi** sistemi. Obsidian /
-Graphify / eski Brain runtime bağımlılığı yok. **Saf Node.js, sıfır npm bağımlılığı**
-(Node ≥ 22.5 — `node:sqlite` + native test runner).
+**AI ajanı her oturumda sıfırdan başlar.** Dün neden o kararı verdiğini, hangi
+bug'ın hangi dosyada yara izi bıraktığını, neyin bilerek böyle yapıldığını
+bilmez. serif-brain projenin hafızasını dosya sistemine yazar, bunu kod grafına
+bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 
-Proje kararları, bug'ları, notları ve oturumları Markdown objeleri olarak tutar;
-kod tabanını tarayıp import/dosya/modül grafı çıkarır; ikisini birleştirip mimari
-sağlık + hafıza analizi üretir. **MCP sunucusu** sayesinde Claude Code hafızayı
-canlı sorgular.
+> Tavsiye atlanabilir, kapı atlanamaz.
+
+Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
+runner). 281 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
+düzenlenir, hiçbir servise bağlı değildir.
+
+---
+
+## Neden
+
+Bir kural yazılıp üretim yolu onu çağırmıyorsa, **yazan kişi hiçbir hata
+görmez.** Bu projenin kendi geçmişinden iki örnek:
+
+- `.sort((a,b) => pri(a) - pri(b))` — hepsi `critical` olan listede hep `0`
+  döner; kararlı sıralama giriş sırasını korur, yani **en eski kayıt başa
+  geçer.** Gözle bakınca doğru görünüyordu; hata yalnız gerçek veride çıktı.
+- `node.module || ownerOfConfigured(path, config)` — graf eşleşmeyen dosyaya
+  `"unknown"` yazar ve **`"unknown"` truthy'dir**, yani fallback hiç çalışmadı.
+  Config'e doğru kuralı yazan kişi hiçbir uyarı görmedi.
+
+Her ikisi de "kanıt vardı ama yanlış şey ölçülmüştü" sınıfı. serif-brain tam
+olarak bu sınıfı yakalamak için var: kararı kaydeder, koda bağlar, ve o dosyaya
+bir daha dokunulduğunda **sen sormadan** önüne koyar.
+
+---
 
 ## Kurulum
 
 ```bash
-# Klonla (veya seriftech-packages monorepo'sunda)
-node ./bin/serif-brain.mjs --help
-# İsteğe bağlı global alias:
-alias serif-brain='node /yol/serif-brain-core/bin/serif-brain.mjs'
+git clone https://github.com/muhammedserifdemir/serif-brain-core.git
+node serif-brain-core/bin/serif-brain.mjs --help
+
+# ya da global:
+npm i -g git+https://github.com/muhammedserifdemir/serif-brain-core.git
 ```
 
-## Hızlı başlangıç
+Projende:
 
 ```bash
-serif-brain init                 # bir projede .serif-brain/ oluştur
-serif-brain doctor               # sistem + şema sağlığı (hatalı dosyaları listeler)
-serif-brain validate             # objeleri şemaya göre doğrula (CI dostu, exit 1)
-serif-brain add decision --title "RLS kullan" --module infra
-serif-brain graph build && serif-brain graph report   # kod graf + mimari analiz
-serif-brain search "auth flow" --type decision        # hafızada arama
-serif-brain context              # aktif iş bağlamı (Claude için)
+serif-brain init     # .serif-brain/ + Claude skill'leri + KAPI + CLAUDE.md işareti
+serif-brain doctor   # sağlık: şema, graf, kapı kurulu mu
 ```
+
+`init` üç şeyi birden kurar: hafıza yapısını, çalışma disiplini skill'lerini ve
+Claude Code kapısını. Kurulmayan kapı kapı değildir.
+
+---
+
+## Günlük döngü
+
+```bash
+serif-brain brief                    # neredeyiz: aktif plan/bug/karar + son bakıştan beri
+serif-brain guard src/auth/login.ts  # DOKUNMADAN ÖNCE: kararlar, yara izleri, blast, risk
+# ... kod ...
+serif-brain review                   # commit'ten önce: katman ihlali + döngü + bug imzası
+serif-brain add bug --title "..." --module auth
+serif-brain close bug-2026... --note "nasıl çözüldü"
+serif-brain capture --days 14        # commit'lerden hafızaya geçmemişleri öner
+```
+
+Kapı kuruluysa `brief`/`guard`/`review` **kendiliğinden** çalışır — Claude Code
+oturum açılışında, her Edit'ten önce/sonra ve "bitti" demeden önce.
+
+---
+
+## Kapı (Claude Code entegrasyonu)
+
+| Olay | Ne yapar | Susma sözleşmesi |
+|---|---|---|
+| `SessionStart` | Aktif plan/bug/karar + son bakıştan beri olanlar | Hafıza boşsa susar |
+| `PreToolUse` (Edit/Write) | O dosyanın kararları, yara izleri, imza eşleşmeleri, blast-radius | Dosya temizse susar |
+| `PostToolUse` | Katman ihlali / döngü / god-file | Sorun yoksa susar |
+| `Stop` | Değişen dosyalarda kapı + **kapsam etiketi** + hafızaya geçmemiş commit'ler | Temiz + tam kapsamsa susar |
+
+```bash
+serif-brain hooks status          # kurulu mu, bayat mı
+serif-brain hooks install --apply # .claude/settings.json'a bağla
+```
+
+**Söyleyecek şey yoksa susar.** Her düzenlemede çıkan sabit metin bir süre sonra
+okunmaz hale gelir ve kapının değerini sıfırlar. Yabancı hook kayıtlarına
+dokunulmaz; bozuk JSON görülürse yazılmaz.
+
+**Kapsam etiketi:** "sorun bulamadım" ile "sorun aramadım" ayrı şeylerdir.
+Denetlenemeyen dosya, denetlenip temiz çıkan dosya değildir — kapı bunu ayırt
+eder, yoksa yeşil ışık yanlış güven üretir.
+
+---
 
 ## Komutlar
 
-| Komut | Ne yapar |
+**Hafıza**
+| | |
 |---|---|
-| `init` | `.serif-brain/` yapısını + config.yaml oluşturur |
-| `doctor` | Runtime/şema/graf/backlink sağlığı; **hatalı dosyaları yol+neden ile listeler** |
-| `validate` | Objeleri şemaya göre doğrula; hata varsa exit 1 (`--warnings`, `--project_id`) |
-| `add` | `add bug` / `add decision` |
-| `close` | Bug/decision kapat (status + completed_at + opsiyonel commit/note) |
-| `stale` | Açık kalemleri son commit aktivitesine göre tara |
-| `rebuild-indexes` | Tüm indexleri yeniden üret |
-| `search` | Yapısal + tam-metin arama (`--type --status --priority --module --tag --json`) |
-| `brief` | Oturum-açılışı "neredeyiz" özeti: aktif bug/karar + son dokunulan + park kuyruğu (`--module --days N --json`) |
-| `guard` | **Edit-öncesi birleşik brifing** (tek çağrı = touch+impact+risk+lint): verdict + kararlar + blast + imza (`<dosya> --json`) |
-| `touch` | Bir dosyaya dokunmadan önce ilgili hafıza: o dosya/modülün karar + bug'ları (`<dosya> --module --json`) |
-| `capture` | Git commit'lerinden aday bug/karar öner (write-back). Dry-run; `--apply` yazar (`--days N --json`) |
-| `impact` | Canlı blast-radius: bir dosyayı değiştirirsem ne kırılır (geçişli bağımlılar + etkilenen modül + hafıza) (`<dosya> --json`) |
-| `hotspot` | Tehlike bölgesi: git churn × merkezilik + modül bug yoğunluğu füzyonu (`--days N --limit N --json`) |
-| `layers` | Mimari katman ihlalleri (config `layer_rules`: `ui→db` yasak gibi); ihlalde exit 2 |
-| `check` | PostEdit graf sağlığı (tek dosya): katman ihlali + döngü + god-file (`<dosya> --json`) |
-| `lint` | Projeye-özel bug imza linter (config `bug_signatures`); eşleşmede exit 2 (`[dosya...] --json`) |
-| `risk` | Tek dosya edit-anı risk skoru: churn+merkezilik+bug+imza füzyonu (`<dosya> --json`) |
-| `cluster` | Bug'ları benzerliğe göre grupla — olası aynı-kök-neden kümeleri (`--threshold N --json`) |
-| `review` | Pre-commit kapı: değişen dosyalarda `check`+`lint`; sorunda exit 2 (`--ref --json`) |
-| `mcp` | MCP sunucusu (stdio) — Claude Code entegrasyonu (bkz. `docs/MCP.md`) |
-| `scan code` | Dosya/import/TODO tarayıcı |
-| `graph build\|report\|viewer` | Kod grafı + 11 mimari bulgu + etkileşimli HTML görüntüleyici |
-| `analyze` | Tüm raporlar (health/bugs/decisions/architecture/...) |
-| `context` | Claude bağlamı üret (`--module`) |
-| `migrate` | Legacy YAML/Obsidian/Graphify ingest (dry-run/apply) |
-| `hooks` | Hook migration plan/apply |
+| `init` / `doctor` / `validate` | kur · sağlık · şemaya göre doğrula |
+| `add bug\|decision\|plan\|record` | kayıt yaz (`record` → `done` doğar) |
+| `close <id> --note` | kapat (id benzersizse proje sorulmaz) |
+| `search` / `related` / `brief` | ara · otomatik ilişki keşfi · oturum özeti |
+| `capture --days N [--apply]` | commit'lerden aday bug/karar |
+| `stale` / `prune` / `sync-commits` | bayat tara · güvenle arşivle · `Brain-Closes:` trailer'ı |
 
-## Claude skill'leri (otomatik kurulum)
-
-`serif-brain init`, paketle gelen Claude skill'lerini hedef projenin
-`.claude/skills/` dizinine otomatik kurar (var olan dosyalar ezilmez):
-
-| Skill | Ne zaman devreye girer |
+**Kod ↔ hafıza**
+| | |
 |---|---|
-| `cerrahi-plan` | Koda dokunmadan **önce**: kök neden kanıtla bulunur, etki haritası çıkarılır, en küçük kesik seçilir, "bitti" ölçütü önceden yazılır |
-| `kanit-disiplini` | İş bitmeden **önce**: build/test çıktısı olmadan başarı iddiası yok, Türkçe karakter/jargon taraması (`scripts/tr_tarama.py`), lsof port kontrolü, tek satır DURUM raporu |
-| `serif-brain-core` | Brain komutlarının oturum içi kullanımı |
+| `guard <dosya>` | **edit-öncesi birleşik brifing** (touch+impact+risk+lint tek çağrı) |
+| `touch` / `impact` / `risk` | dosyanın hafızası · blast-radius · risk skoru |
+| `hotspot` / `cluster` | churn×merkezilik tehlike bölgesi · aynı-kök-neden kümeleri |
+| `layers` / `check` / `lint` / `review` | katman ihlali · graf sağlığı · bug imzası · pre-commit kapı |
+| `scan code` / `graph build\|report\|viewer` | tarayıcı · kod grafı + 11 mimari bulgu + HTML görüntüleyici |
+| `analyze` / `context` | tüm raporlar · Claude bağlamı |
 
-İkisi birlikte görev kelepçesidir: cerrahi-plan işi açar, kanit-disiplini kapatır.
+**Entegrasyon**
+| | |
+|---|---|
+| `mcp` | MCP sunucusu — 16 araç (14 okuma + `brain_add`/`brain_close`) |
+| `hooks status\|install` | Claude Code kapısı |
+| `skills status\|update` | paketle gelen disiplin skill'leri |
+| `dashboard` | çok-brain yönetici paneli (canlı + statik HTML) |
 
-## Kullanım kılavuzu
+---
 
-Yeni proje başlangıcı, devam eden projede oturum döngüsü, çoklu-Claude eşzamanlılığı
-ve komut refleksleri için **[docs/USAGE.md](docs/USAGE.md)**.
+## Yapılandırma
 
-## MCP (AI entegrasyonu)
+`.serif-brain/config.yaml` — hepsi opsiyonel, `init` yorumlu örnek yazar:
 
-`serif-brain mcp` saf-Node JSON-RPC/stdio sunucusu açar; `brain_search`,
-`brain_get`, `brain_context` araçlarını sunar. Claude Code `.mcp.json` kurulumu
-ve test reçetesi için **[docs/MCP.md](docs/MCP.md)**.
+```yaml
+module_paths:            # dosya yolu → modül (en uzun prefix kazanır)
+  "src/auth/": auth
+layer_rules:             # mimari kural; ihlalde exit 2
+  - { from: ui, to: db, reason: "servis katmanı kullan" }
+bug_signatures:          # geçmiş hataların 'şekli' (regex)
+  - { name: supabase-await, pattern: "(?<!await )supabase\\.(from|rpc)\\(", message: "await eksik olabilir" }
+capture_reminder: true   # hafızaya geçmemiş commit hatırlatıcısı
+```
+
+---
 
 ## Mimari
 
 ```
 src/
-  cli/        komut yönlendirici + her komut
-  markdown/   obje modeli, YAML parser/serializer, şema, index, backlink
-  scanner/    dosya tarama, import parse/çözümleme, modül sahipliği
-  graph/      graf inşa, 11-bulgu analiz, serialize, HTML viewer
-  query/      arama çekirdeği (search/MCP ortak)
-  mcp/        MCP sunucu çekirdeği (JSON-RPC)
-  reporter/   analiz raporları
-  migrate/ ingest/  legacy göç hattı
-  doctor/     sağlık tanısı
-  store/      engine tespiti (node:sqlite | jsonl)
+  cli/        komut yönlendirici + her komut (ince sarmalayıcılar)
+  markdown/   obje modeli, YAML parser/serializer, şema, yazma işlemleri
+  scanner/    dosya tarama, import çözümleme, modül sahipliği
+  graph/      graf inşa, 11-bulgu analiz, HTML viewer
+  query/      arama/guard/impact/risk çekirdeği (CLI + MCP ORTAK)
+  mcp/        MCP sunucusu (saf-Node JSON-RPC)
+  hooks/      kapı kurulumu
+  dashboard/  çok-brain panel
 ```
 
-Veri kaynağı = `.serif-brain/objects/projects/<proje>/<tip>s/<id>.md` (Markdown +
-YAML frontmatter). Indexler/graf/raporlar türetilmiştir.
+Kanonik veri = `.serif-brain/objects/projects/<proje>/<tip>s/<id>.md`
+(Markdown + YAML frontmatter). Index/graf/rapor **türetilmiştir** ve
+versiyonlanmaz.
+
+Tasarım kuralı: aynı hesap iki yerde yaşamaz. CLI ve MCP aynı çekirdeği çağırır
+— ikinci bir kopya, "CLI'da çalıştı ama MCP'de başka şey yazdı" sınıfında sessiz
+ayrışma demektir.
+
+---
+
+## Belgeler
+
+- [docs/USAGE.md](docs/USAGE.md) — oturum döngüsü, çoklu-Claude, komut refleksleri
+- [docs/MCP.md](docs/MCP.md) — `.mcp.json` kurulumu ve test reçetesi
+- [docs/WINDOWS.md](docs/WINDOWS.md) — Windows kurulumu
+- [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md)
 
 ## Geliştirme
 
 ```bash
-node --test test/*.test.mjs      # testler (sıfır bağımlılık)
+npm test        # node --test test/*.test.mjs — sıfır bağımlılık
 ```
 
-Yol haritası: [ROADMAP.md](ROADMAP.md). Felsefe: **saf-Node, sıfır bağımlılık**;
-YAML elle sağlamlaştırıldı, MCP saf-Node yazıldı.
-
 ## Lisans
-UNLICENSED — © Muhammed Serif Demir / Seriftech.
+
+MIT — © 2026 Muhammed Serif Demir. `package.json`'da `private: true` bilinçlidir:
+paket npm'e yayınlanmaz (bakım yükü), git üzerinden kurulur.

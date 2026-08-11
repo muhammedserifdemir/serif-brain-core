@@ -8,15 +8,16 @@
     "serif-brain": "./bin/serif-brain.mjs"
   },
   "files": [
-    "bin/",
-    "src/",
-    "hooks/",
-    "templates/",
-    "skill/",
-    "README.md",
     "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
     "ROADMAP.md",
-    "docs/"
+    "bin/",
+    "docs/",
+    "hooks/",
+    "skill/",
+    "src/",
+    "templates/"
   ],
   "scripts": {
     "doctor": "node ./bin/serif-brain.mjs doctor",
@@ -36,5 +37,9 @@
   ],
   "dependencies": {},
   "author": "Muhammed Serif Demir",
-  "license": "UNLICENSED"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muhammedserifdemir/serif-brain-core.git"
+  }
 }

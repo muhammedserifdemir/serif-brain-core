@@ -4,6 +4,43 @@ Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
 ## [Unreleased]
 
+### Ajan-kullanılabilirliği turu (2026-08-11) — altı madde
+
+Hepsinin ortak kök nedeni aynı: **makine vardı, tetikleyicisi yoktu.**
+
+1. **Kapı artık KURULUYOR** — `hooks status|install`, `init` otomatik bağlar,
+   `doctor` raporlar. Paket `claude-gate.mjs`'i taşıyordu ama onu hiçbir şey
+   `settings.json`'a bağlamıyordu; kendi reposunda bile bağlı değildi.
+   Yabancı hook'a dokunulmaz, bozuk JSON'da yazılmaz, değişecekse yedek alınır.
+2. **Hafızaya geçmemiş commit'ler görünüyor** — `brief` + Stop kapısı.
+   Ölçüm: 35 commit / 8 obje, `capture` 9 aday buluyordu ama onu kimse
+   çağırmıyordu. Kapı YAZMAZ (bu brain'de "otomatik churn yazan yok" kararı
+   var), atlananı görünür kılar. `capture_reminder: false` ile kapatılır.
+   Precision: yalnız `.serif-brain/` değiştiren commit elenir — kayıt tutan
+   commit olayın kendisi değildir.
+3. **MCP artık YAZIYOR** — `brain_add` + `brain_close` (14 okuma → 16 araç).
+   Yazma mantığı `markdown/write-ops.mjs`'te, CLI ile ortak.
+4. **`close <id>` proje sormuyor** — boş bir proje dizini belirsizlik sayılmaz;
+   `locateObject` dizine değil OBJE DOSYASINA bakar. Gerçek çakışmada hâlâ sorar.
+5. **Oturum açılışı hook'tan** — `SessionStart` modu. `CLAUDE.generated.md`
+   üretiliyordu ama Claude Code kök `CLAUDE.md`'yi okur: üreteni olan, okuyanı
+   olmayan dosya. Değişen bilgi hook'tan (bayatlamaz), sabit işaret kök
+   `CLAUDE.md`'de işaretli blokta (kullanıcı içeriğine dokunulmaz).
+6. **"Son bakışımdan beri"** — `.serif-brain/.cache/last-seen.json`, yalnız
+   `--stamp` ile ilerler. Sabit `--days 7` penceresi bu soruya cevap değildi.
+
+### Yayın hazırlığı
+- **MIT lisansı** + `LICENSE` dosyası (`private: true` bilinçli olarak kalıyor:
+  npm'e yayınlanmaz, git üzerinden kurulur).
+- README baştan yazıldı; `archive`/`ingest`/`report` "stub" listesi kaldırıldı —
+  işleri `prune`/`migrate`/`analyze` üstlenmişti, liste bitmemişlik sinyali
+  veriyordu. Eski isimler yönlendirme veriyor (sessiz başarı değil).
+
+### Bilinen açık
+- `schema.mjs` `validateObject`, config'te `valid_status` yoksa `TypeError`
+  atıyor — eksik anahtar anlamlı hata yerine çökme üretiyor.
+
+
 ### Eklendi — `plan` tipi (birinci sınıf)
 - Yol haritası / faz planları için. `plans/` altına yazılır, `active` doğar, faz
   bitince `done` yapılır. `brief` çıktısında en üstte ayrı "🗺 Aktif plan"

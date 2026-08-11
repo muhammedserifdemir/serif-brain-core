@@ -65,16 +65,20 @@ const COMMANDS = {
   skills:  { handler: skillsCommand,     help: "Paket Claude skill'lerini projeye tasi/guncelle (status|list|update). init var olani ezmez; guncelleme icin: skills update --apply" },
   dashboard:{ handler: dashboardCommand, help: "Cok-brain yonetici paneli: CANLI panel (serve/open/app) + statik HTML (build|add <yol>|scan|list|archive|rm). Tum projelerin durumu/port/calistirma/biten isler" },
   mcp:     { handler: mcpCommand,       help: "MCP sunucusu (stdio/JSON-RPC) — Claude Code brain'i canli okur (brain_search/get/context/related)" },
-  archive: { handler: stubCommand("archive", "Faz 1 kapsami — su an manuel apply ile yapildi") },
-  ingest:  { handler: stubCommand("ingest",  "Faz 5 — legacy kaynaklari oku, normalize et") },
-  report:  { handler: stubCommand("report",  "Faz 6 — tek rapor uret (su an: 'analyze' tum raporlari uretir)") }
+  // Emekli isimler. Bunlar bir zamanlar "sonraki fazda gelecek" diye yardim
+  // ciktisinda "(stub)" olarak duruyordu — ama isleri BASKA komutlar ustlendi;
+  // liste bitmemislik sinyali veriyordu, oysa eksik olan sey yoktu. Isim yine
+  // taniniyor: eski aliskanlikla yazan kisi sessiz basari degil, YON alir.
+  archive: { handler: retiredCommand("archive", "prune", "stale/churn objelerini guvenle arsivler") },
+  ingest:  { handler: retiredCommand("ingest",  "migrate", "legacy YAML/Obsidian kaynaklarini okur ve normalize eder") },
+  report:  { handler: retiredCommand("report",  "analyze", "tum raporlari (health/bugs/decisions/architecture) uretir") },
 };
 
-function stubCommand(name, desc) {
+function retiredCommand(name, yerine, ne) {
   return async () => {
-    console.log(`[serif-brain ${name}] STUB — ${desc}`);
-    console.log(`Bu komut henuz implement edilmedi. Aktif faz: 2 (scaffold). Onayli faz ilerleyince eklenecek.`);
-    return 0;
+    console.error(`[serif-brain ${name}] bu komut yok — yerine: serif-brain ${yerine}`);
+    console.error(`  ${yerine}: ${ne}`);
+    return 1;
   };
 }
 
@@ -84,15 +88,9 @@ function printHelp() {
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
   const active = ["init", "doctor", "add", "close", "stale", "sync-commits", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "skills", "dashboard", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
-  console.log(`Aktif komutlar (Faz 2-8):`);
+  console.log(`Komutlar:`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);
-  }
-  console.log(``);
-  console.log(`Stub komutlar (sonraki fazlarda implement edilecek):`);
-  for (const [name, cmd] of Object.entries(COMMANDS)) {
-    if (active.includes(name)) continue;
-    console.log(`  ${name.padEnd(20)} (stub)`);
   }
   console.log(``);
   console.log(`Genel bayraklar:`);
