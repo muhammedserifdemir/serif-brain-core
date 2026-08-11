@@ -171,30 +171,44 @@ function makeRepoWithCommits(subjects, extraConfig = "") {
   return tmp;
 }
 
-test("kapi — stop: hafizaya gecmemis commit'ler bildirilir (tek komutla eyleme donusur)", () => {
+test("kapi — stop: DURUM bildirimi (yakalanmamis commit) STOP'TA YOK", () => {
+  // 2026-08-11: bu uyari once Stop'a konmustu ve DONGU uretti. Yakalanmamis
+  // commit bir OLAY degil DURUM'dur: is yapilana kadar degismez, dolayisiyla
+  // her durma denemesinde ayni metni uretir. Stop hook'u konusunca model
+  // yeniden istem alir → "Bekliyorum. Bekliyorum..." Kullanicinin ekraninda
+  // yasandi. Durum bildirimi oturum ACILISINA aittir.
   const tmp = makeRepoWithCommits(["fix: null deref cokmesi", "fix: yanlis siralama"]);
   try {
-    const j = parseEmit(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }));
-    assert.ok(j, "yakalanmamis commit varken kapi konusmali");
-    const t = j.hookSpecificOutput.additionalContext;
-    assert.match(t, /HAFIZAYA GECMEMIS: 2 commit/);
-    assert.match(t, /null deref cokmesi/);
-    assert.match(t, /capture --days 14 --apply/, "mesaj eyleme donusen komutu vermeli");
+    assert.equal(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }).trim(), "",
+      "Stop kapisi standing backlog bildirmemeli — dongunun kaynagi buydu");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test("kapi — stop: hafiza-degeri olmayan commit'lerde SUSAR (feat/chore/docs elenir)", () => {
+test("kapi — session: yakalanmamis commit'ler OTURUM ACILISINDA bildirilir", () => {
+  const tmp = makeRepoWithCommits(["fix: null deref cokmesi", "fix: yanlis siralama"]);
+  try {
+    const j = parseEmit(runGate("session", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }));
+    assert.ok(j, "oturum acilisinda konusmali — sinyal kaybolmadi, YERI degisti");
+    const t = j.hookSpecificOutput.additionalContext;
+    assert.match(t, /2 commit hafizaya gecmemis/);
+    assert.match(t, /capture --days 14 --apply/, "eyleme donusen komutu vermeli");
+    assert.equal(j.hookSpecificOutput.hookEventName, "SessionStart");
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test("kapi — session: hafiza-degeri olmayan commit'lerde SUSAR (feat/chore/docs elenir)", () => {
   const tmp = makeRepoWithCommits(["feat: yeni buton", "docs: readme", "chore: bagimlilik"]);
   try {
-    assert.equal(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }).trim(), "",
+    assert.equal(runGate("session", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }).trim(), "",
       "yuksek-precision: hafiza-degeri olmayan commit uyari uretmemeli");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test("kapi — stop: capture_reminder:false ile kapatilabilir", () => {
+test("kapi — session: capture_reminder:false ile kapatilabilir", () => {
   const tmp = makeRepoWithCommits(["fix: bir sey bozuktu"], "capture_reminder: false\n");
   try {
-    assert.equal(runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp }).trim(), "",
+    const out = runGate("session", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp });
+    assert.ok(!out.includes("hafizaya gecmemis"),
       "kullanici kapatabilmeli — kapatilamayan uyari gurultudur");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });

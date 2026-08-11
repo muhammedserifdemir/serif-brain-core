@@ -21,12 +21,18 @@ function mkProject(settings) {
   return root;
 }
 
+// Testler gelistiricinin GERCEK ~/.claude/settings.json'ini okumamali:
+// ortama bagli test, makinede yesil CI'da kirmizi demektir.
+const YOK_GLOBAL = join(tmpdir(), "sbc-olmayan-global", "settings.json");
+const plan = (root, o = {}) => planHookInstall(root, { globalPath: YOK_GLOBAL, ...o });
+const apply = (root, o = {}) => applyHookInstall(root, { globalPath: YOK_GLOBAL, ...o });
+
 const readSettings = (root) => JSON.parse(readFileSync(settingsPathOf(root), "utf8"));
 const commandsOf = (s, event) =>
   (s.hooks?.[event] || []).flatMap(e => (e.hooks || []).map(h => h.command));
 
 test("plan: settings.json yokken tum olaylar 'missing'", () => {
-  const p = planHookInstall(mkProject());
+  const p = plan(mkProject());
   assert.deepEqual(p.hooks.map(h => h.state), ["missing", "missing", "missing", "missing"]);
   assert.equal(p.exists, false);
   assert.equal(p.gateExists, true, "paket kendi kapi betigini tasimali");
@@ -34,7 +40,7 @@ test("plan: settings.json yokken tum olaylar 'missing'", () => {
 
 test("apply: tum olaylar kurulur ve YENIDEN calistirinca hicbir sey yazilmaz (idempotent)", () => {
   const root = mkProject();
-  const r1 = applyHookInstall(root);
+  const r1 = apply(root);
   assert.equal(r1.written, true);
   assert.equal(r1.changes.length, 4);
 
@@ -45,13 +51,13 @@ test("apply: tum olaylar kurulur ve YENIDEN calistirinca hicbir sey yazilmaz (id
   assert.equal(commandsOf(s, "Stop").length, 1);
   assert.match(commandsOf(s, "PreToolUse")[0], /claude-gate\.mjs" pre$/);
 
-  const r2 = applyHookInstall(root);
+  const r2 = apply(root);
   assert.equal(r2.written, false, "ikinci calistirmada yazma olmamali");
 });
 
 test("Stop/SessionStart kaydinda matcher YOKTUR (Pre/Post'ta vardir)", () => {
   const root = mkProject();
-  applyHookInstall(root);
+  apply(root);
   const s = readSettings(root);
   assert.equal(s.hooks.Stop[0].matcher, undefined, "Stop hook'u arac adina gore eslenmez");
   assert.equal(s.hooks.SessionStart[0].matcher, undefined, "SessionStart da arac adina gore eslenmez");
@@ -64,7 +70,7 @@ test("YABANCI hook kaydina dokunulmaz — yan yana yasar", () => {
     hooks: { PreToolUse: [{ matcher: "Edit", hooks: [yabanci] }] },
     permissions: { allow: ["Bash(npm test)"] },
   });
-  const r = applyHookInstall(root);
+  const r = apply(root);
   assert.equal(r.foreign, 1, "yabanci kayit sayilmali");
 
   const s = readSettings(root);
@@ -80,10 +86,10 @@ test("BAYAT kaydimiz guncellenir, kopya birakmaz (paket tasindi senaryosu)", () 
       PreToolUse: [{ matcher: "Edit|Write", hooks: [{ type: "command", command: 'node "/eski/yol/hooks/claude-gate.mjs" pre' }] }],
     },
   });
-  const p = planHookInstall(root);
+  const p = plan(root);
   assert.equal(p.hooks.find(h => h.event === "PreToolUse").state, "stale");
 
-  applyHookInstall(root);
+  apply(root);
   const cmds = commandsOf(readSettings(root), "PreToolUse");
   assert.equal(cmds.length, 1, "eski kayit kalmamali — iki kapi iki kez konusur");
   assert.ok(cmds[0].includes(GATE_SCRIPT), "yeni yola guncellenmeli");
@@ -92,7 +98,7 @@ test("BAYAT kaydimiz guncellenir, kopya birakmaz (paket tasindi senaryosu)", () 
 test("mode 'missing' (init): BAYAT kaydimiza DOKUNMAZ", () => {
   const eski = 'node "/eski/yol/hooks/claude-gate.mjs" pre';
   const root = mkProject({ hooks: { PreToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: eski }] }] } });
-  applyHookInstall(root, { mode: "missing" });
+  apply(root, { mode: "missing" });
   const s = readSettings(root);
   assert.deepEqual(commandsOf(s, "PreToolUse"), [eski], "init kullanicinin kaydini ezmez");
   assert.equal(commandsOf(s, "Stop").length, 1, "ama EKSIK olay yine de eklenir");
@@ -101,17 +107,17 @@ test("mode 'missing' (init): BAYAT kaydimiza DOKUNMAZ", () => {
 test("BOZUK JSON: fail-loud — yazmaz, ezmez", () => {
   const bozuk = '{ "hooks": { bu gecerli json degil';
   const root = mkProject(bozuk);
-  const p = planHookInstall(root);
+  const p = plan(root);
   assert.ok(p.error, "hata bildirilmeli");
 
-  const r = applyHookInstall(root);
+  const r = apply(root);
   assert.equal(r.written, false);
   assert.equal(readFileSync(settingsPathOf(root), "utf8"), bozuk, "dosya BIREBIR korunmali");
 });
 
 test("var olan settings.json degisecekse once yedek alinir", () => {
   const root = mkProject({ permissions: { allow: [] } });
-  const r = applyHookInstall(root);
+  const r = apply(root);
   assert.ok(r.backup && existsSync(r.backup), "yedek dosyasi olusmali");
   assert.deepEqual(JSON.parse(readFileSync(r.backup, "utf8")), { permissions: { allow: [] } });
 });
@@ -119,8 +125,8 @@ test("var olan settings.json degisecekse once yedek alinir", () => {
 test("kapi betigi yoksa durum 'broken' — sessizce 'kurulu' demez", () => {
   const root = mkProject();
   const yokYol = join(root, "olmayan", "claude-gate.mjs");
-  applyHookInstall(root, { gateScript: yokYol });
-  const p = planHookInstall(root, { gateScript: yokYol });
+  apply(root, { gateScript: yokYol });
+  const p = plan(root, { gateScript: yokYol });
   assert.equal(p.gateExists, false);
   assert.ok(p.hooks.every(h => h.state === "broken"));
 });
@@ -172,4 +178,39 @@ test("CLAUDE.md: aktif is LISTESI yazilmaz (bayatlayacak icerik en pahali yerde 
   const root = mkProject();
   const raw = readFileSync(applyClaudeMd(root).path, "utf8");
   assert.ok(!/\[bug-\d|\[decision-\d/.test(raw), "obje id listesi bu dosyaya girmemeli");
+});
+
+// ── Cift kapi / global ayar ────────────────────────────────────────────────
+// Claude Code global ve proje hook'larini BIRLESTIRIR. Global'de kurulu bir
+// kapiyi gormeyen kurulum uzerine bir tane daha ekler → kapi iki kez calisir,
+// ayni metni iki kez basar. Gercekte yasandi (kullanicinin ~/.claude'unda
+// args-bicimli kayit vardi, tanima yalniz `command` alanina bakiyordu).
+import { globalSettingsPath } from "../src/hooks/install.mjs";
+
+test("TANIMA: args bicimindeki kayit da BIZIMDIR (yoksa uzerine ikinci kapi acilir)", () => {
+  const root = mkProject({
+    hooks: {
+      PreToolUse: [{
+        matcher: "Edit|Write",
+        hooks: [{ type: "command", command: "node", args: [GATE_SCRIPT, "pre"] }],
+      }],
+    },
+  });
+  const p = planHookInstall(root, { includeGlobal: false });
+  const pre = p.hooks.find(h => h.event === "PreToolUse");
+  assert.notEqual(pre.state, "missing", "args bicimi 'yok' sayilmamali");
+  assert.equal(p.foreign, 0, "kendi kaydimizi yabanci saymamali");
+
+  applyHookInstall(root, { includeGlobal: false });
+  assert.equal(commandsOf(readSettings(root), "PreToolUse").length, 1, "tek kayit kalmali — cift kapi olmaz");
+});
+
+test("globalSettingsPath: ~/.claude/settings.json", () => {
+  assert.match(globalSettingsPath(), /\.claude[/\\]settings\.json$/);
+});
+
+test("plan: includeGlobal:false ile proje dosyasi tek basina degerlendirilir", () => {
+  const p = planHookInstall(mkProject(), { includeGlobal: false });
+  assert.ok(p.hooks.every(h => h.state === "missing"));
+  assert.ok(p.hooks.every(h => h.scope === null));
 });

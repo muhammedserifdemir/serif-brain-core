@@ -331,7 +331,8 @@ function runGate({ projectRoot, apply }) {
   }
 
   for (const h of plan.hooks) {
-    console.log(`  ${STATE_LABEL[h.state] || h.state}  ${h.event}`);
+    const nerede = h.scope === "global" ? "  (global ayardan)" : "";
+    console.log(`  ${STATE_LABEL[h.state] || h.state}  ${h.event}${nerede}`);
     console.log(`      ${h.why}`);
     if (h.state === "stale") console.log(`      mevcut: ${h.current}`);
   }

@@ -17,6 +17,7 @@
 //     tum ayarlarini kaybettirmek demektir.
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,19 @@ export const GATE_MARKER = "claude-gate.mjs";
 
 export function settingsPathOf(projectRoot) {
   return join(projectRoot, ".claude", "settings.json");
+}
+
+/**
+ * KULLANICI GENELI ayar. Claude Code global ve proje hook'larini BIRLESTIRIR
+ * (biri digerini gecersiz kilmaz) — ikisinde de ayni olay varsa kapi IKI KEZ
+ * calisir ve ayni metni iki kez basar.
+ *
+ * Bu yuzden "kurulu mu" sorusu yalniz proje dosyasina bakilarak
+ * CEVAPLANAMAZ: global'de kurulu bir kapiyi gormeyen kurulum, uzerine bir
+ * tane daha ekler. Gercekte yasandi.
+ */
+export function globalSettingsPath() {
+  return join(homedir(), ".claude", "settings.json");
 }
 
 /**
@@ -66,36 +80,68 @@ function readSettings(settingsPath) {
   }
 }
 
+function joinCmd(h) {
+  return [h.command, ...(Array.isArray(h.args) ? h.args : [])].join(" ");
+}
+
 // Bir olayin altindaki kayitlari duzlestir: [{matcher, hooks:[{type,command}]}]
 function entriesOf(data, event) {
   const arr = data?.hooks?.[event];
   return Array.isArray(arr) ? arr : [];
 }
 
-function isOurs(command) {
-  return typeof command === "string" && command.includes(GATE_MARKER);
+// Kapi kaydini TANIMA. Iki bicim de bizimdir:
+//   { command: 'node "/yol/claude-gate.mjs" pre' }              ← bu kurulumun yazdigi
+//   { command: "node", args: ["/yol/claude-gate.mjs", "pre"] }  ← elle yazilan/eski bicim
+// Yalniz `command` alanina bakmak ikincisini KACIRIR ve uzerine bir kayit daha
+// eklenir: kapi iki kez calisir, ayni metni iki kez basar. Gercekte yasandi —
+// kullanicinin ~/.claude/settings.json'inda args bicimi vardi.
+function isOurs(h) {
+  if (!h || typeof h !== "object") return false;
+  const parcalar = [h.command, ...(Array.isArray(h.args) ? h.args : [])];
+  return parcalar.some((p) => typeof p === "string" && p.includes(GATE_MARKER));
 }
 
 /**
  * Hicbir sey YAZMAZ — sadece durum cikarir.
  * Durumlar: missing | same | stale (bizim kayit ama komut farkli) | broken (kapi betigi yok)
  */
-export function planHookInstall(projectRoot, { gateScript = GATE_SCRIPT } = {}) {
+// globalPath enjekte edilebilir: testler gelistiricinin GERCEK ~/.claude'unu
+// okumamali. Ortama bagli test, makinede yesil CI'da kirmizi demektir (ya da
+// tersi) — ve hangisinin dogru oldugu tartisilir.
+export function planHookInstall(projectRoot, { gateScript = GATE_SCRIPT, includeGlobal = true, globalPath = null } = {}) {
   const settingsPath = settingsPathOf(projectRoot);
   const { exists, data, error } = readSettings(settingsPath);
   const gateExists = existsSync(gateScript);
 
   if (error) return { settingsPath, exists, error, gateScript, gateExists, hooks: [], foreign: 0 };
 
+  // Global ayar SALT-OKUNUR olarak hesaba katilir: orada kurulu bir olay icin
+  // proje duzeyinde IKINCI kayit acilmaz.
+  const gPath = globalPath || globalSettingsPath();
+  const globalData = includeGlobal && resolve(gPath) !== resolve(settingsPath)
+    ? readSettings(gPath).data
+    : null;
+
   let foreign = 0;
   const hooks = gateHooks(gateScript).map((want) => {
     const existing = entriesOf(data, want.event);
     let state = "missing";
     let current = null;
+    let scope = null;
+    for (const entry of entriesOf(globalData, want.event)) {
+      for (const h of Array.isArray(entry.hooks) ? entry.hooks : []) {
+        if (isOurs(h)) { state = "same"; scope = "global"; current = joinCmd(h); }
+      }
+    }
     for (const entry of existing) {
       for (const h of Array.isArray(entry.hooks) ? entry.hooks : []) {
-        if (isOurs(h.command)) {
-          current = h.command;
+        if (isOurs(h)) {
+          scope = "project";
+          // args bicimini tek satira dokerek karsilastir — sekli farkli ama
+          // ISLEVI ayni olan kayit "bayat" degil, sadece BASKA BICIMDEDIR;
+          // yine de tek bicime getirilir ki iki kapi yan yana yasamasin.
+          current = joinCmd(h);
           state = h.command === want.command ? "same" : "stale";
         } else {
           foreign++;
@@ -103,7 +149,7 @@ export function planHookInstall(projectRoot, { gateScript = GATE_SCRIPT } = {}) 
       }
     }
     if (state !== "missing" && !gateExists) state = "broken";
-    return { ...want, state, current };
+    return { ...want, state, current, scope };
   });
 
   return { settingsPath, exists, gateScript, gateExists, hooks, foreign, error: null };
@@ -115,8 +161,8 @@ export function planHookInstall(projectRoot, { gateScript = GATE_SCRIPT } = {}) 
  *   "sync"    → bizim bayat kaydimiz da guncellenir (hooks install --apply)
  * Yabanci kayitlar her iki modda da korunur.
  */
-export function applyHookInstall(projectRoot, { gateScript = GATE_SCRIPT, mode = "sync" } = {}) {
-  const plan = planHookInstall(projectRoot, { gateScript });
+export function applyHookInstall(projectRoot, { gateScript = GATE_SCRIPT, mode = "sync", includeGlobal = true, globalPath = null } = {}) {
+  const plan = planHookInstall(projectRoot, { gateScript, includeGlobal, globalPath });
   if (plan.error) return { ...plan, written: false, changes: [] };
 
   const settingsPath = plan.settingsPath;
@@ -126,14 +172,14 @@ export function applyHookInstall(projectRoot, { gateScript = GATE_SCRIPT, mode =
 
   const changes = [];
   for (const want of plan.hooks) {
-    if (want.state === "same") continue;
+    if (want.state === "same") continue; // global'de kurulu olan da buraya duser → ikinci kapi acilmaz
     if (want.state !== "missing" && mode === "missing") continue; // init var olani ezmez
 
     const list = Array.isArray(next.hooks[want.event]) ? next.hooks[want.event] : [];
     // Bizim eski kaydimizi cikar (yabancilar kalir), sonra taze kaydi ekle.
     const kept = [];
     for (const entry of list) {
-      const inner = (Array.isArray(entry.hooks) ? entry.hooks : []).filter(h => !isOurs(h.command));
+      const inner = (Array.isArray(entry.hooks) ? entry.hooks : []).filter(h => !isOurs(h));
       if (inner.length) kept.push({ ...entry, hooks: inner });
     }
     const fresh = { hooks: [{ type: "command", command: want.command }] };

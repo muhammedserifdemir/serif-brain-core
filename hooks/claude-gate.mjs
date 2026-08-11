@@ -18,7 +18,8 @@
 //     sonra okunmaz hale gelir ve kapinin degerini sifirlar.
 //   - .serif-brain olmayan projede sessizce cikar.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, dirname, resolve, isAbsolute, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -40,13 +41,27 @@ function readStdin() {
   catch { return null; }
 }
 
+// DIKKAT — burada uzun sure sessiz bir hata vardi (2026-08-11'de bulundu):
+// `review`, `layers` ve `lint` BULGU VARSA exit 2 verir; bu sozlesme gereklidir
+// (pre-commit kapisi olarak kullanilirlar). execFileSync ise sifir-olmayan her
+// cikista FIRLATIR. Eski kod bunu "komut basarisiz" sayip null donuyordu — yani
+// Stop kapisi, TAM DA SORUN BULUNDUGUNDA susuyordu. Kapinin varlik sebebinin
+// tersi. Sorun yokken (exit 0) konusuyor, sorun varken susuyordu; bu yuzden
+// yillardir "temiz" gorunuyordu.
+//
+// Cozum: hata nesnesi stdout'u tasir. Once onu ayristirmayi dene; ancak
+// gercekten cikti yoksa null don.
 function brainJson(projectRoot, args) {
+  const argv = [BIN, ...args, "--project", projectRoot, "--json"];
+  const opts = { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10000 };
+  let out;
   try {
-    const out = execFileSync(process.execPath, [BIN, ...args, "--project", projectRoot, "--json"], {
-      encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10000,
-    });
-    return JSON.parse(out);
-  } catch { return null; }
+    out = execFileSync(process.execPath, argv, opts);
+  } catch (e) {
+    out = e?.stdout; // exit 2 = "bulgu var" — cikti gecerlidir
+  }
+  if (!out) return null;
+  try { return JSON.parse(out); } catch { return null; }
 }
 
 // ── Modlar ──────────────────────────────────────────────────────────────────
@@ -164,40 +179,41 @@ function stop(projectRoot) {
     lines.push(`    Duzelt: serif-brain graph build`);
   }
 
-  lines.push(...yakalanmamis(projectRoot));
-
+  // NOT: "hafizaya gecmemis commit" uyarisi buradan KALDIRILDI (2026-08-11).
+  // Stop kapisi OLAY bildirir — az once ne yaptin. Yakalanmamis commit ise
+  // DURUM'dur: is yapilana kadar degismez, dolayisiyla her durma denemesinde
+  // ayni metni uretir ve kapiyi sonsuz donguye sokar. Durum bildirimi oturum
+  // ACILISINA aittir (SessionStart + brief), orada dogasi geregi bir kez cikar.
   if (!lines.length) return; // temiz + tam kapsam → sus
-  emit([`[serif-brain review] "bitti" demeden once:`, ...lines]);
+  emitOnce(projectRoot, [`[serif-brain review] "bitti" demeden once:`, ...lines]);
 }
 
-// Hafizaya GECMEMIS commit'ler.
+// Stop kapisi icin TEKRAR KORUMASI.
 //
-// NEDEN: `capture` (commit → aday bug/karar) uzun suredir vardi ama onu hicbir
-// sey tetiklemiyordu. Olcum (bu paketin kendi reposu, 2026-08-11): 35 commit,
-// 8 obje — 6'si tek gunden. `capture --days 30` o an 9 aday buluyordu. Yani
-// bilgi commit mesajlarinda duruyordu, hafizaya HIC gecmemisti. Hafiza yalniz
-// insan "kaydet" dediginde buyuyordu.
+// NEDEN VAR (gercek olay, 2026-08-11): Stop hook'u konusunca model yeniden
+// istem alir, bir sey soyler, tekrar durmayi dener — kapi AYNI metni yine
+// uretir. Kullanicinin ekraninda "Bekliyorum. Bekliyorum. Bekliyorum..." diye
+// giden bir dongu olustu.
 //
-// NEDEN YAZMIYOR: bu brain'in gecmisinde "otomatik churn yazan yok" karari var
-// (eski bridge emekli edildi, automation_id_patterns + prune o yuzden eklendi).
-// Kapinin isi YAZMAK degil, ATLANANIN GORUNMESI. Yazma karari insanda kalir.
+// Tasarim sozlesmesi "soyleyecek sey yoksa sus" diyordu; eksik olan kural
+// suydu: SOYLEYECEGINI ZATEN SOYLEDIYSEN DE SUS. Bir Stop kapisinin ciktisi
+// durum degismeden tekrarlaniyorsa, o kapi bir uyari degil bir dongudur.
 //
-// Gurultu sozlesmesi: `capture` yuksek-precision'dir (feat/chore/docs/merge/
-// surum commit'leri zaten elenir), oneri yoksa burasi SUSAR ve mesaj tek
-// komutla eyleme donusur. Kapatmak icin config.yaml: capture_reminder: false
-function yakalanmamis(projectRoot) {
-  const cfg = readConfigFlag(projectRoot, "capture_reminder");
-  if (cfg === false) return [];
-  const c = brainJson(projectRoot, ["capture", "--days", "14"]);
-  const p = c?.proposals || [];
-  if (!p.length) return [];
-  const bas = p.slice(0, 3).map(x => `    · [${x.type}] ${x.title}`);
-  return [
-    `  📝 HAFIZAYA GECMEMIS: ${p.length} commit (son 14 gun) hafizada karsiliksiz:`,
-    ...bas,
-    p.length > 3 ? `    · +${p.length - 3} commit daha` : null,
-    `    Yaz: serif-brain capture --days 14 --apply   (once gormek icin --apply'siz calistir)`,
-  ].filter(Boolean);
+// Kural: ayni metin ikinci kez URETILMEZ. Icerik degisirse (yeni sorun, yeni
+// dosya) yeniden konusur — yani sinyal kaybolmaz, yalniz tekrar susturulur.
+function emitOnce(projectRoot, lines) {
+  const text = lines.filter(Boolean).join("\n").trim();
+  if (!text) return;
+  const izPath = join(projectRoot, ".serif-brain", ".cache", "last-stop.json");
+  let onceki = null;
+  try { onceki = JSON.parse(readFileSync(izPath, "utf8"))?.hash ?? null; } catch { /* iz yok */ }
+  const hash = createHash("sha1").update(text).digest("hex");
+  if (onceki === hash) return; // ayni seyi ikinci kez soyleme — dongu buradan dogar
+  try {
+    mkdirSync(dirname(izPath), { recursive: true });
+    writeFileSync(izPath, JSON.stringify({ hash, at: new Date().toISOString() }) + "\n");
+  } catch { /* iz yazilamadi — konusmak yine de dongu riskinden iyidir */ }
+  emit(lines);
 }
 
 // config.yaml'dan tek bir bayrak okur. Tam YAML parser'i hook'a tasimamak icin
