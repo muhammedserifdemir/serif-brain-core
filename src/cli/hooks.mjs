@@ -2,14 +2,29 @@
 import { resolve, join } from "node:path";
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, readFileSync } from "node:fs";
 import { buildPlan } from "../hooks/plan.mjs";
+import { planHookInstall, applyHookInstall } from "../hooks/install.mjs";
+
+const STATE_LABEL = {
+  missing: "KURULU DEGIL",
+  same: "KURULU      ",
+  stale: "BAYAT       ",
+  broken: "KIRIK       ",
+};
 
 export async function hooksCommand({ args, subcommand }) {
   const sub = subcommand[0];
   const projectRoot = resolve(args.flags.project || process.cwd());
   const isApply = sub === "apply";
 
+  if (sub === "status" || sub === "install") {
+    return runGate({ projectRoot, apply: sub === "install" && args.flags.apply === true });
+  }
+
   if (sub !== "plan" && sub !== "apply") {
-    console.error(`Kullanim: serif-brain hooks <plan|apply> [--project <yol>]`);
+    console.error(`Kullanim: serif-brain hooks <status|install|plan|apply> [--project <yol>]`);
+    console.error(`  status           Claude Code kapisi kurulu mu (hicbir sey yazmaz)`);
+    console.error(`  install --apply  kapiyi .claude/settings.json'a bagla`);
+    console.error(`  plan|apply       ESKI brain hook'larini goc ettirme (legacy)`);
     return 1;
   }
 
@@ -295,4 +310,51 @@ function formatMarkdown(plan) {
   lines.push(`Hicbir adim Faz 8 dry-run'da uygulanmiyor.`);
 
   return lines.join("\n") + "\n";
+}
+
+// ── Claude Code kapisi: status / install ────────────────────────────────────
+function runGate({ projectRoot, apply }) {
+  const plan = apply
+    ? applyHookInstall(projectRoot, { mode: "sync" })
+    : planHookInstall(projectRoot);
+
+  console.log(`[serif-brain hooks]`);
+  console.log(`  Proje:     ${projectRoot}`);
+  console.log(`  Settings:  ${plan.settingsPath}${plan.exists ? "" : " (yok)"}`);
+  console.log(`  Kapi:      ${plan.gateScript}${plan.gateExists ? "" : "  ← BULUNAMADI"}`);
+  console.log(``);
+
+  if (plan.error) {
+    console.error(`  ✗ ${plan.error}`);
+    console.error(`  Hicbir sey yazilmadi — dosyayi elle duzelt, ayarlarin ezilmesin.`);
+    return 1;
+  }
+
+  for (const h of plan.hooks) {
+    console.log(`  ${STATE_LABEL[h.state] || h.state}  ${h.event}`);
+    console.log(`      ${h.why}`);
+    if (h.state === "stale") console.log(`      mevcut: ${h.current}`);
+  }
+  if (plan.foreign) console.log(`\n  (${plan.foreign} yabanci hook kaydi bulundu — dokunulmadi)`);
+  console.log(``);
+
+  if (apply) {
+    if (plan.written) {
+      for (const c of plan.changes) console.log(`  + ${c.event} (${c.from} → kuruldu)`);
+      if (plan.backup) console.log(`  yedek: ${plan.backup}`);
+      console.log(`\n  ✓ Kapi kuruldu. YENI oturumda devreye girer (mevcut oturum ayari okumaz).`);
+    } else {
+      console.log(`  ✓ Zaten guncel — hicbir sey yazilmadi.`);
+    }
+    return 0;
+  }
+
+  const eksik = plan.hooks.filter(h => h.state !== "same").length;
+  if (!plan.gateExists) {
+    console.log(`  ✗ Kapi betigi bulunamadi — paket tasinmis olabilir. Yeniden kurun.`);
+    return 1;
+  }
+  if (eksik) console.log(`  ${eksik} olay kurulu degil. Kurmak icin: serif-brain hooks install --apply`);
+  else console.log(`  ✓ Kapi tam kurulu.`);
+  return 0;
 }

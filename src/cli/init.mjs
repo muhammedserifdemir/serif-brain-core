@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
 import { planSkillSync, applySkillSync, listPackageSkills } from "../skills/sync.mjs";
 import { initSonrasiPanel } from "../dashboard/launch.mjs";
+import { applyHookInstall } from "../hooks/install.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = resolve(HERE, "../../templates");
@@ -222,6 +223,33 @@ function installSkills(projectRoot) {
   applySkillSync(plan, { mode: "missing", apply: true, log: msg => console.log(msg) });
 }
 
+// ── Claude Code kapisi ──────────────────────────────────────────────────────
+// Skill'ler DISIPLINI ANLATIR, kapi onu DEVREYE SOKAR. Paket uzun sure kapi
+// betigini tasiyip onu hicbir yere baglamiyordu; kurulmayan kapi kapi degildir
+// (ajan `guard` calistirmayi hatirlamak zorunda kalir). init artik yalnizca
+// EKSIK olaylari ekler — kullanicinin kendi hook'una ve bizim degistirilmis
+// kaydimiza dokunmaz; guncelleme icin: serif-brain hooks install --apply.
+function installGate(projectRoot) {
+  const r = applyHookInstall(projectRoot, { mode: "missing" });
+  console.log(``);
+  console.log(`Claude Code kapisi (.claude/settings.json):`);
+  if (r.error) {
+    console.log(`  ⚠ ${r.error}`);
+    console.log(`    Dokunulmadi. Duzeltince: serif-brain hooks install --apply`);
+    return;
+  }
+  if (!r.gateExists) {
+    console.log(`  ⚠ kapi betigi bulunamadi (${r.gateScript}) — atlandi`);
+    return;
+  }
+  if (!r.written) {
+    console.log(`  = zaten kurulu`);
+    return;
+  }
+  for (const c of r.changes) console.log(`  + ${c.event}`);
+  console.log(`  Kapi YENI oturumda devreye girer. Durum: serif-brain hooks status`);
+}
+
 export async function initCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
   const brainRoot = join(projectRoot, ".serif-brain");
@@ -278,6 +306,7 @@ export async function initCommand({ args }) {
   }
 
   installSkills(projectRoot);
+  installGate(projectRoot);
 
   console.log(``);
   console.log(`✓ init complete`);

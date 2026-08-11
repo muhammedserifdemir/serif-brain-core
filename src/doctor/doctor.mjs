@@ -6,6 +6,7 @@ import { detectStoreEngine } from "../store/engine.mjs";
 import { loadConfig, validateObject } from "../markdown/schema.mjs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
 import { buildBacklinks } from "../markdown/backlinks.mjs";
+import { planHookInstall } from "../hooks/install.mjs";
 
 const LEGACY_HOOK_PATTERNS = [
   /sherif-brain-claude/,
@@ -236,8 +237,33 @@ export async function doctorCommand({ args }) {
     check(`  ${src.id}`, ok, ok ? "present (untouched)" : "MOVED/REMOVED");
   }
 
-  // 6. Legacy hook detection in .claude/settings.json
-  header("6. Legacy Hooks (Faz 8 input)");
+  // 6a. Claude Code kapisi kurulu mu?
+  // Kurulmayan kapi kapi degildir — bu satir olmadan "kapi var" sanilir.
+  header("6. Claude Code Kapisi");
+  const gate = planHookInstall(projectRoot);
+  if (gate.error) {
+    check("settings.json", false, gate.error);
+    errors++;
+  } else if (!gate.gateExists) {
+    check("kapi betigi", false, `bulunamadi: ${gate.gateScript}`);
+    errors++;
+  } else {
+    const kurulu = gate.hooks.filter(h => h.state === "same").length;
+    const bayat = gate.hooks.filter(h => h.state === "stale").length;
+    if (kurulu === gate.hooks.length) {
+      check("Kapi (Pre/Post/Stop)", true, "3/3 kurulu");
+    } else if (bayat) {
+      check("Kapi (Pre/Post/Stop)", "warn", `${kurulu}/3 kurulu, ${bayat} bayat → serif-brain hooks install --apply`);
+      warnings++;
+    } else {
+      check("Kapi (Pre/Post/Stop)", "warn", `${kurulu}/3 kurulu → serif-brain hooks install --apply`);
+      warnings++;
+    }
+    if (gate.foreign) check("  yabanci hook", true, `${gate.foreign} kayit (dokunulmuyor)`);
+  }
+
+  // 6b. Legacy hook detection in .claude/settings.json
+  header("7. Legacy Hooks (Faz 8 input)");
   const settingsPath = join(projectRoot, ".claude/settings.json");
   if (!existsSync(settingsPath)) {
     check("settings.json", false, "missing");
@@ -257,7 +283,7 @@ export async function doctorCommand({ args }) {
     }
   }
 
-  // 7. Summary
+  // 8. Summary
   header("Sonuc");
   console.log(`  Errors:   ${errors}`);
   console.log(`  Warnings: ${warnings}`);
