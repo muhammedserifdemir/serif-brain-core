@@ -25,20 +25,21 @@ const readSettings = (root) => JSON.parse(readFileSync(settingsPathOf(root), "ut
 const commandsOf = (s, event) =>
   (s.hooks?.[event] || []).flatMap(e => (e.hooks || []).map(h => h.command));
 
-test("plan: settings.json yokken uc olay da 'missing'", () => {
+test("plan: settings.json yokken tum olaylar 'missing'", () => {
   const p = planHookInstall(mkProject());
-  assert.deepEqual(p.hooks.map(h => h.state), ["missing", "missing", "missing"]);
+  assert.deepEqual(p.hooks.map(h => h.state), ["missing", "missing", "missing", "missing"]);
   assert.equal(p.exists, false);
   assert.equal(p.gateExists, true, "paket kendi kapi betigini tasimali");
 });
 
-test("apply: uc olay kurulur ve YENIDEN calistirinca hicbir sey yazilmaz (idempotent)", () => {
+test("apply: tum olaylar kurulur ve YENIDEN calistirinca hicbir sey yazilmaz (idempotent)", () => {
   const root = mkProject();
   const r1 = applyHookInstall(root);
   assert.equal(r1.written, true);
-  assert.equal(r1.changes.length, 3);
+  assert.equal(r1.changes.length, 4);
 
   const s = readSettings(root);
+  assert.equal(commandsOf(s, "SessionStart").length, 1);
   assert.equal(commandsOf(s, "PreToolUse").length, 1);
   assert.equal(commandsOf(s, "PostToolUse").length, 1);
   assert.equal(commandsOf(s, "Stop").length, 1);
@@ -48,11 +49,12 @@ test("apply: uc olay kurulur ve YENIDEN calistirinca hicbir sey yazilmaz (idempo
   assert.equal(r2.written, false, "ikinci calistirmada yazma olmamali");
 });
 
-test("Stop kaydinda matcher YOKTUR (Pre/Post'ta vardir)", () => {
+test("Stop/SessionStart kaydinda matcher YOKTUR (Pre/Post'ta vardir)", () => {
   const root = mkProject();
   applyHookInstall(root);
   const s = readSettings(root);
   assert.equal(s.hooks.Stop[0].matcher, undefined, "Stop hook'u arac adina gore eslenmez");
+  assert.equal(s.hooks.SessionStart[0].matcher, undefined, "SessionStart da arac adina gore eslenmez");
   assert.equal(s.hooks.PreToolUse[0].matcher, "Edit|Write|MultiEdit");
 });
 
@@ -123,8 +125,51 @@ test("kapi betigi yoksa durum 'broken' — sessizce 'kurulu' demez", () => {
   assert.ok(p.hooks.every(h => h.state === "broken"));
 });
 
-test("gateHooks: uc olay ve uc mod (pre/post/stop) eksiksiz", () => {
+test("gateHooks: dort olay ve dort mod (session/pre/post/stop) eksiksiz", () => {
   const h = gateHooks("/x/claude-gate.mjs");
-  assert.deepEqual(h.map(x => x.event), ["PreToolUse", "PostToolUse", "Stop"]);
-  assert.deepEqual(h.map(x => x.command.split(" ").pop()), ["pre", "post", "stop"]);
+  assert.deepEqual(h.map(x => x.event), ["SessionStart", "PreToolUse", "PostToolUse", "Stop"]);
+  assert.deepEqual(h.map(x => x.command.split(" ").pop()), ["session", "pre", "post", "stop"]);
+});
+
+// ── CLAUDE.md isaret blogu ─────────────────────────────────────────────────
+// `context` .serif-brain/context/CLAUDE.generated.md uretiyordu ama Claude Code
+// KOK CLAUDE.md'yi okur: ureteni olan, okuyani olmayan dosya.
+import { planClaudeMd, applyClaudeMd, BEGIN, END } from "../src/context/claude-md.mjs";
+
+test("CLAUDE.md: yoksa olusturulur, ikinci calistirma yazmaz", () => {
+  const root = mkProject();
+  const r1 = applyClaudeMd(root);
+  assert.equal(r1.written, true);
+  assert.match(readFileSync(r1.path, "utf8"), /serif-brain brief/);
+  assert.equal(applyClaudeMd(root).written, false, "idempotent olmali");
+});
+
+test("CLAUDE.md: kullanicinin kendi icerigi KORUNUR (yalniz isaretler arasi degisir)", () => {
+  const root = mkProject();
+  const path = join(root, "CLAUDE.md");
+  writeFileSync(path, "# Benim projem\n\nBuraya dokunma.\n");
+  applyClaudeMd(root);
+  const raw = readFileSync(path, "utf8");
+  assert.match(raw, /# Benim projem/);
+  assert.match(raw, /Buraya dokunma\./);
+  assert.ok(raw.includes(BEGIN) && raw.includes(END));
+});
+
+test("CLAUDE.md: BAYAT blok guncellenir, kullanici metni yerinde kalir", () => {
+  const root = mkProject();
+  const path = join(root, "CLAUDE.md");
+  writeFileSync(path, `ONCE\n${BEGIN}\neski icerik\n${END}\nSONRA\n`);
+  assert.equal(planClaudeMd(root).state, "stale");
+  applyClaudeMd(root);
+  const raw = readFileSync(path, "utf8");
+  assert.match(raw, /^ONCE/m);
+  assert.match(raw, /^SONRA/m);
+  assert.ok(!raw.includes("eski icerik"), "bayat blok kalmamali");
+  assert.equal((raw.match(new RegExp(BEGIN.slice(0, 20), "g")) || []).length, 1, "blok cogalmamali");
+});
+
+test("CLAUDE.md: aktif is LISTESI yazilmaz (bayatlayacak icerik en pahali yerde durmaz)", () => {
+  const root = mkProject();
+  const raw = readFileSync(applyClaudeMd(root).path, "utf8");
+  assert.ok(!/\[bug-\d|\[decision-\d/.test(raw), "obje id listesi bu dosyaya girmemeli");
 });

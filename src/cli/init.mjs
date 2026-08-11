@@ -7,6 +7,7 @@ import { detectStoreEngine } from "../store/engine.mjs";
 import { planSkillSync, applySkillSync, listPackageSkills } from "../skills/sync.mjs";
 import { initSonrasiPanel } from "../dashboard/launch.mjs";
 import { applyHookInstall } from "../hooks/install.mjs";
+import { applyClaudeMd } from "../context/claude-md.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = resolve(HERE, "../../templates");
@@ -311,6 +312,13 @@ export async function initCommand({ args }) {
 
   installSkills(projectRoot);
   installGate(projectRoot);
+
+  // Kok CLAUDE.md'ye kisa isaret blogu — ajanin ILK baktigi yer burasidir.
+  // Isaretlerin disindaki icerige dokunulmaz.
+  const cm = applyClaudeMd(projectRoot);
+  console.log(``);
+  console.log(`CLAUDE.md isareti:`);
+  console.log(`  ${cm.written ? "+" : "="} ${cm.path}`);
 
   console.log(``);
   console.log(`✓ init complete`);

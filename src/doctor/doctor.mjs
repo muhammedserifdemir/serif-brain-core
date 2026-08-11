@@ -251,12 +251,12 @@ export async function doctorCommand({ args }) {
     const kurulu = gate.hooks.filter(h => h.state === "same").length;
     const bayat = gate.hooks.filter(h => h.state === "stale").length;
     if (kurulu === gate.hooks.length) {
-      check("Kapi (Pre/Post/Stop)", true, "3/3 kurulu");
+      check("Kapi (Session/Pre/Post/Stop)", true, `${kurulu}/${gate.hooks.length} kurulu`);
     } else if (bayat) {
-      check("Kapi (Pre/Post/Stop)", "warn", `${kurulu}/3 kurulu, ${bayat} bayat → serif-brain hooks install --apply`);
+      check("Kapi (Session/Pre/Post/Stop)", "warn", `${kurulu}/${gate.hooks.length} kurulu, ${bayat} bayat → serif-brain hooks install --apply`);
       warnings++;
     } else {
-      check("Kapi (Pre/Post/Stop)", "warn", `${kurulu}/3 kurulu → serif-brain hooks install --apply`);
+      check("Kapi (Session/Pre/Post/Stop)", "warn", `${kurulu}/${gate.hooks.length} kurulu → serif-brain hooks install --apply`);
       warnings++;
     }
     if (gate.foreign) check("  yabanci hook", true, `${gate.foreign} kayit (dokunulmuyor)`);

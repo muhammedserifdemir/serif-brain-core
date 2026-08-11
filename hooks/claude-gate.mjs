@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // serif-brain Claude Code kapisi — disiplini TAVSIYEDEN KAPIYA cevirir.
 //
+//   node hooks/claude-gate.mjs session ← SessionStart: oturum acilisinda "neredeyiz"
 //   node hooks/claude-gate.mjs pre    ← PreToolUse  (Edit|Write): dokunmadan once hafiza
 //   node hooks/claude-gate.mjs post   ← PostToolUse (Edit|Write): duzenlemeden hemen sonra yapisal kontrol
 //   node hooks/claude-gate.mjs stop   ← Stop:                     "bitti" demeden once review kapisi
@@ -24,7 +25,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BIN = resolve(HERE, "../bin/serif-brain.mjs");
 const MODE = process.argv[2] || "pre";
-const EVENT = { pre: "PreToolUse", post: "PostToolUse", stop: "Stop" }[MODE] || "PreToolUse";
+const EVENT = { session: "SessionStart", pre: "PreToolUse", post: "PostToolUse", stop: "Stop" }[MODE] || "PreToolUse";
 
 function emit(lines) {
   const text = lines.filter(Boolean).join("\n").trim();
@@ -96,6 +97,45 @@ function post(projectRoot, file) {
   if (!issues.length) return;
   emit([`[serif-brain] ${file} — duzenleme sonrasi YAPISAL sorun:`, ...issues,
         `  Duzelt veya gerekcesini soyle.`]);
+}
+
+// OTURUM ACILISI: "neredeyiz".
+//
+// NEDEN HOOK, NEDEN DOSYA DEGIL: `context` uzun suredir CLAUDE.generated.md
+// uretiyordu ama onu kimse OKUMUYORDU — Claude Code kok dizindeki CLAUDE.md'yi
+// okur, .serif-brain/context/ altini degil. Ureteni olan ama okuyani olmayan
+// dosya. Ustelik dosyaya yazilan bagliam yazildigi anda bayatlamaya baslar;
+// hook her oturumda TAZE uretir, bayatlayacak bir kopya birakmaz.
+//
+// Token sozlesmesi: bu metin HER oturuma girer. Yalniz karar verdiren sey
+// yazilir (aktif plan/bug/karar basliklari + yakalanmamis sayisi), gerisi
+// komutla istenir. Hicbiri yoksa SUSAR — bos brain'de gurultu uretmez.
+function session(projectRoot) {
+  const b = brainJson(projectRoot, ["brief", "--days", "7"]);
+  if (!b || b.brain === false) return;
+
+  const lines = [];
+  const bas = (r) => `    · ${r.title}${r.id ? ` [${r.id}]` : ""}`;
+
+  for (const p of (b.active_plans || []).slice(0, 2)) lines.push(`  🗺 AKTIF PLAN:\n${bas(p)}`);
+  if (b.active_bugs?.length) {
+    lines.push(`  ⛔ ACIK kritik/yuksek bug (${b.active_bugs.length}):`);
+    for (const r of b.active_bugs.slice(0, 3)) lines.push(bas(r));
+  }
+  if (b.active_decisions?.length) {
+    lines.push(`  📌 IHLAL ETME — aktif karar (${b.active_decisions.length}):`);
+    for (const r of b.active_decisions.slice(0, 3)) lines.push(bas(r));
+  }
+  if (b.uncaptured?.count) {
+    lines.push(`  📝 ${b.uncaptured.count} commit hafizaya gecmemis (serif-brain capture --days ${b.uncaptured.days} --apply)`);
+  }
+
+  if (!lines.length) return;
+  emit([
+    `[serif-brain] Bu projenin bir hafizasi var. Oturum acilisi:`,
+    ...lines,
+    `  Tamami: serif-brain brief   ·   Dosyaya dokunmadan once: serif-brain guard <dosya>`,
+  ]);
 }
 
 // "Bitti" demeden once: degisen tum dosyalarda kapi + KAPSAM etiketi.
@@ -178,6 +218,8 @@ try {
 
   if (MODE === "stop") {
     stop(projectRoot);
+  } else if (MODE === "session") {
+    session(projectRoot);
   } else {
     const raw = payload.tool_input?.file_path;
     if (raw) {

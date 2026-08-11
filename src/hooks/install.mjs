@@ -38,6 +38,10 @@ export function settingsPathOf(projectRoot) {
 export function gateHooks(gateScript = GATE_SCRIPT) {
   const cmd = (mode) => `node "${gateScript}" ${mode}`;
   return [
+    // SessionStart bagliami DOSYAYA yazilmaz: dosyaya yazilan bagliam yazildigi
+    // anda bayatlamaya baslar. Hook her oturumda TAZE uretir.
+    { event: "SessionStart", matcher: null, command: cmd("session"),
+      why: "oturum acilisinda 'neredeyiz' (aktif plan/bug/karar)" },
     { event: "PreToolUse", matcher: "Edit|Write|MultiEdit", command: cmd("pre"),
       why: "dokunmadan once o dosyanin hafizasi (guard)" },
     { event: "PostToolUse", matcher: "Edit|Write|MultiEdit", command: cmd("post"),

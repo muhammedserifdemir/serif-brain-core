@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { loadConfig } from "../markdown/schema.mjs";
 import { loadAll } from "../reporter/loader.mjs";
 import { writeContext } from "../context/compile.mjs";
+import { applyClaudeMd } from "../context/claude-md.mjs";
 
 export async function contextCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -43,6 +44,13 @@ export async function contextCommand({ args }) {
   const { mdPath, jsonPath, workPath } = writeContext({
     brainRoot, data, opts: { module: moduleFilter, full, budget },
   });
+
+  // CLAUDE.md isaret blogu — .serif-brain/context/ altina yazilan dosyayi
+  // Claude Code OKUMAZ; kok CLAUDE.md'ye kisa bir isaret koymak gerekir.
+  if (args.flags["claude-md"]) {
+    const r = applyClaudeMd(projectRoot);
+    console.log(`  ${r.written ? "+" : "="} ${r.path}  (serif-brain blogu${r.written ? " yazildi" : " zaten guncel"})`);
+  }
 
   console.log(`  + ${mdPath}`);
   console.log(`  + ${jsonPath}`);
