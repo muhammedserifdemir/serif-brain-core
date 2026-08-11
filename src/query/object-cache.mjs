@@ -45,6 +45,17 @@ export function loadObjectsCached(brainRoot, opts = {}) {
   return entry.objects;
 }
 
+/**
+ * Bir brain'in cache'ini dusur. YAZMA yollari (brain_add / brain_close) bunu
+ * cagirir: stat-imzasi yazmayi genelde yakalar ama buna GUVENMEK yanlistir —
+ * `close` dosya boyutunu degistirmeyebilir ve ayni milisaniyede yazilan bir
+ * dosyanin mtime'i ayni kalabilir. Yazan taraf kendi degisikligini gormemekten
+ * daha kotu bir sey yok: ajan kaydettigini sanip devam eder.
+ */
+export function invalidateObjectCache(brainRoot) {
+  cache.delete(brainRoot);
+}
+
 // Test/gozlem icin.
 export function _cacheStats() { return { hits, misses, keys: cache.size }; }
 export function _clearObjectCache() { cache.clear(); hits = 0; misses = 0; }

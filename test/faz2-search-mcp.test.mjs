@@ -57,8 +57,10 @@ test("MCP: tools/list araçları listeler", () => {
   const { handle } = createBrainMcp({ brainRoot: "/tmp/x" });
   const res = handle({ jsonrpc: "2.0", id: 2, method: "tools/list" });
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["brain_brief", "brain_check", "brain_cluster", "brain_context", "brain_get", "brain_guard", "brain_hotspot", "brain_impact", "brain_layers", "brain_lint", "brain_related", "brain_risk", "brain_search", "brain_touch"]);
-  assert.equal(TOOLS.length, 14);
+  assert.deepEqual(names, ["brain_add", "brain_brief", "brain_check", "brain_close", "brain_cluster", "brain_context", "brain_get", "brain_guard", "brain_hotspot", "brain_impact", "brain_layers", "brain_lint", "brain_related", "brain_risk", "brain_search", "brain_touch"]);
+  assert.equal(TOOLS.length, 16);
+  // Yazma araclari ayrica: sunucu uzun sure SALT-OKUNURDU (14/0).
+  assert.ok(names.includes("brain_add") && names.includes("brain_close"), "hafiza MCP uzerinden YAZILABILMELI");
 });
 
 test("MCP: notifications/* için yanıt yok (null)", () => {

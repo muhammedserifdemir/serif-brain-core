@@ -4,7 +4,7 @@
 import { searchObjects, toResult } from "../query/search.mjs";
 // MCP uzun-omurlu process → obje cache'i (mtime-invalidation). loadObjects'i
 // cache'li surumle alias'la: tum cagri yerleri otomatik hizlanir, asla bayat olmaz.
-import { loadObjectsCached as loadObjects } from "../query/object-cache.mjs";
+import { loadObjectsCached as loadObjects, invalidateObjectCache } from "../query/object-cache.mjs";
 import { findRelated } from "../query/related.mjs";
 import { compileBrief } from "../query/brief.mjs";
 import { compileTouch } from "../query/touch.mjs";
@@ -19,6 +19,7 @@ import { clusterBugs } from "../query/cluster.mjs";
 import { gatherGuard } from "../query/guard.mjs";
 import { ownerOfConfigured, resolveModule } from "../scanner/module-owner.mjs";
 import { loadConfig } from "../markdown/schema.mjs";
+import { createObject, closeObject } from "../markdown/write-ops.mjs";
 import { getRecentCommits } from "../query/git-activity.mjs";
 import { modulesOf } from "../query/search.mjs";
 import { readFileSync, existsSync } from "node:fs";
@@ -188,6 +189,52 @@ export const TOOLS = [
       properties: {
         id: { type: "string", description: "Hedef obje id'si" },
         limit: { type: "number", default: 10 },
+      },
+      required: ["id"],
+    },
+  },
+  // ── YAZMA araclari ────────────────────────────────────────────────────────
+  // Sunucu uzun sure SALT-OKUNURDU (14 okuma araci, 0 yazma). Sonuc: oturum
+  // icinde ogrenilen sey ancak insan "kaydet" derse hafizaya geciyordu; ajan
+  // okuyabiliyor ama yazamiyordu. Yazma mantigi CLI ile ORTAK
+  // (markdown/write-ops.mjs) — iki kopya "CLI'da calisti, MCP'de baska sey
+  // yazdi" demektir.
+  {
+    name: "brain_add",
+    description:
+      "Hafizaya yeni kayit yaz: bug (yasanan hata), decision (verilen karar), " +
+      "plan (yol haritasi), record (yapilmis is, status:done dogar). " +
+      "Oturumda ogrenilen sey buraya yazilmazsa bir sonraki oturumda YOKTUR.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["bug", "decision", "plan", "record"] },
+        title: { type: "string", description: "Tek cumlelik baslik (id bundan turer)" },
+        module: { type: "string", description: "config.valid_modules'ten biri" },
+        priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+        severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+        status: { type: "string", description: "Verilmezse tipe gore varsayilan" },
+        tags: { type: "array", items: { type: "string" } },
+        files: { type: "array", items: { type: "string" }, description: "Ilgili dosyalar; verilmezse git'ten doldurulur" },
+        project_id: { type: "string" },
+      },
+      required: ["type", "title"],
+    },
+  },
+  {
+    name: "brain_close",
+    description:
+      "Bir bug/decision/plan kaydini kapat (status → done, completed_at bugun). " +
+      "note verilirse govdeye 'Tamamlanma' bolumu eklenir. project_id yalniz id " +
+      "birden fazla projede varsa gerekir.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        note: { type: "string", description: "Nasil cozuldu — kapanis gerekcesi" },
+        commit: { type: "string" },
+        project_id: { type: "string" },
+        force: { type: "boolean" },
       },
       required: ["id"],
     },
@@ -369,6 +416,44 @@ function callTool(name, a = {}, brainRoot) {
     if (!target) return JSON.stringify({ found: false, id: a.id });
     const related = findRelated(target, all, { limit: Number.isFinite(a.limit) ? a.limit : 10 });
     return JSON.stringify({ found: true, id: a.id, related }, null, 2);
+  }
+
+  // ── YAZMA ─────────────────────────────────────────────────────────────────
+  if (name === "brain_add") {
+    const r = createObject({
+      brainRoot,
+      projectRoot: dirname(brainRoot),
+      config: loadConfig(brainRoot),
+      type: a.type,
+      title: a.title,
+      module: a.module,
+      priority: a.priority,
+      severity: a.severity,
+      status: a.status,
+      tags: a.tags,
+      files: Array.isArray(a.files) ? a.files : null,
+      projectId: a.project_id || null,
+    });
+    // Yazma araclarinda hata SESSIZ kalmamali — ajan yazdigini sanip devam
+    // ederse kayit hicbir zaman olusmaz. Hata JSON-RPC hatasina cevrilir.
+    if (!r.ok) throw new Error(r.suggestId ? `${r.error} (alternatif id: ${r.suggestId})` : r.error);
+    // MCP uzun-omurlu process: obje cache'i yeni dosyayi gormeli.
+    invalidateObjectCache(brainRoot);
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "brain_close") {
+    const r = closeObject({
+      brainRoot,
+      id: a.id,
+      projectId: a.project_id || null,
+      note: a.note || null,
+      commit: a.commit || null,
+      force: !!a.force,
+    });
+    if (!r.ok) throw new Error(r.error);
+    invalidateObjectCache(brainRoot);
+    return JSON.stringify(r, null, 2);
   }
 
   throw new Error(`bilinmeyen araç: ${name}`);
