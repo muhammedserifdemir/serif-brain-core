@@ -7,6 +7,7 @@ import { loadObjects } from "../query/search.mjs";
 import { compileTouch } from "../query/touch.mjs";
 import { computeImpact, formatImpact, resolveFileNode } from "../query/impact.mjs";
 import { resolveModule } from "../scanner/module-owner.mjs";
+import { posixYol } from "../util/yol.mjs";
 
 export async function impactCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -26,7 +27,7 @@ export async function impactCommand({ args, subcommand }) {
     return 1;
   }
   const abs = isAbsolute(target) ? target : resolve(projectRoot, target);
-  const relPath = relative(projectRoot, abs) || target;
+  const relPath = posixYol(relative(projectRoot, abs)) || target;
 
   const node = resolveFileNode(graph, relPath);
   if (!node) {

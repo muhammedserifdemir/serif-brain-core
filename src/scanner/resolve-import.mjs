@@ -3,6 +3,7 @@
 // Bare imports return null (handled as 'package' nodes upstream).
 import { existsSync, statSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve as pResolve, relative, join } from "node:path";
+import { posixYol } from "../util/yol.mjs";
 
 const TRY_EXTS = [".ts", ".tsx", ".mjs", ".js", ".jsx", ".cjs"];
 const INDEX_FILES = TRY_EXTS.map(e => `index${e}`);
@@ -82,7 +83,7 @@ export function resolvePythonImport(spec, fromAbsPath, projectRoot) {
     for (let i = 1; i < nokta; i++) base = dirname(base);
     const hedef = kalan ? join(base, kalan) : join(base, "__init__");
     const f = kalan ? dene(hedef) : (existsSync(join(base, "__init__.py")) ? join(base, "__init__.py") : null);
-    if (f) return { kind: "file", abs: f, rel: relative(projectRoot, f) };
+    if (f) return { kind: "file", abs: f, rel: posixYol(relative(projectRoot, f)) };
     return { kind: "unresolved-relative", spec };
   }
 
@@ -91,7 +92,7 @@ export function resolvePythonImport(spec, fromAbsPath, projectRoot) {
   // yaygindir; ikisini de denemek, tek kok varsaymaktan dogru.
   for (const kok of ["", "src", "lib", "app"]) {
     const f = dene(join(projectRoot, kok, yol));
-    if (f) return { kind: "file", abs: f, rel: relative(projectRoot, f) };
+    if (f) return { kind: "file", abs: f, rel: posixYol(relative(projectRoot, f)) };
   }
   return { kind: "external", spec };  // stdlib ya da site-packages
 }
@@ -100,7 +101,7 @@ export function resolvePythonImport(spec, fromAbsPath, projectRoot) {
 export function resolvePathImport(spec, fromAbsPath, projectRoot, exts) {
   const temel = spec.startsWith("/") ? join(projectRoot, spec) : pResolve(dirname(fromAbsPath), spec);
   for (const c of [temel, ...exts.map((e) => temel + e)]) {
-    if (existsSync(c) && statSync(c).isFile()) return { kind: "file", abs: c, rel: relative(projectRoot, c) };
+    if (existsSync(c) && statSync(c).isFile()) return { kind: "file", abs: c, rel: posixYol(relative(projectRoot, c)) };
   }
   return { kind: "external", spec };
 }
@@ -110,7 +111,7 @@ export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}, work
   if (isRelative(spec)) {
     const base = pResolve(dirname(fromAbsPath), spec);
     const file = tryWithExts(base);
-    if (file) return { kind: "file", abs: file, rel: relative(projectRoot, file) };
+    if (file) return { kind: "file", abs: file, rel: posixYol(relative(projectRoot, file)) };
     return { kind: "unresolved-relative", spec };
   }
   if (isAlias(spec)) {
@@ -123,7 +124,7 @@ export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}, work
           const toPattern = to.replace(/\*$/, "");
           const candidate = pResolve(projectRoot, toPattern + tail);
           const file = tryWithExts(candidate);
-          if (file) return { kind: "file", abs: file, rel: relative(projectRoot, file) };
+          if (file) return { kind: "file", abs: file, rel: posixYol(relative(projectRoot, file)) };
         }
       }
     }

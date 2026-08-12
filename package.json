@@ -1,6 +1,6 @@
 {
   "name": "serif-brain-core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi (search/MCP/related). Obsidian/Graphify/eski Brain runtime bagimliligi yok.",
   "type": "module",
   "private": true,
@@ -21,8 +21,8 @@
   ],
   "scripts": {
     "doctor": "node ./bin/serif-brain.mjs doctor",
-    "test": "node --test test/*.test.mjs",
-    "prepublishOnly": "node --test test/*.test.mjs"
+    "test": "node --test \"test/*.test.mjs\"",
+    "prepublishOnly": "node --test \"test/*.test.mjs\""
   },
   "engines": {
     "node": ">=22.5.0"

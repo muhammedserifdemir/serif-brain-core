@@ -8,7 +8,7 @@ bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 > Tavsiye atlanabilir, kapı atlanamaz.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 308 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
+runner). 325 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
 düzenlenir, hiçbir servise bağlı değildir.
 
 ---

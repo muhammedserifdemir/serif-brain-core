@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { loadConfig } from "../markdown/schema.mjs";
 import { resolveFileNode } from "../query/impact.mjs";
 import { checkFile, formatCheck } from "../query/check.mjs";
+import { posixYol } from "../util/yol.mjs";
 
 export async function checkCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -24,7 +25,7 @@ export async function checkCommand({ args, subcommand }) {
     return 1;
   }
   const abs = isAbsolute(target) ? target : resolve(projectRoot, target);
-  const relPath = relative(projectRoot, abs) || target;
+  const relPath = posixYol(relative(projectRoot, abs)) || target;
   const node = resolveFileNode(graph, relPath);
   if (!node) {
     if (args.flags.json) console.log(JSON.stringify({ found: false, file: relPath }));

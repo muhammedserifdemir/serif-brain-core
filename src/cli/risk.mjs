@@ -11,6 +11,7 @@ import { ownerOfConfigured } from "../scanner/module-owner.mjs";
 import { getRecentCommits } from "../query/git-activity.mjs";
 import { readFileSafe } from "../scanner/scan-files.mjs";
 import { scoreRisk, formatRisk } from "../query/risk.mjs";
+import { posixYol } from "../util/yol.mjs";
 
 export async function riskCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -23,7 +24,7 @@ export async function riskCommand({ args, subcommand }) {
     return 1;
   }
   const abs = isAbsolute(target) ? target : resolve(projectRoot, target);
-  const relPath = relative(projectRoot, abs) || target;
+  const relPath = posixYol(relative(projectRoot, abs)) || target;
   const days = parseInt(args.flags.days, 10) || 30;
   const config = loadConfig(brainRoot);
 

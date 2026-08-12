@@ -2,6 +2,7 @@
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { ALL_EXTS, languageOf } from "./languages.mjs";
 import { join, relative, extname, basename } from "node:path";
+import { posixYol } from "../util/yol.mjs";
 
 // Bagimlilik/uretim dizinleri. Liste eskiden yalniz JS ekosistemini taniyordu;
 // cok-dilli tarama acilinca bu HEMEN patladi: avatarx'te (Python) 19.151 dosya
@@ -101,13 +102,13 @@ export function scanFiles(root, opts = {}) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (dizinAtlanir(entry.name, dir)) continue;
-        const relDir = relative(root, full);
+        const relDir = posixYol(relative(root, full));
         if (excludePaths.some((p) => relDir === p.replace(/\/$/, "") || relDir.startsWith(p))) continue;
         walk(full);
       } else if (entry.isFile()) {
         const ext = extname(entry.name);
         if (!INCLUDED_EXTS.has(ext)) continue;
-        const rel = relative(root, full);
+        const rel = posixYol(relative(root, full));
         const kind = classifyFile(rel);
         if (kind === "test" && !includeTests) continue;
         if (kind === "type-declaration" && !includeTypes) continue;

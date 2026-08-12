@@ -1,6 +1,7 @@
 // package.json deps + scripts okur. Tek root, ya da workspaces taranabilir.
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { posixYol } from "../util/yol.mjs";
 
 export function scanPackageJsons(projectRoot) {
   const out = [];
@@ -11,7 +12,7 @@ export function scanPackageJsons(projectRoot) {
       try {
         const json = JSON.parse(readFileSync(pkgPath, "utf8"));
         out.push({
-          rel_path: relative(projectRoot, pkgPath),
+          rel_path: posixYol(relative(projectRoot, pkgPath)),
           name: json.name || null,
           version: json.version || null,
           scripts: json.scripts || {},
@@ -20,7 +21,7 @@ export function scanPackageJsons(projectRoot) {
           peerDependencies: json.peerDependencies || {}
         });
       } catch (e) {
-        out.push({ rel_path: relative(projectRoot, pkgPath), error: e.message });
+        out.push({ rel_path: posixYol(relative(projectRoot, pkgPath)), error: e.message });
       }
     }
     let entries;

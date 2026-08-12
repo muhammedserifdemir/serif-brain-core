@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { loadConfig } from "../markdown/schema.mjs";
 import { scanFiles, readFileSafe } from "../scanner/scan-files.mjs";
 import { lintContent, formatLint } from "../query/signatures.mjs";
+import { posixYol } from "../util/yol.mjs";
 
 export async function lintCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -24,7 +25,7 @@ export async function lintCommand({ args, subcommand }) {
   if (subcommand.length) {
     targets = subcommand.map((p) => {
       const abs = isAbsolute(p) ? p : resolve(projectRoot, p);
-      return { abs, rel: relative(projectRoot, abs) || p };
+      return { abs, rel: posixYol(relative(projectRoot, abs)) || p };
     });
   } else {
     targets = scanFiles(projectRoot).map((f) => ({ abs: join(projectRoot, f.rel_path), rel: f.rel_path }));

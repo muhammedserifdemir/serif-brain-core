@@ -6,6 +6,7 @@ import { loadConfig } from "../markdown/schema.mjs";
 import { loadObjects } from "../query/search.mjs";
 import { compileTouch, formatTouch } from "../query/touch.mjs";
 import { ownerOfConfigured } from "../scanner/module-owner.mjs";
+import { posixYol } from "../util/yol.mjs";
 
 export async function touchCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -24,7 +25,7 @@ export async function touchCommand({ args, subcommand }) {
 
   // Hedef yolu projeye-gore normalize et (Edit hook mutlak yol verir).
   const abs = isAbsolute(target) ? target : resolve(projectRoot, target);
-  const relPath = relative(projectRoot, abs) || target;
+  const relPath = posixYol(relative(projectRoot, abs)) || target;
 
   // Modul: acik flag > config-farkinda path cozumu.
   const module =

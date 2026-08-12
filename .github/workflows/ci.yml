@@ -8,21 +8,34 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Windows MATRISE EKLENDI (2026-08-12). Sebep: path.relative() Windows'ta
+    # ters bolu doner ve bu projedeki TUM onek eslemeleri egik bolu ile yazili —
+    # yani Windows'ta her dosya sessizce "unknown" module dusuyordu. Kod
+    # duzeltildi; bu satir olmadan bir daha ayni sinif hata sessizce geri gelir.
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         # node:sqlite + native test runner Node 22.5+ ister.
         node: ["22.x", "24.x"]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Test (node --test)
-        run: node --test test/*.test.mjs
+      # shell: bash — Windows kosucusunda varsayilan PowerShell'dir; glob
+      # genisletme ve `||` davranisi farklidir. Ayni komut her iki isletim
+      # sisteminde AYNI seyi yapmali, yoksa "CI'da gecti" isletim sistemine
+      # gore anlam degistirir.
+      - name: Test
+        run: npm test
+        shell: bash
       - name: Doctor (kendi brain'i üzerinde duman testi)
         run: node ./bin/serif-brain.mjs doctor || true
+        shell: bash
       - name: CLI smoke (help + version)
         run: |
           node ./bin/serif-brain.mjs --help
           node ./bin/serif-brain.mjs --version
+        shell: bash

@@ -2,6 +2,46 @@
 
 Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
+## [1.1.0] — 2026-08-12
+
+### Eklendi — çok dilli tarama
+- Tarayıcı artık **her dili indeksler** (önce 6 uzantı: `.ts/.tsx/.js/.jsx/.mjs/.cjs`).
+  Ölçüm: avatarx'te 65 Python dosyası hiç görülmüyordu — `guard`/`touch`/`risk`/
+  `hotspot`/`graph` o projede tamamen ölüydü.
+- **Import grafı var:** JS/TS (+Vue/Svelte/Astro), Python, PHP, Ruby.
+  **İndekslenir, graf yok:** Swift, C#, Java, Kotlin, Go, Rust, Dart, Obj-C —
+  o dillerde aynı modül içindeki dosyalar birbirini import etmez; kenar üretmek
+  *"kimse import etmiyor, güvenle değiştir"* gibi tehlikeli bir çıktı verirdi.
+  `scan code` bunu satır satır yazar.
+- Her dilin kendi bağımlılık dizini dışlanır. `bin`/`obj`/`packages`/`Library`
+  gibi **belirsiz** adlar yalnız ekosistem işareti varken atlanır — `packages/`
+  JS monorepo'sunda kaynaktır (bu regresyon ölçümle yakalandı: GameX 147 dosya).
+
+### Düzeltildi — Windows'ta modül eşlemesi tamamen ölüydü
+- `path.relative()` Windows'ta ters bölü döner; tüm önek eşlemeleri (`module_paths`,
+  `scan_exclude_paths`, `RULES`) eğik bölü ile yazılı. Sonuç: Windows'ta **her
+  dosya `unknown` modüle düşüyordu** ve kullanıcı hiçbir hata görmüyordu.
+  Yeni `src/util/yol.mjs` — sınırda normalizasyon, 9 çağrı yeri.
+- **CI'a `windows-latest` eklendi** + `shell: bash` (glob/`||` farkı) +
+  `npm test` artık tırnaklı glob kullanıyor (Windows kabuğu genişletmez).
+
+### Düzeltildi — `validateObject` eksik config'te çöküyordu
+- `config.valid_status` yoksa `TypeError` atıyordu: eksik bir yapılandırma satırı
+  anlamlı hata yerine çökme üretiyordu. Artık şema hatası olarak bildiriliyor
+  (sessizce "her değer geçerli" de sayılmıyor).
+
+### Düzeltildi — `doctor` yanlış alarm veriyordu
+- Boş tip dizinleri (`notes/`, `sessions/`) kırmızı ✗ idi; git **boş dizin
+  saklamaz**, yani repoyu klonlayan herkes "bir şeyler eksik" görüyordu. Dizinler
+  yazma anında oluşuyor → artık bilgi satırı.
+- Eski kaynaklar için `MOVED/REMOVED` kırmızı ✗ ile basılıyordu — oysa
+  kaldırılmış olmak **istenen** durumdur. İşaret düzeltildi.
+
+### Test
+- 291 → **325**. Yeni: `cok-dil` (17), `cli-yuzeyi` (11), `windows-yol` (6).
+- CLI katmanı ilk kez kendi yüzeyinden test ediliyor (çıkış kodları, hata
+  metinleri, `--json` ayrıştırılabilirliği). Satır kapsamı %56,1 → %59,5.
+
 ## [Unreleased]
 
 ### Ajan-kullanılabilirliği turu (2026-08-11) — altı madde

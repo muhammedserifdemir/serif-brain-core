@@ -109,11 +109,17 @@ export async function doctorCommand({ args }) {
         const projOk = existsSync(projDir);
         if (!check("Project dir", projOk, projDir)) errors++;
         if (projOk) {
+          // Tip dizinleri YAZMA ANINDA olusturulur (writeObject mkdirSync
+          // recursive yapar). Ayrica git BOS DIZIN SAKLAMAZ: repoyu klonlayan
+          // herkeste `notes/`, `sessions/` vb. "missing" gorunur.
+          // Once bunlar kirmizi ✗ olarak raporlaniyordu — hicbir sey bozuk
+          // olmadigi halde herkese "bir seyler eksik" dedirten yanlis alarm.
+          // Artik yalnizca BILGI: dolu olan sayilir, bos olan "—" gecer.
           for (const sub of ["bugs", "decisions", "notes", "modules", "sessions", "sprints"]) {
             const subPath = join(projDir, sub);
             const ok = existsSync(subPath);
             const count = ok ? readdirSync(subPath).filter(f => f.endsWith(".md") && !f.startsWith("_template-")).length : 0;
-            check(`  ${sub}/`, ok, ok ? `${count} object${count === 1 ? "" : "s"}` : "missing");
+            check(`  ${sub}/`, count > 0 ? true : " ", count > 0 ? `${count} object${count === 1 ? "" : "s"}` : "— (ilk kayitta olusur)");
           }
         }
       }
@@ -246,9 +252,12 @@ export async function doctorCommand({ args }) {
 
   // 5. Legacy sources still present (informational)
   header("5. Legacy Sources (read-only references)");
+  // Isaret TERSTI: eski kaynagin KALDIRILMIS olmasi ISTENEN durumdur, ama
+  // "MOVED/REMOVED" kirmizi ✗ ile basiliyordu — goc tamamlanmis bir brain
+  // basarisiz gorunuyordu. Artik: gitmisse ✓ (goc tamam), duruyorsa bilgi.
   for (const src of LEGACY_SOURCES) {
-    const ok = existsSync(src.path);
-    check(`  ${src.id}`, ok, ok ? "present (untouched)" : "MOVED/REMOVED");
+    const duruyor = existsSync(src.path);
+    check(`  ${src.id}`, duruyor ? " " : true, duruyor ? "hala duruyor (dokunulmadi)" : "temizlenmis ✓");
   }
   }
 

@@ -3,6 +3,7 @@
 import { resolve, join, relative, isAbsolute } from "node:path";
 import { existsSync } from "node:fs";
 import { gatherGuard, formatGuard } from "../query/guard.mjs";
+import { posixYol } from "../util/yol.mjs";
 
 export async function guardCommand({ args, subcommand }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -15,7 +16,7 @@ export async function guardCommand({ args, subcommand }) {
     return 1;
   }
   const abs = isAbsolute(target) ? target : resolve(projectRoot, target);
-  const relPath = relative(projectRoot, abs) || target;
+  const relPath = posixYol(relative(projectRoot, abs)) || target;
   const days = parseInt(args.flags.days, 10) || 30;
 
   const g = gatherGuard({ projectRoot, brainRoot, relPath, days });
