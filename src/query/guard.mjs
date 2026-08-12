@@ -70,12 +70,25 @@ export function composeGuard(parts = {}) {
   if (sigs.length) flags.push(`${sigs.length} imza`);
   if (impact && impact.transitive_dependent_count >= 10) flags.push(`${impact.transitive_dependent_count} dosya etkilenir`);
 
-  const verdict = flags.length ? "DIKKAT" : "TEMIZ";
+  // "TEMIZ" ile "KAYIT YOK" AYRI SEYLERDIR.
+  //
+  // Olcum (20 gercek brain, degisen 1.677 dosya): kapi dosyalarin %78'inde
+  // susuyor ve bunun sebebi risk olmamasi DEGIL, hafiza kapsaminin %5,8
+  // olmasi. Ikisini ayni "TEMIZ" etiketiyle raporlamak, kapsam etiketi
+  // hatasinin ta kendisi: "sorun bulamadim" ile "sorun aramadim" ayni
+  // gorunur ve kullanici olmayan bir guvence alir.
+  const hicKayit =
+    !(memory.file_hits || []).length && !mustNotViolate.length &&
+    !openBugs.length && !scars.length;
+  const verdict = flags.length ? "DIKKAT" : hicKayit ? "KAYIT YOK" : "TEMIZ";
 
   return {
     file: parts.file || null,
     module: parts.module || null,
     verdict,
+    // Ayri alan: makine tuketicileri (kapi, MCP) "kapsam disi" ile "temiz"i
+    // ayirt edebilsin diye — metne bakmak zorunda kalmasinlar.
+    hafiza_var: !hicKayit,
     risk: { level: risk.level, score: risk.score },
     // TAM BU DOSYAYA bagli kayitlar. Modul geneli kararlardan ayri tutulur:
     // per-dosya bir kapida en degerli sinyal budur, modul karari her dosyada
@@ -125,5 +138,9 @@ export function formatGuard(g) {
     for (const s of g.signature_hits.slice(0, 5)) L.push(`     [${s.severity}] ${s.name} @${s.line}: ${s.message}`);
   }
   if (g.verdict === "TEMIZ") L.push(`  ✓ Bilinen kisit/risk yok — yine de degisikligi test et.`);
+  if (g.verdict === "KAYIT YOK") {
+    L.push(`  · Bu dosya/modul icin HIC kayit yok — "risk yok" demek DEGIL, "bakilacak hafiza yok" demek.`);
+    L.push(`    Ogrendigin seyi birak: serif-brain add bug|decision --title "..." --files ${g.file || "<dosya>"}`);
+  }
   return L.join("\n");
 }

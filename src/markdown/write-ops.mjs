@@ -57,9 +57,44 @@ export const TYPE_DEFAULTS = {
 
 // --files verilmediyse calisma agacindaki degisen dosyalari doldur. Git yoksa
 // sessizce bos dizi — brain git-bagimsiz calismali.
+//
+// `--relative` SART: git varsayilan olarak REPO KOKUNE gore yol dondurur.
+// Brain bir alt-dizinde ise (monorepo: serif-platform/apps/animatorx/.serif-brain)
+// kayitlara "apps/animatorx/packages/x.ts" yazilir, oysa o brain'in proje koku
+// zaten apps/animatorx'tir → dosya HIC bulunamaz.
+// Olcum (2026-08-12): animatorx brain'inde 237 kirik dosya referansi; hicbiri
+// silinmis dosya degildi, hepsi bu onek yuzunden. 177 kaydin buyuk kismi
+// hafizada duruyordu ama kapida GORUNMUYORDU.
+/**
+ * Calisma agaci TEMIZSE son commit'lerdeki dosyalari aday olarak dondurur.
+ *
+ * NEDEN: `add` dosya listesini yalniz COMMIT EDILMEMIS degisikliklerden
+ * dolduruyordu. Is bitip commit edildikten SONRA kayit acan kisi (yaygin
+ * durum) bos liste aliyordu. Olcum: 1.179 kaydin %33'u yalniz modul,
+ * %12'si hicbiri; hafiza kapsami %5,8 ve kapi dosyalarin %78'inde susuyor.
+ * Kapsamin dusuk olmasinin tek sebebi bu degil ama en kolay duzeltilebilir olani.
+ *
+ * Aday OTOMATIK BAGLANMAZ — kullaniciya gosterilir. Yanlis dosya baglamak
+ * hafizaya gurultu sokar ve olculen 5,6x sinyal/gurultu oranini dusurur.
+ */
+export function gitRecentFiles(projectRoot, { days = 3, limit = 10 } = {}) {
+  try {
+    const out = execSync(
+      `git -C "${projectRoot}" log --since="${days} days ago" --relative --name-only --pretty=format: --diff-filter=d`,
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 8 * 1024 * 1024 },
+    );
+    const sayac = new Map();
+    for (const f of out.split("\n").map((s) => s.trim()).filter(Boolean)) {
+      if (f.startsWith(".serif-brain/")) continue;
+      sayac.set(f, (sayac.get(f) || 0) + 1);
+    }
+    return [...sayac.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([f]) => f);
+  } catch { return []; }
+}
+
 export function gitTouchedFiles(projectRoot, limit = 12) {
   const files = new Set();
-  for (const cmd of ["diff --name-only HEAD", "diff --cached --name-only"]) {
+  for (const cmd of ["diff --relative --name-only HEAD", "diff --cached --relative --name-only"]) {
     try {
       const out = execSync(`git -C "${projectRoot}" ${cmd}`, {
         encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
@@ -142,6 +177,11 @@ export function createObject({
     priority: pri,
     module: mod,
     autoFilled: !explicitFiles && autoFiles.length > 0 ? autoFiles.length : 0,
+    // Dosyasiz kayit UYARILIR ama ENGELLENMEZ: hizli not almayi zorlastirmak,
+    // insanlarin kaydetmeyi tamamen birakmasina yol acar. Uyari eyleme
+    // donusen bir komutla birlikte verilir.
+    dosyasiz: fileList.length === 0,
+    adaylar: fileList.length === 0 ? gitRecentFiles(projectRoot) : [],
     warnings: result.validation.warnings,
     hint: type === "decision" && DONE_TITLE_RE.test(title)
       ? "baslik tamamlanma bildiriyor — 'record' bunu status:done olarak yazar (bayat 'aktif karar' uretmez)"

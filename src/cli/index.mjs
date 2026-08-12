@@ -31,6 +31,7 @@ import { relatedCommand } from "./related.mjs";
 import { pruneCommand } from "./prune.mjs";
 import { dashboardCommand } from "./dashboard.mjs";
 import { skillsCommand } from "./skills.mjs";
+import { relinkCommand } from "./relink.mjs";
 
 const COMMANDS = {
   init:    { handler: initCommand,   help: "Proje icin .serif-brain/ yapisini olustur" },
@@ -61,6 +62,7 @@ const COMMANDS = {
   cluster: { handler: clusterCommand,   help: "Bug'lari benzerlige gore grupla — olasi ayni-kok-neden kumeleri (--threshold N --json)" },
   review:  { handler: reviewCommand,    help: "Pre-commit kapi: degisen dosyalarda check (katman/dongu/god) + lint (imza). Sorun varsa exit 2 (--ref --json)" },
   related: { handler: relatedCommand,  help: "Bir objeye otomatik kesfedilen iliskili objeler (modul/etiket/metin benzerligi) <id> --limit --json" },
+  relink:  { handler: relinkCommand,   help: "Tasinmis/adi degismis dosyalarin kayit baglantilarini git rename gecmisinden onar (dry-run; --apply)" },
   prune:   { handler: pruneCommand,    help: "Stale + otomasyon churn objelerini guvenle arsivle (dry-run; --apply, --days N)" },
   skills:  { handler: skillsCommand,     help: "Paket Claude skill'lerini projeye tasi/guncelle (status|list|update). init var olani ezmez; guncelleme icin: skills update --apply" },
   dashboard:{ handler: dashboardCommand, help: "Cok-brain yonetici paneli: CANLI panel (serve/open/app) + statik HTML (build|add <yol>|scan|list|archive|rm). Tum projelerin durumu/port/calistirma/biten isler" },
@@ -87,7 +89,7 @@ function printHelp() {
   console.log(``);
   console.log(`Kullanim: serif-brain <komut> [opsiyonlar]`);
   console.log(``);
-  const active = ["init", "doctor", "add", "close", "stale", "sync-commits", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "prune", "skills", "dashboard", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
+  const active = ["init", "doctor", "add", "close", "stale", "sync-commits", "rebuild-indexes", "validate", "search", "brief", "touch", "guard", "capture", "impact", "hotspot", "layers", "check", "lint", "risk", "cluster", "review", "related", "relink", "prune", "skills", "dashboard", "mcp", "scan", "graph", "migrate", "analyze", "context", "hooks"];
   console.log(`Komutlar:`);
   for (const name of active) {
     console.log(`  ${name.padEnd(20)} ${COMMANDS[name].help}`);

@@ -63,6 +63,20 @@ export async function addCommand({ args, subcommand }) {
     console.log(`  relations.files: ${r.autoFilled} dosya git'ten otomatik dolduruldu (--files ile ezebilirsin)`);
   }
   for (const w of r.warnings) console.log(`    ⚠ ${w}`);
+
+  // Dosyaya baglanmamis kayit, kapinin o dosyada SUSMASI demektir.
+  if (r.dosyasiz) {
+    console.log(``);
+    console.log(`  ⚠ Bu kayit hicbir DOSYAYA bagli degil.`);
+    console.log(`    Dosyaya bagli olmayan kayit, o dosyaya dokunulurken kapida GORUNMEZ.`);
+    if (r.adaylar.length) {
+      console.log(`    Son commit'lerdeki adaylar:`);
+      for (const f of r.adaylar.slice(0, 5)) console.log(`      · ${f}`);
+      console.log(`    Bagla: serif-brain add ... --files ${r.adaylar.slice(0, 2).join(",")}`);
+      console.log(`    (ya da mevcut kaydi duzenle: ${r.path})`);
+    }
+  }
+
   console.log(``);
   console.log(`  Sonraki: serif-brain rebuild-indexes`);
   return 0;

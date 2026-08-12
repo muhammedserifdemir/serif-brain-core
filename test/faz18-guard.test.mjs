@@ -5,10 +5,27 @@ import { composeGuard, formatGuard } from "../src/query/guard.mjs";
 
 const baseMemory = { module_decisions: [], module_bugs: [], file_hits: [] };
 
-test("guard: temiz dosya -> verdict TEMIZ", () => {
+// "TEMIZ" ile "KAYIT YOK" AYRI SEYLERDIR (2026-08-12'de ayrildi).
+// Olcum: kapi degisen dosyalarin %78'inde susuyor ve sebebi risk olmamasi
+// DEGIL, hafiza kapsaminin %5,8 olmasi. Ikisini ayni etiketle raporlamak
+// "sorun bulamadim" ile "sorun aramadim"i ayni gostermektir — kullanici
+// olmayan bir guvence alir.
+test("guard: HIC kayit yoksa verdict 'KAYIT YOK' (yanlis guvence verilmez)", () => {
   const g = composeGuard({ file: "a.ts", module: "m", risk: { level: "low", score: 0 }, memory: baseMemory, impact: null, signatures: [] });
+  assert.equal(g.verdict, "KAYIT YOK");
+  assert.equal(g.hafiza_var, false, "makine tuketicileri metne bakmak zorunda kalmasin");
+  const metin = formatGuard(g);
+  assert.match(metin, /HIC kayit yok/);
+  assert.match(metin, /serif-brain add/, "eyleme donusen komut vermeli");
+});
+
+test("guard: KAYIT VAR ama risk yoksa verdict TEMIZ (gercek guvence)", () => {
+  // NOT: guard `closed` BAYRAGINA bakar (status'a degil) — compileTouch onu uretir.
+  const memory = { module_decisions: [], module_bugs: [{ id: "b1", title: "eski bug", closed: true }], file_hits: [] };
+  const g = composeGuard({ file: "a.ts", module: "m", risk: { level: "low", score: 0 }, memory, impact: null, signatures: [] });
   assert.equal(g.verdict, "TEMIZ");
-  assert.match(formatGuard(g), /TEMIZ/);
+  assert.equal(g.hafiza_var, true);
+  assert.match(formatGuard(g), /Bilinen kisit\/risk yok/);
 });
 
 test("guard: aktif karar -> DIKKAT + must_not_violate", () => {
