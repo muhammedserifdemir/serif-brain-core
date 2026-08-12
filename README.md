@@ -8,7 +8,7 @@ bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 > Tavsiye atlanabilir, kapı atlanamaz.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 335 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
+runner). 337 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
 düzenlenir, hiçbir servise bağlı değildir.
 
 ---
@@ -47,6 +47,9 @@ Projende:
 serif-brain init     # .serif-brain/ + Claude skill'leri + KAPI + CLAUDE.md işareti
 serif-brain doctor   # sağlık: şema, graf, kapı kurulu mu
 ```
+
+**→ [docs/BASLANGIC.md](docs/BASLANGIC.md) — ilk 15 dakika**, her komutun gerçek
+çıktısıyla. Kurulumdan "Claude bunu sen sormadan görüyor" anına kadar.
 
 `init` üç şeyi birden kurar: hafıza yapısını, çalışma disiplini skill'lerini ve
 Claude Code kapısını. Kurulmayan kapı kapı değildir.
@@ -198,6 +201,7 @@ ayrışma demektir.
 
 ## Belgeler
 
+- [docs/BASLANGIC.md](docs/BASLANGIC.md) — **ilk 15 dakika** (buradan başlayın)
 - [docs/USAGE.md](docs/USAGE.md) — oturum döngüsü, çoklu-Claude, komut refleksleri
 - [docs/MCP.md](docs/MCP.md) — `.mcp.json` kurulumu ve test reçetesi
 - [docs/WINDOWS.md](docs/WINDOWS.md) — Windows kurulumu

@@ -84,3 +84,33 @@ test("guard: high risk tek basina DIKKAT", () => {
   assert.equal(g.verdict, "DIKKAT");
   assert.ok(g.flags.some((f) => /risk:high/.test(f)));
 });
+
+// ── TAM BU DOSYAYA bagli kayitlar ──────────────────────────────────────────
+// file_hits HESAPLANIYOR ama insan ciktisina BASILMIYORDU ve verdict'e
+// girmiyordu: dosyaya bagli bir karar varken CLI "TEMIZ" diyor, ayni veriyle
+// kapi "🔗 BU DOSYA: decision" diyordu. Iki yuzey, iki farkli cevap.
+// (Hesaplanip cikti disinda birakma hatasinin ucuncu tekrari — bkz.
+// module_paths ve kapi sessizligi.)
+test("guard: dosyaya bagli kayit VERDICT'e girer (TEMIZ demez)", () => {
+  const memory = {
+    module_decisions: [], module_bugs: [],
+    file_hits: [{ id: "d1", type: "decision", status: "active", title: "Bu dosyada cache YOK" }],
+  };
+  const g = composeGuard({ file: "a.ts", module: "m", risk: { level: "low", score: 0 }, memory, impact: null, signatures: [] });
+  assert.equal(g.verdict, "DIKKAT", "dosyaya bagli kayit varken TEMIZ denemez");
+  assert.ok(g.flags.some((f) => /bu dosyaya bagli/.test(f)));
+});
+
+test("guard: dosyaya bagli kayit CIKTIYA basilir ve EN USTTE durur", () => {
+  const memory = {
+    module_decisions: [{ id: "m1", title: "modul karari", status: "active" }],
+    module_bugs: [],
+    file_hits: [{ id: "d1", type: "decision", status: "active", title: "Bu dosyada cache YOK" }],
+  };
+  const metin = formatGuard(composeGuard({ file: "a.ts", module: "m", risk: { level: "low", score: 0 }, memory, impact: null, signatures: [] }));
+  assert.match(metin, /TAM BU DOSYAYA bagli \(1\)/);
+  assert.match(metin, /Bu dosyada cache YOK/);
+  // Modul geneli kayit HER dosyada ayni cikar; dosyaya ozel olan once gelmeli.
+  assert.ok(metin.indexOf("TAM BU DOSYAYA") < metin.indexOf("IHLAL ETME"),
+    "en degerli sinyal en ustte durmali");
+});

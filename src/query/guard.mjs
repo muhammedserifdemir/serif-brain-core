@@ -64,6 +64,11 @@ export function composeGuard(parts = {}) {
 
   // Verdict: en yuksek sinyal kazanir.
   const flags = [];
+  // TAM BU DOSYAYA bagli kayitlar en degerli sinyaldir ve verdict'e GIRMIYORDU:
+  // dosyaya bagli bir karar varken cikti "TEMIZ" diyordu. Ayni veriden kapi
+  // "🔗 BU DOSYA: decision" derken CLI "TEMIZ" diyordu — iki yuzey iki farkli
+  // cevap. (Hesaplanip cikti disinda birakma hatasinin ucuncu tekrari.)
+  if (memory.file_hits?.length) flags.push(`${memory.file_hits.length} bu dosyaya bagli kayit`);
   if (risk.level === "critical" || risk.level === "high") flags.push(`risk:${risk.level}`);
   if (mustNotViolate.length) flags.push(`${mustNotViolate.length} aktif karar`);
   if (openBugs.length) flags.push(`${openBugs.length} acik bug`);
@@ -117,6 +122,14 @@ export function formatGuard(g) {
   L.push(`[serif-brain guard] ${g.verdict} — ${g.file || ""}${g.module ? ` (modul:${g.module})` : ""}`);
   L.push(`  ${icon} risk: ${g.risk.level.toUpperCase()} (${g.risk.score})${g.flags.length ? ` · ${g.flags.join(" · ")}` : ""}`);
 
+  // EN DEGERLI SINYAL EN USTTE: tam bu dosyaya bagli kayitlar. Modul geneli
+  // kararlar modulun HER dosyasinda ayni cikar; bu ise yalniz burada cikar.
+  if (g.file_hits?.length) {
+    L.push(`  🔗 TAM BU DOSYAYA bagli (${g.file_hits.length}):`);
+    for (const h of g.file_hits) {
+      L.push(`     [${h.type || "kayit"}${h.status ? `/${h.status}` : ""}] ${h.id} — ${h.title}`);
+    }
+  }
   if (g.must_not_violate.length) {
     L.push(`  📌 IHLAL ETME — aktif kararlar:`);
     for (const d of g.must_not_violate) L.push(`     ${d.id} — ${d.title}`);

@@ -8,6 +8,7 @@ import { planSkillSync, applySkillSync, listPackageSkills } from "../skills/sync
 import { initSonrasiPanel } from "../dashboard/launch.mjs";
 import { applyHookInstall } from "../hooks/install.mjs";
 import { applyClaudeMd } from "../context/claude-md.mjs";
+import { execSync } from "node:child_process";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = resolve(HERE, "../../templates");
@@ -274,6 +275,16 @@ function installSkills(projectRoot) {
 // (ajan `guard` calistirmayi hatirlamak zorunda kalir). init artik yalnizca
 // EKSIK olaylari ekler — kullanicinin kendi hook'una ve bizim degistirilmis
 // kaydimiza dokunmaz; guncelleme icin: serif-brain hooks install --apply.
+// Ornek icin gercek bir kaynak dosya sec — "<dosya>" yerine tiklanabilir,
+// kopyalanabilir bir sey vermek ogrenme egrisini belirgin kisaltir.
+function ornekKaynakDosya(projectRoot) {
+  try {
+    const out = execSync(`git -C "${projectRoot}" ls-files`, { encoding: "utf8", stdio: ["ignore","pipe","ignore"] });
+    return out.split("\n").map(s => s.trim())
+      .find(f => f && /\.(ts|tsx|js|jsx|mjs|py|php|rb|swift|cs|go|rs)$/.test(f) && !/test|spec/i.test(f)) || null;
+  } catch { return null; }
+}
+
 function installGate(projectRoot) {
   const r = applyHookInstall(projectRoot, { mode: "missing" });
   console.log(``);
@@ -360,11 +371,27 @@ export async function initCommand({ args }) {
   console.log(`CLAUDE.md isareti:`);
   console.log(`  ${cm.written ? "+" : "="} ${cm.path}`);
 
+  // KAPANIS MESAJI: yeni kullanicinin ilk sorusu "kurdum da bu bana NE verecek?"
+  // Eskiden buraya "serif-brain doctor" yaziyordu — dogru ama GORUNUR bir kazanc
+  // degil. Ilk 60 saniye, aracin ne yaptigini GOSTEREREK bitmeli; yoksa kullanici
+  // "kuruldu galiba" deyip kapatir ve bir daha acmaz.
+  const ornekDosya = ornekKaynakDosya(projectRoot);
   console.log(``);
-  console.log(`✓ init complete`);
+  console.log(`✓ Kurulum tamam.`);
   console.log(``);
-  console.log(`Sonraki adim:`);
-  console.log(`  serif-brain doctor --project ${projectRoot}`);
+  console.log(`ILK 60 SANIYE — aracin ne yaptigini gormek icin:`);
+  console.log(``);
+  console.log(`  1) Bir sey kaydet (yasadigin bir hata ya da verdigin bir karar):`);
+  console.log(`     serif-brain add decision --title "X'i Y yuzunden boyle yaptik" \\`);
+  console.log(`       --files ${ornekDosya || "<ilgili-dosya>"}`);
+  console.log(``);
+  console.log(`  2) O dosyaya dokunmadan once ne oldugunu gor:`);
+  console.log(`     serif-brain guard ${ornekDosya || "<ayni-dosya>"}`);
+  console.log(``);
+  console.log(`  3) Kapi kuruluysa Claude Code bunu SEN SORMADAN gorur.`);
+  console.log(`     Dogrula: serif-brain hooks test`);
+  console.log(``);
+  console.log(`Ayrintili rehber: docs/BASLANGIC.md   ·   Saglik: serif-brain doctor`);
 
   // Merkezi paneli ac. Kurulan proje orada kart olarak zaten gorunur — "brain
   // kurdum, nerede?" sorusu hic olusmasin. Panel bir KOLAYLIK: acilamazsa
