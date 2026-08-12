@@ -28,6 +28,29 @@ const BIN = resolve(HERE, "../bin/serif-brain.mjs");
 const MODE = process.argv[2] || "pre";
 const EVENT = { session: "SessionStart", pre: "PreToolUse", post: "PostToolUse", stop: "Stop" }[MODE] || "PreToolUse";
 
+// HATA GUNLUGU.
+//
+// Kapinin sozlesmesi "oturumu asla bozma" idi ve bu dogru. Ama uygulamasi
+// "hatayi YOK ET" seklindeydi: her catch sessizce yutuyordu. Sonucu 2026-08-11'de
+// olculdu — kapi AYLARCA sorun bulundugunda susuyordu (review exit 2 veriyor,
+// execFileSync firlatiyor, catch yutuyor) ve kimse fark etmedi.
+//
+// Dogru sozlesme: oturumu bozma AMA izini birak. Gunluk kapali dongu
+// olusturmasin diye kendi yazma hatasini yutar (tek yer).
+function gunlukYaz(projectRoot, olay, hata) {
+  try {
+    const dizin = join(projectRoot, ".serif-brain", ".cache");
+    mkdirSync(dizin, { recursive: true });
+    const yol = join(dizin, "gate.log");
+    // Sinirsiz buyume yok: 200 satiri gecerse son 100'u tut.
+    let onceki = [];
+    try { onceki = readFileSync(yol, "utf8").split("\n").filter(Boolean); } catch { /* ilk yazim */ }
+    if (onceki.length > 200) onceki = onceki.slice(-100);
+    const satir = JSON.stringify({ t: new Date().toISOString(), mod: MODE, olay, hata: String(hata?.message || hata || "").slice(0, 300) });
+    writeFileSync(yol, [...onceki, satir].join("\n") + "\n");
+  } catch { /* gunluk yazilamiyorsa yapacak bir sey yok — dongu kurma */ }
+}
+
 function emit(lines) {
   const text = lines.filter(Boolean).join("\n").trim();
   if (!text) return;
@@ -54,14 +77,16 @@ function readStdin() {
 function brainJson(projectRoot, args) {
   const argv = [BIN, ...args, "--project", projectRoot, "--json"];
   const opts = { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10000 };
-  let out;
+  let out, hata = null;
   try {
     out = execFileSync(process.execPath, argv, opts);
   } catch (e) {
     out = e?.stdout; // exit 2 = "bulgu var" — cikti gecerlidir
+    hata = e;
   }
-  if (!out) return null;
-  try { return JSON.parse(out); } catch { return null; }
+  if (!out) { gunlukYaz(projectRoot, `komut ciktisi bos: ${args[0]}`, hata); return null; }
+  try { return JSON.parse(out); }
+  catch (e) { gunlukYaz(projectRoot, `JSON ayristirilamadi: ${args[0]}`, e); return null; }
 }
 
 // ── Modlar ──────────────────────────────────────────────────────────────────
@@ -248,6 +273,9 @@ try {
       if (!rel.startsWith("..")) (MODE === "post" ? post : pre)(projectRoot, rel);
     }
   }
-} catch { /* kapi asla oturumu bozmaz */ }
+} catch (e) {
+  // Oturumu BOZMA sozlesmesi duruyor (exit 0), ama hata artik IZ BIRAKIYOR.
+  try { gunlukYaz(process.env.CLAUDE_PROJECT_DIR || process.cwd(), "kapi coktu", e); } catch { /* son care */ }
+}
 
 process.exit(0);

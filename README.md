@@ -8,7 +8,7 @@ bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 > Tavsiye atlanabilir, kapı atlanamaz.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 325 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
+runner). 335 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
 düzenlenir, hiçbir servise bağlı değildir.
 
 ---
@@ -81,8 +81,15 @@ oturum açılışında, her Edit'ten önce/sonra ve "bitti" demeden önce.
 
 ```bash
 serif-brain hooks status          # kurulu mu, bayat mı
+serif-brain hooks test [<dosya>]  # kapıyı GERÇEKTEN ateşle: ne diyor + hata günlüğü
 serif-brain hooks install --apply # .claude/settings.json'a bağla
 ```
+
+`status` "kurulu mu" der, `test` **"çalışıyor mu"** der — ikisi ayrı sorudur.
+Kapı bir dönem aylarca *sorun bulunduğunda* susuyordu ve kimse göremedi, çünkü
+ne yaptığını görmenin yolu yoktu. Kapı artık hatalarını yutmuyor:
+`.serif-brain/.cache/gate.log`'a yazıyor, `doctor` son 7 günü raporluyor.
+Sözleşme değişmedi — oturum asla bozulmaz (her zaman `exit 0`).
 
 **Söyleyecek şey yoksa susar.** Her düzenlemede çıkan sabit metin bir süre sonra
 okunmaz hale gelir ve kapının değerini sıfırlar. Yabancı hook kayıtlarına

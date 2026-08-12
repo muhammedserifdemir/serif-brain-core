@@ -82,3 +82,58 @@ test("kapi — DURUM bildirimi Stop'ta YOK (yakalanmamis commit oturum acilisina
       "durum bildirimi (yakalanmamis commit) Stop'ta olmamali — her durmada tekrar eder ve dongu yapar");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
+
+// ── HATA GUNLUGU ───────────────────────────────────────────────────────────
+// Kapinin sozlesmesi "oturumu asla bozma" idi; uygulamasi "hatayi YOK ET"
+// seklindeydi. Sonuc: AYLARCA sorun bulundugunda susan bir kapi ve kimsenin
+// bunu gorebilecegi bir yer yok. Dogru sozlesme: bozma AMA iz birak.
+import { readFileSync as oku, existsSync as varMi } from "node:fs";
+
+test("kapi — komut basarisiz olursa hata GUNLUGE yazilir (yutulmaz)", () => {
+  const tmp = mkRepo();
+  try {
+    // config.yaml'i BOZ: brainJson cagrilari basarisiz olacak.
+    writeFileSync(join(tmp, ".serif-brain", "config.yaml"), "{{{ bu gecerli yaml degil\n");
+    execFileSync(process.execPath, [GATE, "stop"], {
+      input: JSON.stringify({ cwd: tmp }), encoding: "utf8",
+      env: { ...process.env, CLAUDE_PROJECT_DIR: tmp },
+    });
+    const log = join(tmp, ".serif-brain", ".cache", "gate.log");
+    assert.ok(varMi(log), "hata gunlugu olusmali — sessizce yutulmamali");
+    const satir = oku(log, "utf8").trim().split("\n").pop();
+    const k = JSON.parse(satir);
+    assert.equal(k.mod, "stop");
+    assert.ok(k.olay, "hangi olayda oldugu yazmali");
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test("kapi — hata olsa bile exit 0 (sozlesme korunuyor)", () => {
+  const tmp = mkRepo();
+  try {
+    writeFileSync(join(tmp, ".serif-brain", "config.yaml"), "{{{ bozuk\n");
+    for (const mod of ["session", "pre", "post", "stop"]) {
+      const r = execFileSync(process.execPath, [GATE, mod], {
+        input: JSON.stringify({ cwd: tmp, tool_input: { file_path: "src/a.mjs" } }),
+        encoding: "utf8", env: { ...process.env, CLAUDE_PROJECT_DIR: tmp },
+      });
+      assert.equal(typeof r, "string", `${mod} exit 0 vermeli`);
+    }
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test("kapi — gunluk SINIRSIZ buyumez (200 satir tavani)", () => {
+  const tmp = mkRepo();
+  try {
+    writeFileSync(join(tmp, ".serif-brain", "config.yaml"), "{{{ bozuk\n");
+    mkdirSync(join(tmp, ".serif-brain", ".cache"), { recursive: true });
+    const log = join(tmp, ".serif-brain", ".cache", "gate.log");
+    writeFileSync(log, Array.from({ length: 250 }, (_, i) =>
+      JSON.stringify({ t: new Date().toISOString(), mod: "stop", olay: `eski ${i}`, hata: "x" })).join("\n") + "\n");
+    execFileSync(process.execPath, [GATE, "stop"], {
+      input: JSON.stringify({ cwd: tmp }), encoding: "utf8",
+      env: { ...process.env, CLAUDE_PROJECT_DIR: tmp },
+    });
+    const n = oku(log, "utf8").split("\n").filter(Boolean).length;
+    assert.ok(n <= 110, `gunluk kirpilmali (${n} satir) — sinirsiz buyuyen log disk doldurur`);
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});

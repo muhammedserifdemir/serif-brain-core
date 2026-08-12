@@ -284,6 +284,24 @@ export async function doctorCommand({ args }) {
       warnings++;
     }
     if (gate.foreign) check("  yabanci hook", true, `${gate.foreign} kayit (dokunulmuyor)`);
+
+    // Kapinin KENDI hata gunlugu. Kapi oturumu bozmamak icin hata firlatmaz;
+    // eskiden bunu "hatayi yok ederek" yapiyordu ve AYLARCA sessizce bozuk
+    // kaldi. Artik iz birakiyor — iz varsa burada gorunur.
+    const gateLog = join(brainRoot, ".cache", "gate.log");
+    if (existsSync(gateLog)) {
+      let kayitlar = [];
+      try { kayitlar = readFileSync(gateLog, "utf8").split("\n").filter(Boolean); } catch { /* okunamadi */ }
+      const sonGun = kayitlar.filter(l => {
+        try { return Date.now() - Date.parse(JSON.parse(l).t) < 7 * 86400000; } catch { return false; }
+      });
+      if (sonGun.length) {
+        check("  kapi hata gunlugu", "warn", `son 7 gunde ${sonGun.length} hata → serif-brain hooks test`);
+        warnings++;
+      } else {
+        check("  kapi hata gunlugu", true, `${kayitlar.length} eski kayit, son 7 gun temiz`);
+      }
+    }
   }
 
   // 6b. Legacy hook detection in .claude/settings.json

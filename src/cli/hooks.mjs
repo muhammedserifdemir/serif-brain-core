@@ -2,7 +2,8 @@
 import { resolve, join } from "node:path";
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, readFileSync } from "node:fs";
 import { buildPlan } from "../hooks/plan.mjs";
-import { planHookInstall, applyHookInstall } from "../hooks/install.mjs";
+import { planHookInstall, applyHookInstall, GATE_SCRIPT } from "../hooks/install.mjs";
+import { execSync } from "node:child_process";
 
 const STATE_LABEL = {
   missing: "KURULU DEGIL",
@@ -19,10 +20,14 @@ export async function hooksCommand({ args, subcommand }) {
   if (sub === "status" || sub === "install") {
     return runGate({ projectRoot, apply: sub === "install" && args.flags.apply === true });
   }
+  if (sub === "test") {
+    return runGateTest({ projectRoot, hedefDosya: subcommand[1] || null });
+  }
 
   if (sub !== "plan" && sub !== "apply") {
-    console.error(`Kullanim: serif-brain hooks <status|install|plan|apply> [--project <yol>]`);
+    console.error(`Kullanim: serif-brain hooks <status|test|install|plan|apply> [--project <yol>]`);
     console.error(`  status           Claude Code kapisi kurulu mu (hicbir sey yazmaz)`);
+    console.error(`  test [<dosya>]   kapiyi GERCEKTEN atesle, ne dedigini goster + hata gunlugu`);
     console.error(`  install --apply  kapiyi .claude/settings.json'a bagla`);
     console.error(`  plan|apply       ESKI brain hook'larini goc ettirme (legacy)`);
     return 1;
@@ -358,4 +363,87 @@ function runGate({ projectRoot, apply }) {
   if (eksik) console.log(`  ${eksik} olay kurulu degil. Kurmak icin: serif-brain hooks install --apply`);
   else console.log(`  ✓ Kapi tam kurulu.`);
   return 0;
+}
+
+// ── Kapiyi GERCEKTEN atesle: 'hooks test' ──────────────────────────────────
+//
+// NEDEN VAR: kapi 2026-08-11'e kadar AYLARCA sorun bulundugunda susuyordu ve
+// kimse fark etmedi — cunku kapinin ne yaptigini gormenin bir yolu yoktu.
+// "Kurulu mu" (hooks status) ile "CALISIYOR MU" ayri sorulardir; ikincisini
+// cevaplamanin tek durust yolu kapiyi gercek yuk ile calistirip ciktisina
+// bakmaktir. Tahmin degil, atesleme.
+function runGateTest({ projectRoot, hedefDosya }) {
+  const gate = GATE_SCRIPT;
+  if (!existsSync(gate)) {
+    console.error(`[serif-brain hooks test] kapi betigi yok: ${gate}`);
+    return 1;
+  }
+  // Hedef dosya: verilmediyse git'ten son degisen kaynak dosyayi sec.
+  let dosya = hedefDosya;
+  if (!dosya) {
+    try {
+      const out = execSync(`git -C "${projectRoot}" log -20 --name-only --relative --pretty=format: --diff-filter=d`,
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+      dosya = out.split("\n").map(s => s.trim())
+        .find(f => f && /\.(ts|tsx|js|jsx|mjs|cjs|py|php|rb|swift|cs|go|rs)$/.test(f) && existsSync(join(projectRoot, f)));
+    } catch { /* git yok */ }
+  }
+
+  console.log(`[serif-brain hooks test]`);
+  console.log(`  Proje : ${projectRoot}`);
+  console.log(`  Dosya : ${dosya || "(bulunamadi — pre/post atlanacak)"}`);
+  console.log(``);
+
+  const modlar = [
+    ["session", "SessionStart", null],
+    ["pre", "PreToolUse", dosya],
+    ["post", "PostToolUse", dosya],
+    ["stop", "Stop", null],
+  ];
+  let konusan = 0, hatali = 0;
+  for (const [mod, olay, f] of modlar) {
+    if ((mod === "pre" || mod === "post") && !f) {
+      console.log(`  ${olay.padEnd(13)} atlandi (kaynak dosya yok)`);
+      continue;
+    }
+    const yuk = JSON.stringify({ cwd: projectRoot, ...(f ? { tool_input: { file_path: f } } : {}) });
+    let cikti = "", kod = 0;
+    try {
+      cikti = execSync(`node "${gate}" ${mod}`, {
+        input: yuk, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot }, timeout: 20000,
+      });
+    } catch (e) { cikti = e?.stdout || ""; kod = e?.status ?? 1; hatali++; }
+
+    if (kod !== 0) { console.log(`  ${olay.padEnd(13)} ✗ HATA (exit ${kod}) — kapi HER ZAMAN exit 0 vermeli`); continue; }
+    if (!cikti.trim()) { console.log(`  ${olay.padEnd(13)} · sessiz`); continue; }
+    let metin = "";
+    try { metin = JSON.parse(cikti).hookSpecificOutput?.additionalContext || ""; }
+    catch { console.log(`  ${olay.padEnd(13)} ✗ cikti JSON degil (Claude bunu OKUYAMAZ)`); hatali++; continue; }
+    konusan++;
+    console.log(`  ${olay.padEnd(13)} ✓ konusuyor (${Math.round(metin.length / 4)} token):`);
+    for (const l of metin.split("\n").slice(0, 6)) console.log(`      ${l}`);
+    if (metin.split("\n").length > 6) console.log(`      …`);
+  }
+
+  // Hata gunlugu — kapinin kendi kaydettigi sessiz hatalar
+  const log = join(projectRoot, ".serif-brain", ".cache", "gate.log");
+  console.log(``);
+  if (existsSync(log)) {
+    const satirlar = readFileSync(log, "utf8").split("\n").filter(Boolean);
+    const son = satirlar.slice(-5).map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+    console.log(`  Hata gunlugu (${satirlar.length} kayit) — son ${son.length}:`);
+    for (const k of son) console.log(`    ${k.t?.slice(0, 19)} [${k.mod}] ${k.olay}: ${k.hata}`);
+  } else {
+    console.log(`  Hata gunlugu: temiz (kayit yok)`);
+  }
+
+  console.log(``);
+  console.log(`  ${konusan}/4 olay konustu · ${hatali} hata`);
+  if (!konusan) {
+    console.log(`  NOT: hepsinin sessiz olmasi kapinin BOZUK oldugu anlamina gelmez —`);
+    console.log(`       bu dosya/proje icin soyleyecek sey olmayabilir. Kayitli bir`);
+    console.log(`       dosya ile dene: serif-brain hooks test <dosya>`);
+  }
+  return hatali ? 1 : 0;
 }
