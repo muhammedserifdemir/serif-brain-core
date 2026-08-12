@@ -2,7 +2,8 @@
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
-import { parseImports, parseTodos } from "../scanner/parse-imports.mjs";
+import { parseImportsFor, parseTodos } from "../scanner/parse-imports.mjs";
+import { languageDef, LANGUAGES } from "../scanner/languages.mjs";
 import { moduleStats } from "../scanner/module-owner.mjs";
 import { scanPackageJsons, allDependencies } from "../scanner/package-scan.mjs";
 import { loadConfig } from "../markdown/schema.mjs";
@@ -32,7 +33,7 @@ export async function scanCodeCommand({ args, subcommand }) {
   for (const f of files) {
     const text = readFileSafe(f.abs_path);
     totalLoc += countLines(text);
-    totalImports += parseImports(text).length;
+    totalImports += parseImportsFor(f.rel_path, text).length;
     totalTodos += parseTodos(text).length;
   }
   const elapsed = Date.now() - t0;
@@ -44,6 +45,27 @@ export async function scanCodeCommand({ args, subcommand }) {
   console.log(`  package.json found: ${packages.length}`);
   console.log(`  External deps: ${deps.size}`);
   console.log(`  Elapsed: ${elapsed}ms`);
+  console.log(``);
+  // DIL DAGILIMI — ve en onemlisi: hangi dilde import grafi VAR, hangisinde YOK.
+  // Sessizce yarim calismak yok: Swift/C# dosyalari indekslenir ama dosya-dosya
+  // kenari uretilmez (o dillerde ayni modul icindeki dosyalar birbirini import
+  // ETMEZ). Bunu soylemezsek kullanici "blast-radius 0" gorup "kimse kullanmiyor,
+  // silebilirim" der — tehlikeli bir yanlis.
+  const dilSayim = new Map();
+  for (const f of files) {
+    const d = languageDef(f.rel_path);
+    const ad = d ? d.id : "diger";
+    dilSayim.set(ad, (dilSayim.get(ad) || 0) + 1);
+  }
+  if (dilSayim.size) {
+    console.log(``);
+    console.log(`  Diller:`);
+    for (const [id, n] of [...dilSayim].sort((a, b) => b[1] - a[1])) {
+      const d = LANGUAGES[id];
+      const etiket = !d ? "" : d.resolvable ? "import grafi VAR" : `import grafi YOK — ${d.note || "modul-tabanli dil"}`;
+      console.log(`    ${(d?.label || id).padEnd(22)} ${String(n).padStart(5)} dosya   ${etiket}`);
+    }
+  }
   console.log(``);
   console.log(`  Module breakdown:`);
   const sorted = [...stats.entries()].sort((a, b) => b[1].files - a[1].files);

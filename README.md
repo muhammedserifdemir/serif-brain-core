@@ -8,7 +8,7 @@ bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 > Tavsiye atlanabilir, kapı atlanamaz.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 281 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
+runner). 308 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
 düzenlenir, hiçbir servise bağlı değildir.
 
 ---
@@ -125,6 +125,29 @@ eder, yoksa yeşil ışık yanlış güven üretir.
 | `dashboard` | çok-brain yönetici paneli (canlı + statik HTML) |
 
 ---
+
+## Dil desteği
+
+Tarayıcı **her dili indeksler**; ama "import grafı" her dilde aynı şey değildir.
+
+| Dil | Durum |
+|---|---|
+| JS/TS, JSX/TSX, Vue, Svelte, Astro | **import grafı var** — dosya→dosya kenarları |
+| Python (`.py`, `.pyi`) | **import grafı var** — göreli (`from .x`) + paket yolu (`a.b.c`) |
+| PHP, Ruby | **import grafı var** — `require`/`include` yolları |
+| Swift, C#, Java, Kotlin, Go, Rust, Dart, Obj-C | **indekslenir, import grafı yok** |
+
+Son satır bilinçli: Swift/C#/Java'da aynı modül içindeki dosyalar birbirini
+**import etmez** — hepsi otomatik görünür. Oraya dosya-dosya kenarı üretmek
+uydurmak olur ve *"kimse import etmiyor, güvenle değiştir"* gibi tehlikeli bir
+cümle üretir. O dosyalarda modül atfı, risk skoru, hafıza bağlantısı, imza
+taraması ve churn **çalışır**; yalnız blast-radius yoktur — `scan code` bunu
+açıkça yazar.
+
+Her dilin kendi bağımlılık dizini dışlanır (`venv`, `Pods`, `vendor`,
+`target`, `node_modules`…). `bin`/`obj`/`packages`/`Library` gibi **belirsiz**
+adlar yalnızca ekosistem işareti varken atlanır — `packages/` bir JS
+monorepo'sunda kaynaktır, .NET'te değildir.
 
 ## Yapılandırma
 

@@ -1,5 +1,9 @@
 // Zero-dep import parser. Regex-based — basit ama dogru sayidaki vakalar icin guvenli.
-// Kapsam: ES import/export, dynamic import, CommonJS require.
+// Diller: JS/TS (ES import/export, dynamic import, require), Python, PHP, Ruby.
+// Modul-tabanli diller (Swift/C#/Java/...) icin ayristirici YOKTUR: oralarda
+// import bir dosyaya degil bir module isaret eder, kenar uydurulmaz.
+// Dil tanimlarinin tek kaynagi: scanner/languages.mjs
+import { parserOf } from "./languages.mjs";
 
 const IMPORT_STATIC_RE  = /^[ \t]*import\s+(?:type\s+)?(?:[\s\S]+?\s+from\s+)?["']([^"']+)["']/gm;
 const IMPORT_BARE_RE    = /^[ \t]*import\s+["']([^"']+)["']/gm;
@@ -36,6 +40,93 @@ export function stripComments(code) {
     i++;
   }
   return out;
+}
+
+// ── Python ──────────────────────────────────────────────────────────────────
+// import a.b.c  ·  import a as x  ·  from .rel import y  ·  from ..pkg import z
+// Goreli import'lar nokta sayisiyla kodlanir: "." = ayni paket, ".." = ust.
+const PY_FROM_RE = /^[ \t]*from[ \t]+(\.*[\w.]*)[ \t]+import[ \t]/gm;
+const PY_IMPORT_RE = /^[ \t]*import[ \t]+([\w.]+(?:[ \t]*,[ \t]*[\w.]+)*)/gm;
+
+function parsePython(code) {
+  const specs = new Set();
+  const stripped = stripHashComments(code);
+  let m;
+  PY_FROM_RE.lastIndex = 0;
+  while ((m = PY_FROM_RE.exec(stripped)) !== null) if (m[1]) specs.add(m[1]);
+  PY_IMPORT_RE.lastIndex = 0;
+  while ((m = PY_IMPORT_RE.exec(stripped)) !== null) {
+    for (const parca of m[1].split(",")) {
+      const ad = parca.trim().split(/\s+as\s+/)[0].trim();
+      if (ad) specs.add(ad);
+    }
+  }
+  return [...specs];
+}
+
+// ── PHP ─────────────────────────────────────────────────────────────────────
+// YALNIZ require/include '<yol>' — bunlar bir DOSYAYA isaret eder.
+// `use App\Models\User;` BILEREK alinmiyor: namespace'i dosyaya cevirmek
+// composer autoload (PSR-4) haritasini okumayi gerektirir. Cozemeyecegimiz
+// seyi spec olarak uretirsek "cozulemeyen import" sayaci sisirilir ve
+// gercek eksikler o gurultunun icinde kaybolur.
+const PHP_REQUIRE_RE = /\b(?:require|include)(?:_once)?\s*\(?\s*['"]([^'"]+)['"]/g;
+
+function parsePhp(code) {
+  const specs = new Set();
+  const stripped = stripComments(code);
+  let m;
+  PHP_REQUIRE_RE.lastIndex = 0;
+  while ((m = PHP_REQUIRE_RE.exec(stripped)) !== null) specs.add(m[1]);
+  return [...specs];
+}
+
+// ── Ruby ────────────────────────────────────────────────────────────────────
+const RB_RE = /\b(?:require_relative|require)\s*\(?\s*['"]([^'"]+)['"]/g;
+
+function parseRuby(code) {
+  const specs = new Set();
+  const stripped = stripHashComments(code);
+  let m;
+  RB_RE.lastIndex = 0;
+  while ((m = RB_RE.exec(stripped)) !== null) specs.add(m[1]);
+  return [...specs];
+}
+
+// `#` yorum temizleyici (Python/Ruby/Shell). Tirnak icindeki # korunur.
+export function stripHashComments(code) {
+  let out = "";
+  let tek = false, cift = false;
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i];
+    if (c === "'" && !cift) tek = !tek;
+    else if (c === '"' && !tek) cift = !cift;
+    else if (c === "#" && !tek && !cift) {
+      while (i < code.length && code[i] !== "\n") i++;
+      out += "\n";
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
+
+/**
+ * Dosya yoluna gore DOGRU ayristiriciyi secer.
+ *
+ * relPath verilmezse JS varsayilir — eski cagri yerleri (ve testler) bozulmasin
+ * diye. Modul-tabanli diller (parser "module") BOS DIZI doner: o dosyalar
+ * indekslenir ama import kenari uretilmez.
+ */
+export function parseImportsFor(relPath, code) {
+  switch (parserOf(relPath)) {
+    case "python": return parsePython(code);
+    case "php": return parsePhp(code);
+    case "ruby": return parseRuby(code);
+    case "module": return [];       // kenar UYDURULMAZ
+    case "js": return parseImports(code);
+    default: return [];
+  }
 }
 
 export function parseImports(code) {

@@ -59,6 +59,52 @@ function tryWithExts(base) {
   return null;
 }
 
+/**
+ * PYTHON import cozumu.
+ *   from .util import x     → ayni paket:  <dizin>/util.py | <dizin>/util/__init__.py
+ *   from ..pkg.mod import y → iki ust dizin
+ *   import a.b.c            → proje kokunden (ve yaygin kaynak koklerinden) a/b/c.py
+ * Cozulemeyen (stdlib/3. parti) → "external": bu bir HATA degildir, bilgidir.
+ */
+export function resolvePythonImport(spec, fromAbsPath, projectRoot) {
+  const dene = (base) => {
+    for (const c of [`${base}.py`, `${base}.pyi`, join(base, "__init__.py")]) {
+      if (existsSync(c) && statSync(c).isFile()) return c;
+    }
+    return null;
+  };
+
+  if (spec.startsWith(".")) {
+    // Bastaki nokta sayisi = kac seviye yukari. "." = ayni dizin.
+    const nokta = spec.match(/^\.+/)[0].length;
+    const kalan = spec.slice(nokta).replace(/\./g, "/");
+    let base = dirname(fromAbsPath);
+    for (let i = 1; i < nokta; i++) base = dirname(base);
+    const hedef = kalan ? join(base, kalan) : join(base, "__init__");
+    const f = kalan ? dene(hedef) : (existsSync(join(base, "__init__.py")) ? join(base, "__init__.py") : null);
+    if (f) return { kind: "file", abs: f, rel: relative(projectRoot, f) };
+    return { kind: "unresolved-relative", spec };
+  }
+
+  const yol = spec.replace(/\./g, "/");
+  // Proje koku + yaygin kaynak koklerinden dene. Python'da "src layout" da
+  // yaygindir; ikisini de denemek, tek kok varsaymaktan dogru.
+  for (const kok of ["", "src", "lib", "app"]) {
+    const f = dene(join(projectRoot, kok, yol));
+    if (f) return { kind: "file", abs: f, rel: relative(projectRoot, f) };
+  }
+  return { kind: "external", spec };  // stdlib ya da site-packages
+}
+
+/** PHP require/include: dogrudan yol. RUBY require_relative: goreli yol. */
+export function resolvePathImport(spec, fromAbsPath, projectRoot, exts) {
+  const temel = spec.startsWith("/") ? join(projectRoot, spec) : pResolve(dirname(fromAbsPath), spec);
+  for (const c of [temel, ...exts.map((e) => temel + e)]) {
+    if (existsSync(c) && statSync(c).isFile()) return { kind: "file", abs: c, rel: relative(projectRoot, c) };
+  }
+  return { kind: "external", spec };
+}
+
 export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}, workspaces = null) {
   if (isNodeBuiltin(spec)) return { kind: "node-builtin", spec };
   if (isRelative(spec)) {

@@ -1,8 +1,9 @@
 // Full graph builder — code scan + objects'i birlestirir.
 import { resolve as pResolve, basename } from "node:path";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
-import { parseImports, parseTodos, parseIdMentions } from "../scanner/parse-imports.mjs";
-import { resolveImport, loadTsconfigPaths, loadWorkspacePackages, isExternalPackage, isNodeBuiltin } from "../scanner/resolve-import.mjs";
+import { parseImportsFor, parseTodos, parseIdMentions } from "../scanner/parse-imports.mjs";
+import { resolveImport, resolvePythonImport, resolvePathImport, loadTsconfigPaths, loadWorkspacePackages, isExternalPackage, isNodeBuiltin } from "../scanner/resolve-import.mjs";
+import { languageDef } from "../scanner/languages.mjs";
 import { ownerOfConfigured } from "../scanner/module-owner.mjs";
 import { scanPackageJsons, allDependencies } from "../scanner/package-scan.mjs";
 import { loadScanCache, saveScanCache } from "../scanner/cache.mjs";
@@ -82,7 +83,7 @@ export async function buildGraph({ projectRoot, brainRoot, projectId, config }) 
     } else {
       const text = readFileSafe(f.abs_path);
       loc = countLines(text);
-      imports = parseImports(text);
+      imports = parseImportsFor(f.rel_path, text);
       todos = parseTodos(text);
       mentions = parseIdMentions(text);
     }
@@ -113,7 +114,14 @@ export async function buildGraph({ projectRoot, brainRoot, projectId, config }) 
     const { imports, mentions } = fileImports.get(f.rel_path);
     for (const spec of imports) {
       totalImports++;
-      const r = resolveImport(spec, f.abs_path, projectRoot, tsconfigAliases, workspaces);
+      // Cozum dile gore: Python paket yolu, PHP/Ruby dosya yolu, digerleri JS.
+      // Modul-tabanli diller (Swift/C#/...) zaten spec uretmez.
+      const dil = languageDef(f.rel_path);
+      const r =
+        dil?.parser === "python" ? resolvePythonImport(spec, f.abs_path, projectRoot)
+        : dil?.parser === "php" ? resolvePathImport(spec, f.abs_path, projectRoot, [".php"])
+        : dil?.parser === "ruby" ? resolvePathImport(spec, f.abs_path, projectRoot, [".rb"])
+        : resolveImport(spec, f.abs_path, projectRoot, tsconfigAliases, workspaces);
       if (r.kind === "file" && fileByRel.has(r.rel)) {
         addEdge(nid("file", f.rel_path), nid("file", r.rel), "imports");
       } else if (r.kind === "package") {
