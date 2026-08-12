@@ -1,7 +1,7 @@
 {
   "name": "serif-brain-core",
   "version": "1.1.0",
-  "description": "Bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi (search/MCP/related). Obsidian/Graphify/eski Brain runtime bagimliligi yok.",
+  "description": "Project memory + knowledge graph + code graph, turned into mechanical gates that fire at edit time. Zero dependencies, pure Node.",
   "type": "module",
   "private": true,
   "bin": {
@@ -9,9 +9,12 @@
   },
   "files": [
     "CHANGELOG.md",
+    "CONTRIBUTING.md",
     "LICENSE",
     "README.md",
+    "README.tr.md",
     "ROADMAP.md",
+    "SECURITY.md",
     "bin/",
     "docs/",
     "hooks/",
@@ -32,8 +35,11 @@
     "knowledge-graph",
     "code-graph",
     "mcp",
-    "ai",
-    "zero-dependency"
+    "claude-code",
+    "ai-agent",
+    "developer-tools",
+    "zero-dependency",
+    "hooks"
   ],
   "dependencies": {},
   "author": "Muhammed Serif Demir",
@@ -41,5 +47,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/muhammedserifdemir/serif-brain-core.git"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/muhammedserifdemir/serif-brain-core/issues"
+  },
+  "homepage": "https://github.com/muhammedserifdemir/serif-brain-core#readme"
 }

@@ -1,219 +1,272 @@
 # serif-brain
 
-**AI ajanı her oturumda sıfırdan başlar.** Dün neden o kararı verdiğini, hangi
-bug'ın hangi dosyada yara izi bıraktığını, neyin bilerek böyle yapıldığını
-bilmez. serif-brain projenin hafızasını dosya sistemine yazar, bunu kod grafına
-bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
+[![CI](https://github.com/muhammedserifdemir/serif-brain-core/actions/workflows/ci.yml/badge.svg)](https://github.com/muhammedserifdemir/serif-brain-core/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen.svg)](package.json)
+[![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](package.json)
 
-> Tavsiye atlanabilir, kapı atlanamaz.
+**Your AI agent starts from zero every session.** It doesn't know why you made
+that decision last month, which bug left a scar in which file, or what was
+deliberately built that way. serif-brain writes your project's memory to the
+filesystem, links it to the code graph, and turns it into **mechanical gates
+that fire at edit time**.
 
-Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 337 test. Veri kaynağı düz Markdown: `git diff` ile okunur, elle
-düzenlenir, hiçbir servise bağlı değildir.
+> Advice can be skipped. A gate cannot.
 
----
+Pure Node.js, **zero npm dependencies** (Node ≥ 22.5 — `node:sqlite` + the
+native test runner). 337 tests. The data is plain Markdown: readable with
+`git diff`, editable by hand, tied to no service.
 
-## Neden
-
-Bir kural yazılıp üretim yolu onu çağırmıyorsa, **yazan kişi hiçbir hata
-görmez.** Bu projenin kendi geçmişinden iki örnek:
-
-- `.sort((a,b) => pri(a) - pri(b))` — hepsi `critical` olan listede hep `0`
-  döner; kararlı sıralama giriş sırasını korur, yani **en eski kayıt başa
-  geçer.** Gözle bakınca doğru görünüyordu; hata yalnız gerçek veride çıktı.
-- `node.module || ownerOfConfigured(path, config)` — graf eşleşmeyen dosyaya
-  `"unknown"` yazar ve **`"unknown"` truthy'dir**, yani fallback hiç çalışmadı.
-  Config'e doğru kuralı yazan kişi hiçbir uyarı görmedi.
-
-Her ikisi de "kanıt vardı ama yanlış şey ölçülmüştü" sınıfı. serif-brain tam
-olarak bu sınıfı yakalamak için var: kararı kaydeder, koda bağlar, ve o dosyaya
-bir daha dokunulduğunda **sen sormadan** önüne koyar.
+🇹🇷 [Türkçe README](README.tr.md) · 📖 [First 15 minutes](docs/BASLANGIC.md) (Turkish)
 
 ---
 
-## Kurulum
+## Why
+
+If a rule is written but the production path never calls it, **the person who
+wrote it sees no error at all.** Two examples from this project's own history:
+
+- `.sort((a, b) => pri(a) - pri(b))` — in a list where everything is
+  `critical` this always returns `0`; a stable sort then preserves input order,
+  so **the oldest record floats to the top**. It looked right. It only failed
+  on real data.
+- `node.module || ownerOfConfigured(path, config)` — the graph writes
+  `"unknown"` for unmatched files, and **`"unknown"` is truthy**, so the
+  fallback never ran. Whoever wrote the correct config rule saw no warning.
+
+Both belong to the class *"there was evidence, but the wrong thing was
+measured."* serif-brain exists to catch exactly that class: it records the
+decision, links it to code, and puts it in front of you **before** you touch
+that file again — without you asking.
+
+---
+
+## Does it actually work?
+
+Measured against 20 real projects, 1,179 records, real git history — not
+synthetic fixtures. Full method and scope labels in
+[`docs/OLCUM.md`](docs/OLCUM.md).
+
+| Question | Result |
+|---|---|
+| When a bug happened, did memory already hold something about that file? | **80.5%** |
+| Same question for a **random** file (control) | **14.3%** |
+| **Signal-to-noise** | **5.6×** |
+| Files where the gate has something specific to say | 15.6% |
+| Files where it stays silent | 78.3% |
+| Memory coverage over tracked files | 5.8% |
+| Import-graph edges verified against source (3 projects, 25 samples each) | **75/75** |
+| Latency added per edit | ~0.4 s |
+
+The honest reading: **the gate is silent most of the time, and that is the
+main weakness** — memory only exists where you wrote it. But where it does
+speak, the signal is 5.6× above chance. The tool doesn't create value on its
+own; it creates value when you link a record to a file.
+
+> Scope label: the 80.5% covers *recorded, file-linked* bugs only. Bugs that
+> were never written down are outside this measurement. So "prevents 80% of
+> bugs" would be false; "where records exist, memory held the relevant fact
+> 80% of the time" is what was measured.
+
+---
+
+## Install
 
 ```bash
-git clone https://github.com/muhammedserifdemir/serif-brain-core.git
-node serif-brain-core/bin/serif-brain.mjs --help
-
-# ya da global:
 npm i -g git+https://github.com/muhammedserifdemir/serif-brain-core.git
+# or run without installing:
+npx github:muhammedserifdemir/serif-brain-core --help
 ```
 
-Projende:
+In your project:
 
 ```bash
-serif-brain init     # .serif-brain/ + Claude skill'leri + KAPI + CLAUDE.md işareti
-serif-brain doctor   # sağlık: şema, graf, kapı kurulu mu
+serif-brain init     # .serif-brain/ + Claude skills + THE GATE + CLAUDE.md marker
+serif-brain doctor   # health: schema, graph, is the gate wired
 ```
 
-**→ [docs/BASLANGIC.md](docs/BASLANGIC.md) — ilk 15 dakika**, her komutun gerçek
-çıktısıyla. Kurulumdan "Claude bunu sen sormadan görüyor" anına kadar.
-
-`init` üç şeyi birden kurar: hafıza yapısını, çalışma disiplini skill'lerini ve
-Claude Code kapısını. Kurulmayan kapı kapı değildir.
+`init` installs three things at once: the memory structure, the working-discipline
+skills, and the Claude Code gate. **A gate that isn't installed isn't a gate.**
 
 ---
 
-## Günlük döngü
+## Daily loop
 
 ```bash
-serif-brain brief                    # neredeyiz: aktif plan/bug/karar + son bakıştan beri
-serif-brain guard src/auth/login.ts  # DOKUNMADAN ÖNCE: kararlar, yara izleri, blast, risk
-# ... kod ...
-serif-brain review                   # commit'ten önce: katman ihlali + döngü + bug imzası
-serif-brain add bug --title "..." --module auth
-serif-brain close bug-2026... --note "nasıl çözüldü"
-serif-brain capture --days 14        # commit'lerden hafızaya geçmemişleri öner
+serif-brain brief                    # where are we + what changed since I last looked
+serif-brain guard src/auth/login.ts  # BEFORE touching: decisions, scars, blast radius, risk
+# ... write code ...
+serif-brain review                   # before commit: layer violations, cycles, bug signatures
+serif-brain add bug --title "..." --files src/auth/login.ts
+serif-brain close bug-2026... --note "how it was fixed"
+serif-brain capture --days 14        # propose records from commits you never wrote down
 ```
 
-Kapı kuruluysa `brief`/`guard`/`review` **kendiliğinden** çalışır — Claude Code
-oturum açılışında, her Edit'ten önce/sonra ve "bitti" demeden önce.
+With the gate installed, `brief` / `guard` / `review` run **by themselves** —
+at session start, before and after every edit, and before the agent says "done".
 
 ---
 
-## Kapı (Claude Code entegrasyonu)
+## The gate
 
-| Olay | Ne yapar | Susma sözleşmesi |
+| Event | What it does | Silence contract |
 |---|---|---|
-| `SessionStart` | Aktif plan/bug/karar + son bakıştan beri olanlar | Hafıza boşsa susar |
-| `PreToolUse` (Edit/Write) | O dosyanın kararları, yara izleri, imza eşleşmeleri, blast-radius | Dosya temizse susar |
-| `PostToolUse` | Katman ihlali / döngü / god-file | Sorun yoksa susar |
-| `Stop` | Değişen dosyalarda kapı + **kapsam etiketi** + hafızaya geçmemiş commit'ler | Temiz + tam kapsamsa susar |
+| `SessionStart` | active plan/bugs/decisions + what changed since last look | silent if memory is empty |
+| `PreToolUse` (Edit/Write) | that file's decisions, scars, signature hits, blast radius | silent if the file is clean |
+| `PostToolUse` | layer violation / cycle / god-file | silent if nothing is wrong |
+| `Stop` | findings in changed files + **coverage label** | silent if clean and fully covered |
 
 ```bash
-serif-brain hooks status          # kurulu mu, bayat mı
-serif-brain hooks test [<dosya>]  # kapıyı GERÇEKTEN ateşle: ne diyor + hata günlüğü
-serif-brain hooks install --apply # .claude/settings.json'a bağla
+serif-brain hooks status          # is it installed / stale
+serif-brain hooks test [<file>]   # ACTUALLY fire it: what does it say + error log
+serif-brain hooks install --apply
 ```
 
-`status` "kurulu mu" der, `test` **"çalışıyor mu"** der — ikisi ayrı sorudur.
-Kapı bir dönem aylarca *sorun bulunduğunda* susuyordu ve kimse göremedi, çünkü
-ne yaptığını görmenin yolu yoktu. Kapı artık hatalarını yutmuyor:
-`.serif-brain/.cache/gate.log`'a yazıyor, `doctor` son 7 günü raporluyor.
-Sözleşme değişmedi — oturum asla bozulmaz (her zaman `exit 0`).
+`status` answers *"is it installed"*. `test` answers **"is it working"** —
+different questions. This gate once stayed silent *precisely when it found
+problems*, for months, and nobody could see it: the commands it calls exit
+non-zero **when they find something** (they're pre-commit gates), and the
+wrapper treated any non-zero exit as failure. It now logs instead of
+swallowing (`.serif-brain/.cache/gate.log`), and `doctor` reports it.
 
-**Söyleyecek şey yoksa susar.** Her düzenlemede çıkan sabit metin bir süre sonra
-okunmaz hale gelir ve kapının değerini sıfırlar. Yabancı hook kayıtlarına
-dokunulmaz; bozuk JSON görülürse yazılmaz.
+Two rules the gate learned the hard way:
 
-**Kapsam etiketi:** "sorun bulamadım" ile "sorun aramadım" ayrı şeylerdir.
-Denetlenemeyen dosya, denetlenip temiz çıkan dosya değildir — kapı bunu ayırt
-eder, yoksa yeşil ışık yanlış güven üretir.
+- **If there's nothing to say, say nothing.** Fixed text on every edit becomes
+  unreadable within a day and zeroes out the gate's value.
+- **Don't say the same thing twice.** A Stop hook that repeats itself makes the
+  agent respond, try to stop, get the same message… forever. This actually
+  happened.
 
----
-
-## Komutlar
-
-**Hafıza**
-| | |
-|---|---|
-| `init` / `doctor` / `validate` | kur · sağlık · şemaya göre doğrula |
-| `add bug\|decision\|plan\|record` | kayıt yaz (`record` → `done` doğar) |
-| `close <id> --note` | kapat (id benzersizse proje sorulmaz) |
-| `search` / `related` / `brief` | ara · otomatik ilişki keşfi · oturum özeti |
-| `capture --days N [--apply]` | commit'lerden aday bug/karar |
-| `stale` / `prune` / `sync-commits` | bayat tara · güvenle arşivle · `Brain-Closes:` trailer'ı |
-
-**Kod ↔ hafıza**
-| | |
-|---|---|
-| `guard <dosya>` | **edit-öncesi birleşik brifing** (touch+impact+risk+lint tek çağrı) |
-| `touch` / `impact` / `risk` | dosyanın hafızası · blast-radius · risk skoru |
-| `hotspot` / `cluster` | churn×merkezilik tehlike bölgesi · aynı-kök-neden kümeleri |
-| `layers` / `check` / `lint` / `review` | katman ihlali · graf sağlığı · bug imzası · pre-commit kapı |
-| `scan code` / `graph build\|report\|viewer` | tarayıcı · kod grafı + 11 mimari bulgu + HTML görüntüleyici |
-| `analyze` / `context` | tüm raporlar · Claude bağlamı |
-
-**Entegrasyon**
-| | |
-|---|---|
-| `mcp` | MCP sunucusu — 16 araç (14 okuma + `brain_add`/`brain_close`) |
-| `hooks status\|install` | Claude Code kapısı |
-| `skills status\|update` | paketle gelen disiplin skill'leri |
-| `dashboard` | çok-brain yönetici paneli (canlı + statik HTML) |
+**Coverage labels:** "I found no problem" and "I looked for no problem" are
+different statements. A file that couldn't be checked is not a file that was
+checked and came out clean. `guard` has three verdicts: `DIKKAT` (something to
+know), `TEMIZ` (records exist, no risk here), `KAYIT YOK` (nothing is known
+about this file — *not* the same as "no risk").
 
 ---
 
-## Dil desteği
+## Language support
 
-Tarayıcı **her dili indeksler**; ama "import grafı" her dilde aynı şey değildir.
+The scanner **indexes every language**; but "import graph" doesn't mean the
+same thing in every language.
 
-| Dil | Durum |
+| Language | Status |
 |---|---|
-| JS/TS, JSX/TSX, Vue, Svelte, Astro | **import grafı var** — dosya→dosya kenarları |
-| Python (`.py`, `.pyi`) | **import grafı var** — göreli (`from .x`) + paket yolu (`a.b.c`) |
-| PHP, Ruby | **import grafı var** — `require`/`include` yolları |
-| Swift, C#, Java, Kotlin, Go, Rust, Dart, Obj-C | **indekslenir, import grafı yok** |
+| JS/TS, JSX/TSX, Vue, Svelte, Astro | **import graph** — file→file edges |
+| Python (`.py`, `.pyi`) | **import graph** — relative (`from .x`) + package paths |
+| PHP, Ruby | **import graph** — `require`/`include` paths |
+| Swift, C#, Java, Kotlin, Go, Rust, Dart, Obj-C | **indexed, no import graph** |
 
-Son satır bilinçli: Swift/C#/Java'da aynı modül içindeki dosyalar birbirini
-**import etmez** — hepsi otomatik görünür. Oraya dosya-dosya kenarı üretmek
-uydurmak olur ve *"kimse import etmiyor, güvenle değiştir"* gibi tehlikeli bir
-cümle üretir. O dosyalarda modül atfı, risk skoru, hafıza bağlantısı, imza
-taraması ve churn **çalışır**; yalnız blast-radius yoktur — `scan code` bunu
-açıkça yazar.
+That last row is deliberate. In Swift/C#/Java, files inside the same module
+**don't import each other** — they're all visible. Emitting file-to-file edges
+there would be fabrication, and it would produce a dangerous line:
+*"leaf file — nobody imports this, safe to change."* Those files still get
+module attribution, risk scoring, memory links, and signature scanning; only
+blast radius is missing — and `scan code` says so explicitly.
 
-Her dilin kendi bağımlılık dizini dışlanır (`venv`, `Pods`, `vendor`,
-`target`, `node_modules`…). `bin`/`obj`/`packages`/`Library` gibi **belirsiz**
-adlar yalnızca ekosistem işareti varken atlanır — `packages/` bir JS
-monorepo'sunda kaynaktır, .NET'te değildir.
+Each ecosystem's dependency directories are excluded (`venv`, `Pods`, `vendor`,
+`target`, `node_modules`…). Ambiguous names like `bin`/`obj`/`packages`/`Library`
+are skipped **only when there's evidence** of that ecosystem — `packages/` is
+source in a JS monorepo, output in .NET.
 
-## Yapılandırma
+---
 
-`.serif-brain/config.yaml` — hepsi opsiyonel, `init` yorumlu örnek yazar:
+## Commands
+
+**Memory**
+
+| | |
+|---|---|
+| `init` / `doctor` / `validate` | set up · health · validate against schema |
+| `add bug\|decision\|plan\|record` | write a record (`record` is born `done`) |
+| `close <id> --note` | close it (no project flag needed when the id is unique) |
+| `search` / `related` / `brief` | search · automatic relation discovery · session summary |
+| `capture --days N [--apply]` | candidate records from commits |
+| `relink [--apply]` | repair links broken by file moves (git renames only, no guessing) |
+| `stale` / `prune` / `sync-commits` | scan stale · archive safely · `Brain-Closes:` trailer |
+
+**Code ↔ memory**
+
+| | |
+|---|---|
+| `guard <file>` | **combined pre-edit briefing** (touch + impact + risk + lint in one call) |
+| `touch` / `impact` / `risk` | file memory · blast radius · risk score |
+| `hotspot` / `cluster` | churn × centrality danger zones · likely same-root-cause clusters |
+| `layers` / `check` / `lint` / `review` | layer violations · graph health · bug signatures · pre-commit gate |
+| `scan code` / `graph build\|report\|viewer` | scanner · code graph + 11 architectural findings + HTML viewer |
+| `analyze` / `context` | all reports · Claude context |
+
+**Integration**
+
+| | |
+|---|---|
+| `mcp` | MCP server — 16 tools (14 read + `brain_add` / `brain_close`) |
+| `hooks status\|test\|install` | Claude Code gate |
+| `skills status\|update` | bundled discipline skills |
+| `dashboard` | multi-brain admin panel (live + static HTML) |
+
+---
+
+## Configuration
+
+`.serif-brain/config.yaml` — all optional; `init` derives sensible defaults
+from your directory structure:
 
 ```yaml
-module_paths:            # dosya yolu → modül (en uzun prefix kazanır)
+module_paths:            # file path → module (longest prefix wins)
   "src/auth/": auth
-layer_rules:             # mimari kural; ihlalde exit 2
-  - { from: ui, to: db, reason: "servis katmanı kullan" }
-bug_signatures:          # geçmiş hataların 'şekli' (regex)
-  - { name: supabase-await, pattern: "(?<!await )supabase\\.(from|rpc)\\(", message: "await eksik olabilir" }
-capture_reminder: true   # hafızaya geçmemiş commit hatırlatıcısı
+layer_rules:             # architectural rule; exit 2 on violation
+  - { from: ui, to: db, reason: "use the service layer" }
+bug_signatures:          # the shape of past bugs (regex)
+  - { name: missing-await, pattern: "(?<!await )db\\.(query|exec)\\(", message: "await missing?" }
+capture_reminder: true   # remind about commits not yet in memory
 ```
 
 ---
 
-## Mimari
+## Architecture
 
 ```
 src/
-  cli/        komut yönlendirici + her komut (ince sarmalayıcılar)
-  markdown/   obje modeli, YAML parser/serializer, şema, yazma işlemleri
-  scanner/    dosya tarama, import çözümleme, modül sahipliği
-  graph/      graf inşa, 11-bulgu analiz, HTML viewer
-  query/      arama/guard/impact/risk çekirdeği (CLI + MCP ORTAK)
-  mcp/        MCP sunucusu (saf-Node JSON-RPC)
-  hooks/      kapı kurulumu
-  dashboard/  çok-brain panel
+  cli/        command router + each command (thin wrappers)
+  markdown/   object model, YAML parser/serializer, schema, write ops
+  scanner/    file scan, language definitions, import resolution, module ownership
+  graph/      graph build, 11-finding analysis, HTML viewer
+  query/      search/guard/impact/risk core (SHARED by CLI and MCP)
+  mcp/        MCP server (pure-Node JSON-RPC)
+  hooks/      gate installation
+  dashboard/  multi-brain panel
 ```
 
-Kanonik veri = `.serif-brain/objects/projects/<proje>/<tip>s/<id>.md`
-(Markdown + YAML frontmatter). Index/graf/rapor **türetilmiştir** ve
-versiyonlanmaz.
+Canonical data lives in
+`.serif-brain/objects/projects/<project>/<type>s/<id>.md` (Markdown + YAML
+frontmatter). Indexes, graph and reports are **derived** and not versioned.
 
-Tasarım kuralı: aynı hesap iki yerde yaşamaz. CLI ve MCP aynı çekirdeği çağırır
-— ikinci bir kopya, "CLI'da çalıştı ama MCP'de başka şey yazdı" sınıfında sessiz
-ayrışma demektir.
+Design rule: **the same computation never lives in two places.** CLI and MCP
+call the same core — a second copy means silent divergence of the
+"it worked in the CLI but wrote something else through MCP" kind.
 
 ---
 
-## Belgeler
+## Docs
 
-- [docs/BASLANGIC.md](docs/BASLANGIC.md) — **ilk 15 dakika** (buradan başlayın)
-- [docs/USAGE.md](docs/USAGE.md) — oturum döngüsü, çoklu-Claude, komut refleksleri
-- [docs/MCP.md](docs/MCP.md) — `.mcp.json` kurulumu ve test reçetesi
-- [docs/WINDOWS.md](docs/WINDOWS.md) — Windows kurulumu
-- [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md)
+- [docs/BASLANGIC.md](docs/BASLANGIC.md) — first 15 minutes (Turkish)
+- [docs/OLCUM.md](docs/OLCUM.md) — how the numbers above were measured
+- [docs/USAGE.md](docs/USAGE.md) — session loop, multi-agent, command reflexes (Turkish)
+- [docs/MCP.md](docs/MCP.md) — `.mcp.json` setup and test recipe (Turkish)
+- [docs/WINDOWS.md](docs/WINDOWS.md) — Windows install (Turkish)
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md)
 
-## Geliştirme
+Most docs are Turkish today. English translations are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Development
 
 ```bash
-npm test        # node --test test/*.test.mjs — sıfır bağımlılık
+npm test        # node --test "test/*.test.mjs" — zero dependencies
 ```
 
-## Lisans
+## License
 
-MIT — © 2026 Muhammed Serif Demir. `package.json`'da `private: true` bilinçlidir:
-paket npm'e yayınlanmaz (bakım yükü), git üzerinden kurulur.
+MIT — © 2026 Muhammed Serif Demir. `private: true` in `package.json` is
+deliberate: the package is not published to npm, it is installed from git.
