@@ -1,12 +1,19 @@
 // serif-brain doctor — sistem sagligi raporu
 import { existsSync, statSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import { homedir } from "node:os";
 import { detectStoreEngine } from "../store/engine.mjs";
 import { loadConfig, validateObject } from "../markdown/schema.mjs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
 import { buildBacklinks } from "../markdown/backlinks.mjs";
 import { planHookInstall } from "../hooks/install.mjs";
+import { fileURLToPath } from "node:url";
+
+const HERE_BIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "bin");
+function pkgSurum() {
+  try { return JSON.parse(readFileSync(join(HERE_BIN, "..", "package.json"), "utf8")).version; }
+  catch { return "?"; }
+}
 
 const LEGACY_HOOK_PATTERNS = [
   /sherif-brain-claude/,
@@ -51,6 +58,23 @@ export async function doctorCommand({ args }) {
   let errors = 0;
   let config = null;
   try { config = loadConfig(brainRoot); } catch { /* config yoksa asagida zaten raporlanir */ }
+
+  // 0. Hangi kopya calisiyor?
+  //
+  // Eski bir surumu calistiran kullanici HICBIR uyari gormuyordu; arac kendi
+  // eskiligini bilmiyordu. Windows'ta modul eslemesi tamamen bozuk bir surum
+  // sessizce calisiyor olabilirdi (2026-08-12'de fark edildi).
+  header("0. Calisan Kopya");
+  try {
+    const { kurulumBilgisi, kurulumSatirlari } = await import("../util/kurulum.mjs");
+    const bilgi = kurulumBilgisi(join(HERE_BIN, "serif-brain.mjs"));
+    check("Surum", true, pkgSurum());
+    for (const l of kurulumSatirlari(bilgi)) console.log(l);
+    if (bilgi.git?.geride) warnings++;
+  } catch (e) {
+    check("Kurulum bilgisi", "warn", e.message);
+    warnings++;
+  }
 
   // 1. Node + store engine
   header("1. Runtime & Store Engine");

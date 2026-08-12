@@ -132,6 +132,14 @@ export async function run(argv) {
     const here = dirname(fileURLToPath(import.meta.url));
     const pkg = JSON.parse(readFileSync(join(here, "../../package.json"), "utf8"));
     console.log(`serif-brain ${pkg.version}`);
+    // SURUM NUMARASI TEK BASINA YANILTIR: hangi KOPYAyi calistirdigini soylemez.
+    // Gercek olay — sahibi Mac'te 1.1.0 gorup "guncelleme otomatik gidiyor"
+    // sandi; oysa kaynak dizini okuyordu. Baska makinedeki npm kopyasi iki ay
+    // geride duruyordu ve hicbir uyari yoktu.
+    const { kurulumBilgisi, kurulumSatirlari } = await import("../util/kurulum.mjs");
+    for (const l of kurulumSatirlari(kurulumBilgisi(join(here, "../../bin/serif-brain.mjs")))) {
+      console.log(l);
+    }
     return 0;
   }
   if (args.flags.help || args.flags.h || args._.length === 0) {

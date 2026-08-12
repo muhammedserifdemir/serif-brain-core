@@ -16,7 +16,8 @@ test("loadTsconfigPaths: '@/*' + '**/*.ts' glob bir arada paths'i silmemeli", ()
     include: ["**/*.ts", ".next/types/**/*.ts"],
   }, null, 2));
   const aliases = loadTsconfigPaths(dir);
-  assert.ok(aliases["@/*"], "@/* alias yüklenmeli");
+  // Dönüş: [{dir, paths}] — en yakın tsconfig kazansın diye (monorepo). Kök kümesi burada tek.
+  assert.ok(aliases[0]?.paths["@/*"], "@/* alias yüklenmeli");
 });
 
 test("resolveImport: '@/lib/x' alias dosyaya çözülmeli", () => {
@@ -36,7 +37,7 @@ test("loadTsconfigPaths: jsconfig.json fallback + yorum/trailing virgül", () =>
   writeFileSync(join(dir, "jsconfig.json"),
     `{\n  // yorum\n  "compilerOptions": { "paths": { "~/*": ["src/*"], } },\n}\n`);
   const aliases = loadTsconfigPaths(dir);
-  assert.deepEqual(aliases["~/*"], ["src/*"]);
+  assert.deepEqual(aliases[0]?.paths["~/*"], ["src/*"]);
 });
 
 test("parseYaml: inline object { kind: manual, path: \"\" } parse edilmeli", () => {

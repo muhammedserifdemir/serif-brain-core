@@ -23,9 +23,33 @@ uretir), tam yol yazmaya gerek kalmaz.
 
 ## Guncelleme
 
+> ### ⚠ OTOMATIK GUNCELLEME YOKTUR
+>
+> `npm i -g git+...` bir **kopya** cikarir. Mac'te yapilan degisiklikler bu
+> kopyaya KENDILIGINDEN gecmez; bildirim de gelmez.
+>
+> Gercek olay (2026-08-12): sahibi Mac'te `--version` calistirip guncel surumu
+> gordu ve "otomatik gidiyor" sandi — oysa kendi KAYNAK dizinini okuyordu.
+> Windows'taki kopya iki ay (41 commit) geride duruyordu ve o surumde
+> **Windows'ta modul eslemesi tamamen bozuktu** (her dosya `unknown` moduline
+> dusuyordu, hicbir hata vermeden).
+>
+> Hangi kopyayi calistirdigini gormek icin:
+> ```powershell
+> serif-brain --version    # surum + KURULUM TURU + guncelleme komutu basar
+> ```
+
 Mac'te `git push` yapildiktan sonra Windows'ta ayni komutu tekrar calistir:
 
 ```powershell
+npm i -g git+https://github.com/muhammedserifdemir/serif-brain-core.git
+serif-brain --version   # yeni surumu gormeli
+serif-brain doctor      # "0. Calisan Kopya" bolumu hangi kopya oldugunu yazar
+```
+
+npm bazen onbellekten kurar; surum degismediyse:
+```powershell
+npm cache clean --force
 npm i -g git+https://github.com/muhammedserifdemir/serif-brain-core.git
 ```
 

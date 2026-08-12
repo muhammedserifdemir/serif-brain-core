@@ -114,21 +114,32 @@ export function resolveImport(spec, fromAbsPath, projectRoot, aliases = {}, work
     if (file) return { kind: "file", abs: file, rel: posixYol(relative(projectRoot, file)) };
     return { kind: "unresolved-relative", spec };
   }
-  if (isAlias(spec)) {
-    // Try aliases mapping (from tsconfig 'paths' if loaded)
-    for (const [from, toList] of Object.entries(aliases)) {
+  // Takma ad: tsconfig kümesi (en yakın) VEYA klasik `@/ ~/ $` öneki.
+  // Kümeler liste ise hedefler o tsconfig'in DİZİNİNE göre çözülür (projectRoot'a
+  // göre değil) — monorepo'da aynı adın uygulamaya göre başka yeri göstermesinin
+  // tek doğru karşılığı budur.
+  const kume = yakinKume(aliases, fromAbsPath);
+  const eskiSekil = !Array.isArray(aliases) && aliases && typeof aliases === "object";
+  if (kume || (eskiSekil && isAlias(spec))) {
+    const tablo = kume ? kume.paths : aliases;
+    const taban = kume ? kume.dir : pResolve(projectRoot);
+    // En UZUN önek kazansın: `@shared/quiz-interaction` ile `@shared/*` bir arada
+    // tanımlıysa spesifik olan seçilmeli.
+    const adaylar = Object.entries(tablo)
+      .filter(([from]) => spec.startsWith(from.replace(/\*$/, "")))
+      .sort((a, b) => b[0].replace(/\*$/, "").length - a[0].replace(/\*$/, "").length);
+    for (const [from, toList] of adaylar) {
       const fromPattern = from.replace(/\*$/, "");
-      if (spec.startsWith(fromPattern)) {
-        const tail = spec.slice(fromPattern.length);
-        for (const to of toList) {
-          const toPattern = to.replace(/\*$/, "");
-          const candidate = pResolve(projectRoot, toPattern + tail);
-          const file = tryWithExts(candidate);
-          if (file) return { kind: "file", abs: file, rel: posixYol(relative(projectRoot, file)) };
-        }
+      const tail = spec.slice(fromPattern.length);
+      for (const to of toList) {
+        const toPattern = to.replace(/\*$/, "");
+        const candidate = pResolve(taban, toPattern + tail);
+        const file = tryWithExts(candidate);
+        if (file) return { kind: "file", abs: file, rel: posixYol(relative(projectRoot, file)) };
       }
     }
-    return { kind: "alias-unresolved", spec };
+    // Takma ad olarak TANINDI ama dosya bulunamadı → harici paket sayma.
+    if (adaylar.length || isAlias(spec)) return { kind: "alias-unresolved", spec };
   }
   if (isAbsolute(spec)) {
     return { kind: "absolute", spec };
@@ -212,24 +223,18 @@ function stripJsonc(src) {
   return out.replace(/,(\s*[}\]])/g, "$1"); // trailing virgül
 }
 
-export function loadTsconfigPaths(projectRoot) {
-  // tsconfig.json (yoksa jsconfig.json) compilerOptions.paths + baseUrl oku.
-  // KRİTİK: bu paket ESM ("type":"module") — `require` TANIMSIZ. Eskiden burada
-  // `require("node:fs")` çağrılıyordu → her zaman fırlatıp catch'e düşüyor, paths
-  // DAİMA {} dönüyordu → tüm `@/...` alias import'ları çözülemiyordu (yüzlerce
-  // sahte "unresolved" + şişmiş orphan). readFileSync ile düzeltildi.
-  // JSON5 değil; yorumlar + trailing virgül kabaca sıyrılır.
+/** Tek bir tsconfig/jsconfig dosyasından paths+baseUrl okur; hedefler o dizine görelidir. */
+function okuTsconfig(dir) {
   for (const name of ["tsconfig.json", "jsconfig.json"]) {
-    const cfgPath = pResolve(projectRoot, name);
+    const cfgPath = pResolve(dir, name);
     if (!existsSync(cfgPath)) continue;
     try {
       const raw = readFileSync(cfgPath, "utf8");
       const json = JSON.parse(stripJsonc(raw));
       const co = json?.compilerOptions || {};
       const paths = co.paths || {};
+      if (!Object.keys(paths).length) return null;
       const baseUrl = (co.baseUrl || ".").replace(/\/$/, "");
-      // Hedefleri baseUrl'e göre projectRoot-göreli normalize et (resolveImport
-      // pResolve(projectRoot, ...) yapıyor; '*' korunur).
       const norm = {};
       for (const [from, toList] of Object.entries(paths)) {
         const list = Array.isArray(toList) ? toList : [toList];
@@ -238,10 +243,68 @@ export function loadTsconfigPaths(projectRoot) {
           return baseUrl === "." ? t : `${baseUrl}/${t}`;
         });
       }
-      return norm;
+      return { dir: pResolve(dir), paths: norm };
     } catch {
-      return {};
+      return null;
     }
   }
-  return {};
+  return null;
+}
+
+/**
+ * Projedeki TÜM tsconfig/jsconfig `paths` kümelerini toplar — kök + workspace'ler.
+ *
+ * KRİTİK: bu paket ESM ("type":"module") — `require` TANIMSIZ. Eskiden burada
+ * `require("node:fs")` çağrılıyordu → her zaman fırlatıp catch'e düşüyor, paths
+ * DAİMA {} dönüyordu → tüm `@/...` alias import'ları çözülemiyordu.
+ *
+ * İKİNCİ KUSUR (2026-08-12'de ölçüldü): yalnız KÖK tsconfig okunuyordu. Monorepo'da
+ * her uygulamanın kendi takma adları var ve AYNI ad farklı yeri gösterebiliyor —
+ * serif-platform'da kökte `@shared/* → shared/*`, StudioX'te `@shared/* →
+ * apps/serif-studio/src/shared/*`. Kök kazanınca uygulama-içi importlar ya yanlış
+ * dosyaya bağlanıyor ya da "harici paket" sayılıyordu; `impact`/blast-radius
+ * olduğundan KÜÇÜK çıkıyordu (ör. group-background.ts: gerçek 2 çağıran, graf 0).
+ *
+ * Dönüş: en DERİN dizin başta olacak şekilde sıralı liste. resolveImport, kaynak
+ * dosyayı kapsayan en yakın kümeyi kullanır — tsc'nin davranışı da budur.
+ */
+export function loadTsconfigPaths(projectRoot) {
+  const root = pResolve(projectRoot);
+  const kumeler = [];
+  const kok = okuTsconfig(root);
+  if (kok) kumeler.push(kok);
+  // Workspace dizinleri: package.json workspaces yoksa yaygın varsayılanlar.
+  for (const [, dir] of Object.entries(loadWorkspacePackages(projectRoot))) {
+    const s = okuTsconfig(dir);
+    if (s) kumeler.push(s);
+  }
+  // Derin dizin önce: en yakın (en spesifik) tsconfig kazansın.
+  kumeler.sort((a, b) => b.dir.length - a.dir.length);
+  return kumeler;
+}
+
+/** Verilen dosyayı kapsayan en yakın paths kümesini seçer. */
+function yakinKume(kumeler, fromAbsPath) {
+  if (!Array.isArray(kumeler)) return null;
+  const f = pResolve(fromAbsPath);
+  for (const k of kumeler) {
+    if (f === k.dir || f.startsWith(k.dir + "/")) return k;
+  }
+  return null;
+}
+
+/**
+ * Bir specifier herhangi bir tsconfig kümesinde takma ad olarak tanımlı mı?
+ * isAlias() yalnız `@/`, `~/`, `$` önekini biliyor; `@shared/...`, `@modules/...`
+ * gibi tsconfig-tanımlı adlar onun gözünde HARİCİ PAKET'ti. Takma adın ne olduğuna
+ * karar veren tek yetkili tsconfig'dir; bu yüzden kararı ona soruyoruz.
+ */
+export function isTsconfigAlias(spec, kumeler, fromAbsPath) {
+  const k = yakinKume(kumeler, fromAbsPath);
+  if (!k) return false;
+  for (const from of Object.keys(k.paths)) {
+    const pattern = from.replace(/\*$/, "");
+    if (pattern && spec.startsWith(pattern)) return true;
+  }
+  return false;
 }
