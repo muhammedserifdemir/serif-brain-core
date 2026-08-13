@@ -2,7 +2,21 @@
 import { resolve as pResolve, basename } from "node:path";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
 import { parseImportsFor, parseTodos, parseIdMentions } from "../scanner/parse-imports.mjs";
-import { resolveImport, resolvePythonImport, resolvePathImport, loadTsconfigPaths, loadWorkspacePackages, isExternalPackage, isNodeBuiltin } from "../scanner/resolve-import.mjs";
+import { resolveImport, resolvePythonImport, resolvePathImport, loadTsconfigPaths, loadWorkspacePackages, isExternalPackage, isNodeBuiltin, isRubyStdlib } from "../scanner/resolve-import.mjs";
+
+/**
+ * Import spec'inden paket adi. Dile gore ayrisir:
+ *   js     `@scope/pkg/alt` → `@scope/pkg` · `react-dom/client` → `react-dom`
+ *   python `numpy.linalg`   → `numpy`
+ *   ruby   `nokogiri/xml`   → `nokogiri`
+ *   php    (yok) — require bir YOLDUR; paket adi uydurulmaz
+ */
+function pkgKoku(spec, parser) {
+  if (parser === "php") return null;
+  if (parser === "python") return spec.split(".")[0] || null;
+  if (spec.startsWith("@")) return spec.split("/").slice(0, 2).join("/");
+  return spec.split("/")[0] || null;
+}
 import { languageDef } from "../scanner/languages.mjs";
 import { ownerOfConfigured } from "../scanner/module-owner.mjs";
 import { scanPackageJsons, allDependencies } from "../scanner/package-scan.mjs";
@@ -109,6 +123,18 @@ export async function buildGraph({ projectRoot, brainRoot, projectId, config }) 
   }
   saveScanCache(brainRoot, nextCache);
 
+  // Projede TARANMIS Python modul adlari (dosya adi + __init__.py'li paket
+  // dizini). "Bu ad aslinda bizim dosyamiz" testi icin; asagida kullanilir.
+  const pyModuller = new Set();
+  for (const f of files) {
+    const p = f.rel_path;
+    if (!p.endsWith(".py") && !p.endsWith(".pyi")) continue;
+    const parcalar = p.split("/");
+    const ad = parcalar[parcalar.length - 1].replace(/\.pyi?$/, "");
+    if (ad === "__init__") { if (parcalar.length > 1) pyModuller.add(parcalar[parcalar.length - 2]); }
+    else pyModuller.add(ad);
+  }
+
   // 2b. Resolve imports (dosyalar arasi)
   for (const f of files) {
     const { imports, mentions } = fileImports.get(f.rel_path);
@@ -120,20 +146,33 @@ export async function buildGraph({ projectRoot, brainRoot, projectId, config }) 
       const r =
         dil?.parser === "python" ? resolvePythonImport(spec, f.abs_path, projectRoot)
         : dil?.parser === "php" ? resolvePathImport(spec, f.abs_path, projectRoot, [".php"])
-        : dil?.parser === "ruby" ? resolvePathImport(spec, f.abs_path, projectRoot, [".rb"])
+        : dil?.parser === "ruby" ? resolvePathImport(spec, f.abs_path, projectRoot, [".rb"], isRubyStdlib)
         : resolveImport(spec, f.abs_path, projectRoot, tsconfigAliases, workspaces);
       if (r.kind === "file" && fileByRel.has(r.rel)) {
         addEdge(nid("file", f.rel_path), nid("file", r.rel), "imports");
-      } else if (r.kind === "package") {
+      } else if (r.kind === "external" && dil?.parser === "python" && pyModuller.has(spec.split(".")[0])) {
+        // Ad projede BIR PYTHON DOSYASI olarak var ama bu import ona cozulmedi
+        // (sys.path hilesi, tasinmis dosya, eksik __init__.py). Bunu "3. parti
+        // bagimlilik" saymak UYDURMAK olur — `cli.py`nin `from server import`i
+        // avatarx'te `server` adinda sahte bir pip paketi ureltiyordu.
+        // Dogrusu: cozulemedi de. Sinyal boyle korunur.
+        unresolved++;
+      } else if (r.kind === "package" || r.kind === "external") {
+        // "package" JS'ten, "external" Python/Ruby/PHP'den gelir; ikisi de
+        // "projede degil, disaridan" demektir — ayni dugume baglanirlar.
+        // PHP haric: orada require hep bir YOLDUR (vendor/autoload.php), paket
+        // adi degil; yol'dan paket adi uydurmak yanlis dugum uretirdi.
         externalRefs++;
-        const pkgRoot = spec.startsWith("@") ? spec.split("/").slice(0,2).join("/") : spec.split("/")[0];
-        if (!nodes.has(nid("package", pkgRoot))) {
-          // bare import declared deps'te yoksa hala ekleyelim, "unresolved" flag ile
-          addNode({ id: nid("package", pkgRoot), type: "dependency", label: pkgRoot, declared: false });
+        const pkgRoot = pkgKoku(spec, dil?.parser);
+        if (pkgRoot) {
+          if (!nodes.has(nid("package", pkgRoot))) {
+            // bare import declared deps'te yoksa hala ekleyelim, "unresolved" flag ile
+            addNode({ id: nid("package", pkgRoot), type: "dependency", label: pkgRoot, declared: false });
+          }
+          addEdge(nid("file", f.rel_path), nid("package", pkgRoot), "uses");
         }
-        addEdge(nid("file", f.rel_path), nid("package", pkgRoot), "uses");
-      } else if (r.kind === "node-builtin") {
-        // skip — node:* is implicit
+      } else if (r.kind === "node-builtin" || r.kind === "stdlib") {
+        // skip — dille gelen moduller (node:*, os, json) bagimlilik degildir
       } else {
         unresolved++;
       }

@@ -30,6 +30,41 @@ export function isExternalPackage(spec) {
   return true; // bare like "react", "@scope/pkg"
 }
 
+// ── Stdlib: dilin KENDISIYLE gelen moduller ─────────────────────────────────
+// `node:fs` nasil bir "bagimlilik" degilse, `import os` da degildir. Ikisi de
+// kurulmaz, surumlenmez, kaldirilamaz. Bu ayrim olmadan iki hata birden cikar:
+// (1) stdlib "cozulemedi" diye HATA sayilir — avatarx'te 383 yanlis alarmin
+//     205'i buydu; (2) sayilmaya baslanirsa bu kez `os`/`sys` sahte birer
+// "bagimlilik" dugumu olur ve gercek 3. parti listesi gurultuye gomulur.
+const PYTHON_STDLIB = new Set(`__future__ abc argparse array ast asyncio atexit base64 bdb binascii bisect
+builtins bz2 calendar cmath cmd codecs collections colorsys concurrent configparser contextlib contextvars copy
+copyreg csv ctypes curses dataclasses datetime dbm decimal difflib dis doctest email encodings enum errno faulthandler
+filecmp fileinput fnmatch fractions ftplib functools gc getopt getpass gettext glob graphlib grp gzip hashlib heapq
+hmac html http imaplib importlib inspect io ipaddress itertools json keyword linecache locale logging lzma mailbox
+marshal math mimetypes mmap multiprocessing netrc numbers operator optparse os pathlib pdb pickle pickletools pkgutil
+platform plistlib poplib posixpath pprint profile pstats pty pwd py_compile queue quopri random re readline reprlib
+resource runpy sched secrets select selectors shelve shlex shutil signal site smtplib socket socketserver sqlite3 ssl
+stat statistics string stringprep struct subprocess symtable sys sysconfig tarfile tempfile termios textwrap
+threading time timeit tkinter token tokenize tomllib trace traceback tracemalloc tty types typing unicodedata
+unittest urllib uuid venv warnings wave weakref webbrowser wsgiref xml xmlrpc zipapp zipfile zipimport zlib zoneinfo`
+  .split(/\s+/));
+
+const RUBY_STDLIB = new Set(`abbrev base64 benchmark bigdecimal cgi coverage csv date delegate digest drb English erb
+etc expect fcntl fiddle fileutils find forwardable getoptlong io ipaddr irb json logger mkmf monitor mutex_m net
+nkf objspace observer open-uri open3 openssl optparse ostruct pathname pp prettyprint prime pstore psych racc rdoc
+readline reline resolv rinda ripper rss rubygems securerandom set shellwords singleton socket stringio strscan
+syslog tempfile time timeout tmpdir tsort un uri weakref yaml zlib`.split(/\s+/));
+
+/** Python stdlib mi? Nokta ile bolunmus yolun KOKU bakilir: `os.path` → `os`. */
+export function isPythonStdlib(spec) {
+  return PYTHON_STDLIB.has(spec.split(".")[0]);
+}
+
+/** Ruby stdlib mi? `net/http` → `net`. */
+export function isRubyStdlib(spec) {
+  return RUBY_STDLIB.has(spec.split("/")[0]);
+}
+
 function tryFile(p) {
   if (existsSync(p)) {
     try {
@@ -65,7 +100,10 @@ function tryWithExts(base) {
  *   from .util import x     → ayni paket:  <dizin>/util.py | <dizin>/util/__init__.py
  *   from ..pkg.mod import y → iki ust dizin
  *   import a.b.c            → proje kokunden (ve yaygin kaynak koklerinden) a/b/c.py
- * Cozulemeyen (stdlib/3. parti) → "external": bu bir HATA degildir, bilgidir.
+ * Cozulemeyen ikiye ayrilir, cunku ayni sey degiller:
+ *   stdlib (`os`)    → "stdlib"   — dille gelir, bagimlilik degil, sayilmaz
+ *   3. parti (numpy) → "external" — kurulur, bagimlilik dugumu hak eder
+ * Ikisi de HATA degildir; "unresolved" sayilmalari yanlis alarmdir.
  */
 export function resolvePythonImport(spec, fromAbsPath, projectRoot) {
   const dene = (base) => {
@@ -88,21 +126,33 @@ export function resolvePythonImport(spec, fromAbsPath, projectRoot) {
   }
 
   const yol = spec.replace(/\./g, "/");
-  // Proje koku + yaygin kaynak koklerinden dene. Python'da "src layout" da
+  // ONCE dosyanin KENDI dizini: Python `script.py` calistirildiginda sys.path[0]
+  // scriptin dizinidir, yani `tests/a.py` icindeki `from b import x` yanindaki
+  // `tests/b.py`yi bulur. Bu deneme olmadan o import PROJE DISI sanilir ve
+  // dosya-dosya kenari sessizce kaybolurdu (avatarx: 6 gercek kenar).
+  const kendiDizin = dene(join(dirname(fromAbsPath), yol));
+  if (kendiDizin) return { kind: "file", abs: kendiDizin, rel: posixYol(relative(projectRoot, kendiDizin)) };
+
+  // Sonra proje koku + yaygin kaynak kokleri. Python'da "src layout" da
   // yaygindir; ikisini de denemek, tek kok varsaymaktan dogru.
   for (const kok of ["", "src", "lib", "app"]) {
     const f = dene(join(projectRoot, kok, yol));
     if (f) return { kind: "file", abs: f, rel: posixYol(relative(projectRoot, f)) };
   }
-  return { kind: "external", spec };  // stdlib ya da site-packages
+  return isPythonStdlib(spec) ? { kind: "stdlib", spec } : { kind: "external", spec };
 }
 
-/** PHP require/include: dogrudan yol. RUBY require_relative: goreli yol. */
-export function resolvePathImport(spec, fromAbsPath, projectRoot, exts) {
+/**
+ * PHP require/include: dogrudan yol. RUBY require/require_relative: goreli yol
+ * ya da cip-adi (`require "json"`).
+ * stdlib: cagiran dilin stdlib testini verir (PHP'de yoktur — require hep yoldur).
+ */
+export function resolvePathImport(spec, fromAbsPath, projectRoot, exts, stdlib = null) {
   const temel = spec.startsWith("/") ? join(projectRoot, spec) : pResolve(dirname(fromAbsPath), spec);
   for (const c of [temel, ...exts.map((e) => temel + e)]) {
     if (existsSync(c) && statSync(c).isFile()) return { kind: "file", abs: c, rel: posixYol(relative(projectRoot, c)) };
   }
+  if (stdlib && stdlib(spec)) return { kind: "stdlib", spec };
   return { kind: "external", spec };
 }
 

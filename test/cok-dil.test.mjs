@@ -72,11 +72,75 @@ test("Python: goreli import dosyaya cozulur (tek ve cift nokta)", () => {
   assert.equal(r.rel, "pkg/util.py");
 });
 
-test("Python: mutlak paket yolu cozulur; stdlib 'external' kalir", () => {
+test("Python: mutlak paket yolu cozulur; stdlib ile 3. parti AYRISIR", () => {
   const root = mkProject({ "core/analiz.py": "X = 1\n", "cli.py": "from core.analiz import X\n" });
   assert.equal(resolvePythonImport("core.analiz", join(root, "cli.py"), root).rel, "core/analiz.py");
-  assert.equal(resolvePythonImport("os", join(root, "cli.py"), root).kind, "external",
-    "stdlib 'cozulemedi HATASI' degil, bilgidir");
+  // Ikisi de "cozulemedi HATASI" degildir; ama ayni sey de degiller:
+  // stdlib dille gelir (bagimlilik degil), 3. parti kurulur (bagimliliktir).
+  assert.equal(resolvePythonImport("os", join(root, "cli.py"), root).kind, "stdlib");
+  assert.equal(resolvePythonImport("os.path", join(root, "cli.py"), root).kind, "stdlib",
+    "alt modul de stdlib'dir: kok'e bakilir");
+  assert.equal(resolvePythonImport("numpy", join(root, "cli.py"), root).kind, "external");
+});
+
+test("Python: yanindaki dosyayi cip-adiyla import etmek KENAR urer (sys.path[0])", async () => {
+  // `python tests/rapor.py` calistiginda sys.path[0] = tests/. Bu deneme
+  // yapilmazsa `from yardimci import x` proje disi sanilir: gercek kenar
+  // kaybolur ve ustune sahte bir "bagimlilik" dugumu uretilir.
+  const root = mkProject({
+    "tests/yardimci.py": "def x(): pass\n",
+    "tests/rapor.py": "from yardimci import x\n",
+  });
+  const g = await graphOf(root);
+  assert.deepEqual(importEdges(g), ["file:tests/rapor.py → file:tests/yardimci.py"]);
+  assert.equal(g.nodes.filter(n => n.type === "dependency").length, 0,
+    "proje dosyasi 'bagimlilik' olarak etiketlenmemeli");
+});
+
+test("Python: stdlib+3.parti import 'unresolved' SAYILMAZ, bagimlilik dugumu urer", async () => {
+  // Regresyon: build.mjs "external" dalini hic ele almiyordu; hepsi son
+  // else'e dusup unresolved sayiliyordu. avatarx'te 536 import'un 383'u
+  // "cozulemedi" gorunuyor, numpy/torch ise hic dugum olmuyordu.
+  const root = mkProject({
+    "cli.py": "import os\nimport sys\nfrom pathlib import Path\nimport numpy as np\nfrom scipy.linalg import inv\nfrom core.analiz import X\n",
+    "core/__init__.py": "",
+    "core/analiz.py": "X = 1\n",
+  });
+  const g = await graphOf(root);
+  assert.equal(g.stats.unresolved_imports, 0, "stdlib/3.parti yanlis alarm uretmemeli");
+  assert.equal(g.stats.external_refs, 2, "numpy + scipy sayilmali (stdlib sayilmaz)");
+  const paketler = g.nodes.filter(n => n.type === "dependency").map(n => n.label).sort();
+  assert.deepEqual(paketler, ["numpy", "scipy"], "os/sys/pathlib bagimlilik DEGILDIR");
+});
+
+test("Python: cozulemeyen PROJE modulu sahte 'bagimlilik' olmaz", async () => {
+  // `cli.py` icindeki `from server import main`; dosya ise `ui/server.py`
+  // (sys.path hilesi). Bunu 3. parti sanmak `server` adinda olmayan bir pip
+  // paketi uydurmakti. Dogrusu: cozulemedi say, sinyali koru.
+  const root = mkProject({ "ui/server.py": "def main(): pass\n", "cli.py": "from server import main\n" });
+  const g = await graphOf(root);
+  assert.equal(g.nodes.filter(n => n.type === "dependency").length, 0);
+  assert.equal(g.stats.unresolved_imports, 1, "gercek cozulememe sinyali kalmali");
+});
+
+test("Ruby: cip-adi require stdlib'den ayrilir", async () => {
+  const root = mkProject({
+    "app.rb": "require 'json'\nrequire 'nokogiri'\nrequire_relative 'lib/util'\n",
+    "lib/util.rb": "X = 1\n",
+  });
+  const g = await graphOf(root);
+  assert.equal(g.stats.unresolved_imports, 0);
+  const paketler = g.nodes.filter(n => n.type === "dependency").map(n => n.label);
+  assert.deepEqual(paketler, ["nokogiri"], "json stdlib'dir, nokogiri bagimliliktir");
+});
+
+test("PHP: require bir YOLDUR — paket adi UYDURULMAZ", async () => {
+  // `require 'vendor/autoload.php'` bir paket degil, repoda olmayan bir
+  // dosyadir. Yol'dan "vendor" adinda bagimlilik uretmek yanlis dugum olurdu.
+  const root = mkProject({ "index.php": "<?php\nrequire 'vendor/autoload.php';\nrequire 'lib/db.php';\n", "lib/db.php": "<?php\n" });
+  const g = await graphOf(root);
+  assert.equal(g.nodes.filter(n => n.type === "dependency").length, 0);
+  assert.equal(g.stats.unresolved_imports, 0, "repo disi dosya 'cozulemedi HATASI' degil");
 });
 
 test("Python: graf gercek kenar uretir", async () => {

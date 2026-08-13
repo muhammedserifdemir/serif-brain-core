@@ -30,6 +30,21 @@ export function collectBrain(entry, now = Date.now()) {
     archived: !!entry.archived,
     archiveReason: entry.archiveReason || (entry.override && entry.override.archiveReason) || "",
     error: null,
+    // KAYIP/hatali kayitlar da BU SEKILDE doner. Yarim kayit dondurmek, tek bir
+    // silinmis klasorun `collectAll` icindeki toplamlari (critItems.some) patlatip
+    // TUM paneli dusurmesine yol aciyordu: 19 brain'in 18'i sagliklidir ama panel
+    // hicbirini gosteremezdi. Sozlesme: kayit her zaman sema-tamdir, eksik olan
+    // veridir — `error` alani onu soyler.
+    objCount: 0, done: 0, open: 0, blocked: 0, criticalOpen: 0,
+    doneItems: [], critItems: [], statusHealthWarn: false,
+    percent: 0, percentSource: "status",
+    lastMs: 0, last: "—", activeDev: false, hasGit: false,
+    port: (entry.override && entry.override.port) || "",
+    run: entry.override ? entry.override.run : undefined,
+    prereqs: (entry.override && entry.override.prereqs) || [],
+    liveUrl: (entry.override && entry.override.liveUrl) || "",
+    note: (entry.override && entry.override.note) || "",
+    projectId: null,
   };
   if (!existsSync(brainRoot)) { out.error = "brain bulunamadı"; return out; }
 

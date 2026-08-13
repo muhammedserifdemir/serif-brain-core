@@ -18,6 +18,21 @@ function tmpRepo() {
   return d;
 }
 
+// Bu dosya SUNUCUYU test ediyor, GELISTIRICININ MAKINESINI degil. Fikstur
+// registry olmadan `serve()` testleri ~/.serif-brain-registry.json okur: baska
+// makinede yesil, burada kirmizi olur ve hata sunucuda mi kayittaki bir projede
+// mi belli olmaz. Fikstur SILINMIS BIR PROJE de icerir — panelin en sik gercek
+// hali budur (klasor tasinir/silinir, kayit kalir).
+const SAGLAM = tmpRepo();
+const HAYALET = join(tmpdir(), "sb-dash-silinmis-" + process.pid);
+{
+  const f = join(tmpdir(), `sb-registry-${process.pid}.json`);
+  writeFileSync(f, JSON.stringify({
+    brains: [{ repo: SAGLAM, name: "Saglam" }, { repo: HAYALET, name: "Hayalet" }],
+  }));
+  process.env.SERIF_BRAIN_REGISTRY = f;
+}
+
 test("proc — baslat/durdur: surec gercekten acilir ve gercekten kapanir", async () => {
   const repo = tmpRepo();
   try {
@@ -112,6 +127,23 @@ test("server — yalniz 127.0.0.1'e baglanir (agdan erisilemez)", async () => {
       "panel surec baslatabildigi icin dis arayuze ACILMAMALI");
     const r = await fetch(`http://127.0.0.1:${port}/api/projects?sync=0`).then(r => r.json());
     assert.ok(Array.isArray(r.active));
+  } finally { server.close(); }
+});
+
+test("api — SILINMIS tek proje TUM paneli dusurmez", async () => {
+  // Regresyon: kayip brain'de kayit yarim donuyordu (critItems yok), toplamlar
+  // `critItems.some()` cagirinca /api/projects komple hata veriyordu — 19
+  // brain'in 18'i sagliklidir ama panelde hicbiri gorunmezdi.
+  const { server, port } = await serve({ port: 0 });
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/api/projects?sync=0`).then(r => r.json());
+    assert.ok(!r.error, `panel hata dondu: ${r.error}`);
+    assert.equal(r.active.length, 2, "kayip proje listeden DUSURULMEZ");
+    const hayalet = r.active.find(p => p.name === "Hayalet");
+    assert.equal(hayalet.error, "brain bulunamadı");
+    assert.ok(Array.isArray(hayalet.critItems), "kayit sema-tam donmeli");
+    assert.equal(hayalet.objCount, 0);
+    assert.equal(typeof r.totals.blocked, "number", "toplamlar hesaplanabilmeli");
   } finally { server.close(); }
 });
 
