@@ -75,11 +75,31 @@ function tryFile(p) {
   return null;
 }
 
+// TypeScript ESM (module: NodeNext/Node16) KAYNAK degil CIKTI uzantisi yazdirir:
+//   `import { x } from "./oda.js"`   ama diskteki dosya  `./oda.ts`
+// Bu bir stil tercihi degil, TS'in ESM icin ZORUNLU kildigi yazimdir. Bilmeyen
+// bir cozucu bu import'lari sessizce dusurur ve graf YALAN soyler — en tehlikeli
+// bicimde: kenar kaybolan dosya "yaprak" gorunur, guard "kimse import etmiyor,
+// nispeten guvenli" der. klavye-savas'ta 37 import'un 11'i boyle kayiptı.
+const CIKTI_KAYNAK = { ".js": [".ts", ".tsx"], ".jsx": [".tsx"], ".mjs": [".mts"], ".cjs": [".cts"] };
+
 function tryWithExts(base) {
   if (tryFile(base)) return base;
   for (const ext of TRY_EXTS) {
     const f = tryFile(base + ext);
     if (f) return f;
+  }
+  // Cikti uzantisi yazilmis olabilir: ./oda.js → ./oda.ts
+  const nokta = base.lastIndexOf(".");
+  const egik = Math.max(base.lastIndexOf("/"), base.lastIndexOf("\\"));
+  if (nokta > egik) {
+    const govde = base.slice(0, nokta);
+    for (const ext of CIKTI_KAYNAK[base.slice(nokta)] || []) {
+      const f = tryFile(govde + ext);
+      if (f) return f;
+    }
+    // ./dizin/index.js gibi yazilmis olabilir mi diye ayrica bakilmaz:
+    // TS kuralinda dizin import'u da uzantiyla yazilir, ustteki dal yakalar.
   }
   // directory + index.*
   if (existsSync(base)) {

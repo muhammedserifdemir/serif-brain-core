@@ -261,3 +261,38 @@ test("Unity Library/ yalniz Unity isaretiyle atlanir", () => {
   });
   assert.deepEqual(scanFiles(unity).map((f) => f.rel_path), ["Assets/Kod.cs"]);
 });
+
+test("TypeScript ESM: './x.js' yazimi './x.ts' dosyasina cozulur", async () => {
+  // TS'in NodeNext/ESM kurali KAYNAK degil CIKTI uzantisi yazdirir: dosya
+  // `oda.ts` iken import `"./oda.js"` olur. Bunu bilmeyen cozucu kenari
+  // sessizce dusurur ve graf EN TEHLIKELI bicimde yalan soyler: kenari
+  // kaybolan dosya "yaprak" gorunur, guard "kimse import etmiyor, nispeten
+  // guvenli" der. klavye-savas'ta gercekten oldu (37 import'un 11'i kayip;
+  // src/oyun/oda.ts iki dosya tarafindan import edilirken "yaprak" deniyordu).
+  const root = mkProject({
+    "src/oyun/oda.ts": "export const oda = 1;\n",
+    "src/ag/protokol.ts": "export type P = string;\n",
+    "src/oyun/odalar.ts": 'import { oda } from "./oda.js";\nimport type { P } from "../ag/protokol.js";\nexport const x = oda;\n',
+    "src/bilesen.tsx": "export const B = () => null;\n",
+    "src/kullan.tsx": 'import { B } from "./bilesen.jsx";\nexport const C = B;\n',
+  });
+  const g = await graphOf(root);
+  assert.equal(g.stats.unresolved_imports, 0);
+  assert.deepEqual(importEdges(g).sort(), [
+    "file:src/kullan.tsx → file:src/bilesen.tsx",
+    "file:src/oyun/odalar.ts → file:src/ag/protokol.ts",
+    "file:src/oyun/odalar.ts → file:src/oyun/oda.ts",
+  ]);
+});
+
+test("TypeScript ESM: GERCEK .js dosyasi varsa O kazanir (.ts'e kaymaz)", async () => {
+  // Ayni dizinde hem `util.js` hem `util.ts` bulunabilir (derlenmis cikti yanda
+  // duruyor olabilir). Kaynak dosyayi tahmin etmek, VAR OLAN dosyayi es gecmek
+  // demektir — once gercek yol denenir, uzanti takasi yalniz SON caredir.
+  const root = mkProject({
+    "util.js": "export const u = 1;\n",
+    "util.ts": "export const u: number = 1;\n",
+    "ana.ts": 'import { u } from "./util.js";\nexport const v = u;\n',
+  });
+  assert.deepEqual(importEdges(await graphOf(root)), ["file:ana.ts → file:util.js"]);
+});
