@@ -128,3 +128,41 @@ test("custom init: doctor only Section 3 isolation — global output may have un
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ── Modul atfi KAPSAMI ──────────────────────────────────────────────────────
+// "unknown" bir deger degil, bir BOSLUKTUR: o dosyalarda modul-seviyesi hafiza,
+// hotspot'un modul bug yogunlugu ve risk fuzyonunun modul bileseni calismaz —
+// ama hicbiri hata vermez, sessizce zayiflar. Kullanicinin bunu OGRENMESI icin
+// bir yer olmali; yoksa "doctor temiz" derken arac yari kor calisir.
+// Olculdu (11 gercek proje): 5'inde oran %25 ustu, birinde %100.
+test("doctor: modul atfi cokukse UYARIR ve nasil duzeltilecegini soyler", async () => {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const dir = makeTmpProject("modul");
+  try {
+    await suppressLogs(() => initCommand({ args: { flags: { project: dir }, _: [] } }));
+    const graf = {
+      generated_at: new Date().toISOString(),
+      stats: { node_count: 12, edge_count: 0, files_scanned: 12 },
+      nodes: Array.from({ length: 12 }, (_, i) => ({
+        id: `file:src/d${i}.ts`, type: "file", module: i < 3 ? "cekirdek" : "unknown",
+      })),
+      edges: [],
+    };
+    mkdirSync(join(dir, ".serif-brain", "graph"), { recursive: true });
+    writeFileSync(join(dir, ".serif-brain", "graph", "graph.json"), JSON.stringify(graf));
+
+    const { output } = await captureLogs(() => doctorCommand({ args: { flags: { project: dir }, _: [] } }));
+    assert.match(output, /Module attribution/, "kapsam adlandirilmali");
+    assert.match(output, /3\/12/, "kac dosyanin bagli oldugu SAYIYLA soylenmeli");
+    assert.match(output, /unknown %75/);
+    assert.match(output, /ZAYIF calisir/, "SONUCU soylenmeli, sadece sayi degil");
+    assert.match(output, /module_paths/, "duzeltme yolu verilmeli");
+
+    // Atfi duzelt → uyari susmali (kalici alarm uretme yasagi).
+    graf.nodes.forEach((n) => { n.module = "cekirdek"; });
+    writeFileSync(join(dir, ".serif-brain", "graph", "graph.json"), JSON.stringify(graf));
+    const temiz = await captureLogs(() => doctorCommand({ args: { flags: { project: dir }, _: [] } }));
+    assert.match(temiz.output, /12\/12/);
+    assert.doesNotMatch(temiz.output, /ZAYIF calisir/, "duzelince SUSMALI");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

@@ -229,6 +229,26 @@ export async function doctorCommand({ args }) {
         const ageMin = Math.floor(ageMs / 60000);
         check("Graph age", ageMin > 60 ? "warn" : true, `${ageMin}m old`);
         if (ageMin > 60) warnings++;
+
+        // MODUL ATFI KAPSAMI. "unknown" bir deger degil, bir BOSLUKTUR: o
+        // dosyalar icin modul-seviyesi hafiza baglantisi, hotspot'un modul bug
+        // yogunlugu ve risk fuzyonunun modul bileseni CALISMAZ — ama hicbiri
+        // hata vermez, sadece sessizce zayiflar. `scan code` sayiyi zaten
+        // basiyordu; sayiyi gormek ile SONUCUNU bilmek ayri seylerdir.
+        // Olculdu (11 gercek proje): 5'inde oran %25 ustu, birinde %100.
+        const dosyalar = (g.nodes || []).filter((n) => n.type === "file");
+        if (dosyalar.length >= 10) {
+          const bos = dosyalar.filter((n) => !n.module || n.module === "unknown").length;
+          const oran = Math.round((bos / dosyalar.length) * 100);
+          const kotu = oran >= 25;
+          check("Module attribution", kotu ? "warn" : true,
+            `${dosyalar.length - bos}/${dosyalar.length} dosya bir module bagli (unknown %${oran})`);
+          if (kotu) {
+            console.log(`        → unknown dosyalarda modul-seviyesi hafiza/hotspot/risk ZAYIF calisir`);
+            console.log(`        → duzelt: config.yaml 'module_paths' ("src/oyun/": oyun), sonra 'graph build'`);
+            warnings++;
+          }
+        }
       } catch (e) {
         check("graph.json parse", false, e.message);
         errors++;
