@@ -27,12 +27,15 @@ LinkedIn (birincil). X ikincil. Instagram uygun değil (görsel ürün değil).
 ## Doğrulanmış rakamlar (SADECE bunlar kullanılabilir)
 | Ölçüm | Değer | Kaynak |
 |---|---|---|
-| İzlenen proje | 17 | panel, 2026-08-05 |
-| Toplam karar/bug/not kaydı | 930 | panel toplamı |
-| Açık kayıt | 489 | panel toplamı |
-| En büyük kod grafı | 2.537 düğüm / 11.580 kenar | serif-platform graph.json |
-| Test | 229 | `node --test` |
+| İzlenen proje | 19 | disk taraması, 2026-08-13 |
+| Toplam karar/bug/not kaydı | 1.217 | aynı taramanın toplamı |
+| En büyük kod grafı | 2.605 düğüm | serif-platform graph.json, 2026-08-13 |
+| Test | 364 | `npm test`, 2026-08-13 |
 | Runtime bağımlılık | 0 | package.json `dependencies: {}` |
+| Dışarı giden ağ isteği | 0 | kaynak taraması; panel yalnız 127.0.0.1 |
+
+> Rakamlar bayatlar. `test/belge-dogrulugu.test.mjs` test sayısı iddiasını
+> mekanik olarak denetler; diğerleri yayından önce elle doğrulanır.
 
 **Kullanılamayacak iddialar:** kullanıcı sayısı, benimsenme, "en iyi/ilk", performans
 karşılaştırması, zaman tasarrufu yüzdesi. Hiçbiri ölçülmedi.
