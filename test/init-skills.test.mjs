@@ -36,7 +36,7 @@ test("init — paket skill'leri .claude/skills/ altina kurulur", async () => {
 
     // Frontmatter saglam mi (name alani dogru skill'e ait mi)
     const kanit = readFileSync(join(skills, "kanit-disiplini", "SKILL.md"), "utf8");
-    assert.match(kanit, /^---\n/);
+    assert.match(kanit, /^---\r?\n/);   // Windows checkout'unda CRLF gelir
     assert.match(kanit, /name: kanit-disiplini/);
     const cerrahi = readFileSync(join(skills, "cerrahi-plan", "SKILL.md"), "utf8");
     assert.match(cerrahi, /name: cerrahi-plan/);

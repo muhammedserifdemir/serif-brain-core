@@ -56,6 +56,11 @@ export function renameHaritasi(projectRoot, { days = 3650 } = {}) {
  * Bu onek atilinca dosya bulunuyorsa, kirik referans aslinda TASINMA degil
  * TABAN HATASIDIR ve guvenle onarilabilir.
  */
+/** realpath — Windows 8.3 kisa adini da acar; .native yoksa duz surume duser. */
+function gercekYol(p) {
+  try { return realpathSync.native(p); } catch { return realpathSync(p); }
+}
+
 export function onekDuzeltmesi(projectRoot) {
   try {
     const gitKok = execSync(`git -C "${projectRoot}" rev-parse --show-toplevel`,
@@ -66,8 +71,15 @@ export function onekDuzeltmesi(projectRoot) {
     // bagli yol olabilir. Dize-degistirmeyle onek cikarmak bu durumda COP
     // uretir ("var/folders/.../") ve yanlis bir kirpma onerebilirdi —
     // hafizayi onarmak yerine bozardi. Test yakaladi.
-    const g = realpathSync(gitKok);
-    const p = realpathSync(projectRoot);
+    // .native SART (Windows): git `--show-toplevel` UZUN adi dondurur
+    // ("C:/Users/runneradmin/..."), oysa os.tmpdir() ve cogu ortam degiskeni
+    // 8.3 KISA adi tasir ("C:\Users\RUNNER~1\..."). JS realpath 8.3'u
+    // acmaz; iki yol ayni klasoru gosterdigi halde farkli dize olur, bu da
+    // relative()'i ".." ile baslatir ve fonksiyon "onek yok" (null) der.
+    // .native GetFinalPathNameByHandle kullanir: kisa ad, buyuk/kucuk harf ve
+    // ayrac farklarini tek bicime indirger.
+    const g = gercekYol(gitKok);
+    const p = gercekYol(projectRoot);
     const rel = posixYol(relative(g, p));
     // Proje git kokunun ALTINDA degilse (".." ile baslar) ya da ayni ise onek yok.
     if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;

@@ -105,7 +105,10 @@ export function objectDetail(repo, id) {
   if (!body && path && existsSync(path)) {
     try {
       const raw = readFileSync(path, "utf8");
-      const m = raw.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
+      // \r\n TOLERE EDILIR: Windows'ta git autocrlf ile checkout edilen ya da
+      // Windows editoruyle kaydedilen obje dosyalari CRLF olur; katı \n kalıbı
+      // boyle bir dosyayi "frontmatter yok" sayip sessizce atliyordu.
+      const m = raw.match(/^---\r?\n[\s\S]*?\n---\r?\n?([\s\S]*)$/);
       body = m ? m[1] : raw;
     } catch { /* okunamadi */ }
   }

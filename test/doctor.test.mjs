@@ -65,7 +65,10 @@ test("default init: doctor Section 3 reports klasor-turevi proje id'sini, serif-
     const autoId = basename(tmp).toLowerCase();
     const sec3 = extractSection3(output);
     assert.match(sec3, new RegExp(`Active Project — ${autoId}`), "Section 3 header");
-    assert.match(sec3, new RegExp(`objects/projects/${autoId}`), "project dir mentioned");
+    // Doctor MUTLAK yol basar; mutlak yol isletim sisteminin ayracini kullanir
+    // (Windows'ta "objects\projects\..."). Iddia ayraca duyarsiz kurulur —
+    // aksi halde urun dogru calisirken TEST kirmizi olur.
+    assert.match(sec3, new RegExp(`objects[\\\\/]projects[\\\\/]${autoId}`), "project dir mentioned");
     assert.doesNotMatch(sec3, /Active Project — serif-platform/, "yanlislikla serif-platform OLMAMALI");
     assert.doesNotMatch(sec3, /\[!✗\] Project dir/, "no project dir error");
     assert.match(sec3, /bugs\//);
@@ -90,7 +93,7 @@ test("custom init: doctor Section 3 reports custom project without serif-platfor
 
     const sec3 = extractSection3(output);
     assert.match(sec3, /Active Project — serif-agent-bridge/, "custom header");
-    assert.match(sec3, /objects\/projects\/serif-agent-bridge/, "custom path");
+    assert.match(sec3, /objects[\\/]projects[\\/]serif-agent-bridge/, "custom path");
     assert.doesNotMatch(sec3, /serif-platform/, "no serif-platform leak in Section 3");
     assert.doesNotMatch(sec3, /\[!✗\] Project dir/, "no project dir error");
     assert.match(sec3, /bugs\//);

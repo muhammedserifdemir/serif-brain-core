@@ -1,0 +1,20 @@
+# Satir sonlari HER ISLETIM SISTEMINDE LF.
+#
+# NEDEN: Windows'ta git varsayilan olarak checkout sirasinda LF'i CRLF'e cevirir
+# (core.autocrlf). Bu paketin tasidigi skill/sablon .md dosyalari boylece CRLF
+# olarak diske dusuyordu ve frontmatter ayristirmasi onlari "frontmatter yok"
+# sayip SESSIZCE atliyordu. Kullanici hata gormuyor, yalnizca kayitlarinin
+# gorunmedigini goruyordu.
+#
+# Dosyalari LF'te sabitlemek bu sinifin KOKUNU kapatir; ayristiricinin \r\n
+# toleransi ise kullanicinin KENDI editoruyle CRLF yaptigi dosyalar icin
+# ikinci savunma hattidir. Ikisi birlikte gerekli.
+* text=auto eol=lf
+
+# Ikili dosyalar dokunulmadan kalir.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
