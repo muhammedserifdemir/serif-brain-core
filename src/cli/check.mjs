@@ -34,7 +34,7 @@ export async function checkCommand({ args, subcommand }) {
   }
 
   const config = loadConfig(brainRoot);
-  const c = checkFile(graph, node.id, { rules: config?.layer_rules || [], god_threshold: config?.god_threshold });
+  const c = checkFile(graph, node.id, { rules: config?.layer_rules || [], god_threshold: config?.god_threshold, god_file_exempt: config?.god_file_exempt });
 
   if (args.flags.json) {
     console.log(JSON.stringify(c, null, 2));

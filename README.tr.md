@@ -10,7 +10,7 @@ bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 > Tavsiye atlanabilir, kapı atlanamaz.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 358 test.
+runner). 359 test.
 
 Aracın gerçekten işe yarayıp yaramadığı 20 gerçek projede ölçüldü: kayıt tutulan
 yerde hafıza, ihtiyaç anında ilgili bilgiyi **%80,5** oranında içeriyordu —

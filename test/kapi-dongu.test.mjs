@@ -137,3 +137,38 @@ test("kapi — gunluk SINIRSIZ buyumez (200 satir tavani)", () => {
     assert.ok(n <= 110, `gunluk kirpilmali (${n} satir) — sinirsiz buyuyen log disk doldurur`);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
+
+// ── KASITLI HUB muafiyeti ───────────────────────────────────────────────────
+// Bir CLI dagiticisi TANIMI GEREGI her komutu import eder. Ona her duzenlemede
+// "god-file" demek, asla duzeltilmeyecek KALICI bir alarm uretir — ve kalici
+// alarm, kapinin kendi kuralini ("soyleyecek sey yoksa sus") ihlal eder.
+// Bu depoda gercekten yasandi: src/cli/index.mjs derece 34.
+test("god-file: kasitli hub muaf tutulabilir, kapi susar", async () => {
+  const { checkFile } = await import("../src/query/check.mjs");
+  const nodes = [{ id: "file:src/cli/index.mjs", type: "file" }];
+  const edges = [];
+  for (let i = 0; i < 35; i++) {
+    nodes.push({ id: `file:src/cli/k${i}.mjs`, type: "file" });
+    edges.push({ type: "imports", source: "file:src/cli/index.mjs", target: `file:src/cli/k${i}.mjs` });
+  }
+  const graph = { nodes, edges };
+
+  const muafiyetsiz = checkFile(graph, "file:src/cli/index.mjs", {});
+  assert.ok(muafiyetsiz.issues.some((i) => /god-file/.test(i)), "muafiyet yokken KONUSMALI");
+
+  for (const desen of ["src/cli/index.mjs", "src/cli/*.mjs", "**/index.mjs"]) {
+    const c = checkFile(graph, "file:src/cli/index.mjs", { god_file_exempt: [desen] });
+    assert.deepEqual(c.issues.filter((i) => /god-file/.test(i)), [], `desen '${desen}' susturmali`);
+  }
+
+  // Muafiyet SADECE god-file'i susturur; gercek sorunlari yutmaz.
+  const dongulu = {
+    nodes: [{ id: "file:a.mjs", type: "file" }, { id: "file:b.mjs", type: "file" }],
+    edges: [
+      { type: "imports", source: "file:a.mjs", target: "file:b.mjs" },
+      { type: "imports", source: "file:b.mjs", target: "file:a.mjs" },
+    ],
+  };
+  const c2 = checkFile(dongulu, "file:a.mjs", { god_file_exempt: ["**"] });
+  assert.ok(c2.issues.some((i) => /dongu/.test(i)), "muafiyet donguyu YUTMAMALI");
+});

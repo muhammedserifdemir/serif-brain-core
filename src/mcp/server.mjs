@@ -343,7 +343,7 @@ function callTool(name, a = {}, brainRoot) {
     const node = resolveFileNode(graph, a.path);
     if (!node) return JSON.stringify({ found: false, path: a.path });
     const cfg = loadConfig(brainRoot);
-    return JSON.stringify(checkFile(graph, node.id, { rules: cfg?.layer_rules || [], god_threshold: cfg?.god_threshold }), null, 2);
+    return JSON.stringify(checkFile(graph, node.id, { rules: cfg?.layer_rules || [], god_threshold: cfg?.god_threshold, god_file_exempt: cfg?.god_file_exempt }), null, 2);
   }
 
   if (name === "brain_lint") {

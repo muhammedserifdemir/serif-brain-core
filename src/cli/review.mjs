@@ -70,7 +70,7 @@ export async function reviewCommand({ args }) {
     if (graph) {
       const node = resolveFileNode(graph, rel);
       if (node) {
-        const c = checkFile(graph, node.id, { rules, god_threshold: config?.god_threshold });
+        const c = checkFile(graph, node.id, { rules, god_threshold: config?.god_threshold, god_file_exempt: config?.god_file_exempt });
         if (!c.ok) for (const i of c.issues) issues.push({ kind: "graph", detail: i });
       } else if (grafaGirmez) {
         outOfScope.push(rel);
