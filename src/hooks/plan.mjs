@@ -70,7 +70,7 @@ export function buildPlan({ projectRoot }) {
     risks.push({
       severity: "blocker",
       label: "Yeni skill yok",
-      detail: `${newSkillPath}/SKILL.md mevcut degil — apply oncesi Faz 7 tamamlanmali.`
+      detail: `${newSkillPath}/SKILL.md mevcut degil — apply oncesi skills kurulumu tamamlanmali.`
     });
   }
 
@@ -79,7 +79,7 @@ export function buildPlan({ projectRoot }) {
     risks.push({
       severity: "blocker",
       label: "serif-brain CLI binary bulunamadi",
-      detail: `${SBC_BIN} mevcut degil — Faz 2 tamamlanmali.`
+      detail: `${SBC_BIN} mevcut degil — kurulum tamamlanmali.`
     });
   }
 
@@ -93,7 +93,7 @@ export function buildPlan({ projectRoot }) {
     });
   }
 
-  // Migration apply yapildi mi? (Faz 5 apply pending)
+  // Migration apply yapildi mi? (migrate --apply pending)
   const drPath = join(brainRoot, "archive-index", "migration-dry-run.json");
   if (existsSync(drPath)) {
     risks.push({

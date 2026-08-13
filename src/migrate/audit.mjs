@@ -119,7 +119,7 @@ export function writeMigrationAudit(brainRoot, audit) {
   lines.push(``);
   lines.push(`4. \`SerifBrainArchive/legacy-2026-04-29-230615/\` dokunulmaz, sadece okunur.`);
   lines.push(``);
-  lines.push(`5. Eski Obsidian vault, eski \`.claude/brain\`, ve \`.claude/settings.json\` **degismez** (Faz 8'e kadar).`);
+  lines.push(`5. Eski Obsidian vault, eski \`.claude/brain\`, ve \`.claude/settings.json\` **degismez** (apply asamasi'e kadar).`);
 
   if (audit.graphify_summary) {
     lines.push(``);
@@ -191,8 +191,8 @@ export function writeContextPollution(brainRoot, audit) {
   lines.push(`## Graphify cache (10 MB)`);
   lines.push(``);
   lines.push(`Eski sistemde \`PreToolUse\` hook'u Glob/Grep oncesi GRAPH_REPORT.md okutuyordu.`);
-  lines.push(`Yeni sistemde Faz 4 native graph engine var, eski cache dis bagimliligi gerektirmez.`);
-  lines.push(`Faz 8'de bu hook devreden cikarilacak.`);
+  lines.push(`Yeni sistemde yerlesik graph engine var, eski cache dis bagimliligi gerektirmez.`);
+  lines.push(`apply asamasi'de bu hook devreden cikarilacak.`);
 
   writeFileSync(path, lines.join("\n") + "\n");
   return path;

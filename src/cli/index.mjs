@@ -47,7 +47,7 @@ const COMMANDS = {
   migrate: { handler: migrateCommand,  help: "Migration dry-run (legacy YAML + Obsidian + Graphify ref)" },
   analyze: { handler: analyzeCommand,  help: "Tum raporlari uret (health/bugs/decisions/architecture/...)" },
   context: { handler: contextCommand,  help: "Claude bagliami uret (--module <X> ile filtre)" },
-  hooks:   { handler: hooksCommand,    help: "Hook migration plan/dry-run (apply Faz 8'de devre disi)" },
+  hooks:   { handler: hooksCommand,    help: "Hook migration plan/dry-run (apply apply asamasi'de devre disi)" },
   search:  { handler: searchCommand,   help: "Hafizada yapisal + tam-metin arama ('text' --type --status --priority --module --tag --json --limit)" },
   brief:   { handler: briefCommand,    help: "Oturum-acilisi 'neredeyiz' ozeti: aktif bug/karar + son dokunulan + park kuyrugu (--module --days N --json)" },
   touch:   { handler: touchCommand,    help: "Bir dosyaya dokunmadan once ilgili hafiza: o dosya/modulun karar + bug'lari (yara izi dahil) <dosya> --module --json" },

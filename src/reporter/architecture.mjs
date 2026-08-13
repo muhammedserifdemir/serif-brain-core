@@ -1,11 +1,11 @@
-// architecture.md — graph.json'dan modul/file risk analizi (Faz 4 graph-analysis ile birlikte calisir, ama daha hedefli).
+// architecture.md — graph.json'dan modul/file risk analizi (graph engine graph-analysis ile birlikte calisir, ama daha hedefli).
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { header } from "./loader.mjs";
 
 export function writeArchitectureReport(data, reportsDir) {
   const lines = [];
-  lines.push(header("Architecture", "Modul/file/import risk haritasi — Faz 4 graph cikislari + dry-run + canonical merge."));
+  lines.push(header("Architecture", "Modul/file/import risk haritasi — graph cikislari + dry-run + canonical merge."));
 
   if (!data.graph || data.graph.error) {
     lines.push(`*Graph yok. \`serif-brain graph build\` calistir.*`);

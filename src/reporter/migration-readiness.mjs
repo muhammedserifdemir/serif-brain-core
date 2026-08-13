@@ -148,7 +148,7 @@ export function writeMigrationReadinessReport(data, reportsDir) {
     { ok: internalCollisions.length === 0, label: "No internal ID collisions", actual: internalCollisions.length },
     { ok: topItems.length === 0, label: "TOP priority review done (or accepted)", actual: `${topItems.length} pending` },
     { ok: unknownItems.length === 0, label: "Unknown module review done", actual: `${unknownItems.length} pending` },
-    { ok: true, label: "Backup verified (Faz 1 archive intact)", actual: "manual check" }
+    { ok: true, label: "Backup verified (archive intact)", actual: "manual check" }
   ];
   for (const c of checks) {
     lines.push(`- ${c.ok ? "✅" : "⚠"} ${c.label} ${c.actual !== undefined ? `(${c.actual})` : ""}`);

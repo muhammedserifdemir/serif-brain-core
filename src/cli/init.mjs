@@ -219,7 +219,7 @@ function buildConfig(projectRoot, storeEngine, projects, { custom = false } = {}
   ];
   if (hasMigrating) {
     lines.push(
-      `# Sources to read during migration (Faz 5). Read-only references.`,
+      `# Sources to read during migration (migrate). Read-only references.`,
       `legacy_sources:`,
       `  archive_root: "${join(homedir(), "SerifBrainArchive")}"`,
       `  read_from_archive: true     # always read from archive, not live sources`,

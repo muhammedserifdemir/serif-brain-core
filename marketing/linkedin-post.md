@@ -6,13 +6,13 @@
 
 | İddia | Gerçek | Nasıl ölçüldü |
 |---|---|---|
-| Brain'li proje | **20** (boş olmayan) | `find ~ -name .serif-brain` + obje sayımı |
-| Karar/hata kaydı | **1.170** | aynı taramanın toplamı |
-| En büyük kod grafı | **2.599 düğüm** | `graph.json` nodes |
-| Test | **291** | `npm test` |
+| Brain'li proje | **19** (boş olmayan) | `find ~ -name .serif-brain` + obje sayımı |
+| Karar/hata kaydı | **1.217** | aynı taramanın toplamı |
+| En büyük kod grafı | **2.605 düğüm** | `graph.json` nodes |
+| Test | **358** | `npm test` |
 | Kapı kurulu | **global** → tüm projeler | `~/.claude/settings.json` |
 
-> ⚠ Önceki taslak "17 proje, 930 kayıt, 229 test" diyordu ve **merkez iddiası
+> ⚠ Önceki taslak "17 proje, 930 kayıt, 229 test" diyordu ve **merkez iddiası <!-- belge-dogrulugu:yoksay -->
 > 22 projeden 1'inde doğruydu** — kapı yalnız paketin kendi reposunda kuruluydu.
 > Global kuruluma geçildi; artık iddia gerçeği anlatıyor. Sayı değişirse metni
 > değiştir, metni koruyup sayıyı zorlama.
@@ -42,8 +42,8 @@
 > yoksa susuyor, ve söylediğini bir daha söylemiyor.** İkincisini eklemek zorunda
 > kaldım — çünkü tekrar eden bir uyarı, uyarı değil gürültüdür.
 >
-> Bugünkü hâli: 20 proje, 1.170 karar/hata kaydı, en büyüğü 2.599 düğümlük kod
-> grafı. Sıfır bağımlılık, saf Node, 291 test.
+> Bugünkü hâli: 19 proje, 1.217 karar/hata kaydı, en büyüğü 2.605 düğümlük kod
+> grafı. Sıfır bağımlılık, saf Node, 358 test.
 >
 > En çok şu ders kaldı: bir kuralın işe yaraması için doğru olması yetmiyor —
 > **atlanamaz olması gerekiyor.**

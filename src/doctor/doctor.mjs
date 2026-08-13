@@ -212,7 +212,7 @@ export async function doctorCommand({ args }) {
     }
   }
 
-  // 3c. Graph engine health (Faz 4)
+  // 3c. Graph engine health (graph engine)
   if (brainExists) {
     header("3c. Graph Engine");
     const graphPath = join(brainRoot, "graph", "graph.json");
@@ -340,7 +340,7 @@ export async function doctorCommand({ args }) {
     }
     if (matches.length > 0) {
       check("Legacy hooks present", "warn", `${matches.length} reference(s): ${[...new Set(matches)].join(", ")}`);
-      console.log(`        → Will be migrated in Faz 8 (with explicit approval)`);
+      console.log(`        → Will be migrated in apply asamasi (with explicit approval)`);
       warnings++;
     } else {
       check("Legacy hooks present", true, "none — already migrated");

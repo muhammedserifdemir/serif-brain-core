@@ -162,7 +162,7 @@ function migrationPreviewSummary(data) {
     duplicate_records: data.dry_run.duplicate_record_count || 0,
     top_priority_anomalies: data.dry_run.top_priority_count || 0,
     module_renames: data.dry_run.module_renames || 0,
-    apply_status: "PENDING — Faz 5 apply user approval bekliyor"
+    apply_status: "PENDING — migrate --apply icin ayri onay bekliyor"
   };
 }
 
@@ -186,7 +186,7 @@ export function buildClaudeMarkdown(data, opts = {}) {
   lines.push(`> Brain: serif-brain-core. Canonical store: \`.serif-brain/objects/\`.`);
   lines.push(`> Filtered: \`done|closed|completed|rejected|archived\` excluded.`);
   if (data.dry_run) {
-    lines.push(`> ⚠ Migration not yet applied (Faz 5 dry-run only). Preview records labeled below.`);
+    lines.push(`> ⚠ Migration not yet applied (dry-run only). Preview records labeled below.`);
   }
   lines.push(``);
 
@@ -243,7 +243,7 @@ export function buildClaudeMarkdown(data, opts = {}) {
   if (data.dry_run && (part.preview_bugs.length > 0 || part.preview_decisions.length > 0)) {
     lines.push(`## 📥 Migration Preview (not yet written, ${part.preview_bugs.length + part.preview_decisions.length} records)`);
     lines.push(``);
-    lines.push(`> ⚠ These are **preview only** from Faz 5 dry-run. Run \`serif-brain migrate --apply\` (separate approval) to migrate.`);
+    lines.push(`> ⚠ These are **preview only** from dry-run. Run \`serif-brain migrate --apply\` (separate approval) to migrate.`);
     lines.push(``);
 
     if (part.preview_decisions.length > 0) {
@@ -421,7 +421,7 @@ export function buildActiveWork(data, opts = {}) {
     const top16 = data.dry_run.top_priority_count || 0;
     lines.push(`- TOP priority anomali: **${top16}** kayit (manuel critical/high karar)`);
     lines.push(`- Unknown module preview: see \`reports/migration-readiness.md\``);
-    lines.push(`- Apply komutu: \`serif-brain migrate --apply\` (Faz 5 ileri seviye onayi gerekli)`);
+    lines.push(`- Apply komutu: \`serif-brain migrate --apply\` (ayri bir onay gerekli)`);
     lines.push(``);
   }
 

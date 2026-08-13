@@ -117,7 +117,10 @@ CLI yerine Claude'un brain'i **canlı** okuması için projeye `.mcp.json` ekle
 `brain brief` komutu **Faz: Active Memory**'nin ilk parçasıdır: tek çağrıda aktif
 bug/karar + son dokunulan + park kuyruğu + git sinyali verir. Bunu Claude'a her
 oturum başında otomatik enjekte etmek için ilgili projenin `.claude/settings.json`
-dosyasına SessionStart hook'u ekle (proje-bazlı, opt-in — global'e koyma):
+dosyasına SessionStart hook'u ekle (proje-bazlı, opt-in — global'e koyma).
+
+> `<serif-brain-core-yolu>` yerine kendi kurulumunun yolunu yaz; **`serif-brain
+> --version`** çıktısındaki `Kurulum:` satırı onu söyler.
 
 ```json
 {
@@ -127,7 +130,7 @@ dosyasına SessionStart hook'u ekle (proje-bazlı, opt-in — global'e koyma):
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/muhammedserifdemir/Desktop/seriftech-packages/serif-brain-core/bin/serif-brain.mjs brief --project ."
+            "command": "node <serif-brain-core-yolu>/bin/serif-brain.mjs brief --project ."
           }
         ]
       }
@@ -154,7 +157,7 @@ PreToolUse(Edit) hook'una bağlandığında, sen bir dosyayı açar açmaz uyar�
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/muhammedserifdemir/Desktop/seriftech-packages/serif-brain-core/bin/serif-brain.mjs touch \"$CLAUDE_TOOL_FILE_PATH\" --project ."
+            "command": "node <serif-brain-core-yolu>/bin/serif-brain.mjs touch \"$CLAUDE_TOOL_FILE_PATH\" --project ."
           }
         ]
       }

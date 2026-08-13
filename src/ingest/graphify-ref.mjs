@@ -17,7 +17,7 @@ export function readGraphifyReport(archivePath) {
     extracted_pct: extractInteger(text, /(\d+)%\s*EXTRACTED/),
     inferred_pct: extractInteger(text, /(\d+)%\s*INFERRED/),
     cache_files_skipped: 1227,
-    decision: "REFERENCE_ONLY — Faz 4'te kendi graph engine'imiz yazildi, bu rapor canonical store'a girmez."
+    decision: "REFERENCE_ONLY — bu projede kendi graph engine'imiz yazildi, bu rapor canonical store'a girmez."
   };
   return summary;
 }

@@ -24,7 +24,7 @@ export async function migrateCommand({ args }) {
     throw new Error(`No archive_root in config.yaml`);
   }
   if (!existsSync(archivePath)) {
-    throw new Error(`Archive missing: ${archivePath} — run Faz 1 archive apply first`);
+    throw new Error(`Archive missing: ${archivePath} — run archive apply first`);
   }
 
   const isApply = args.flags.apply === true;
@@ -163,7 +163,7 @@ export async function migrateCommand({ args }) {
       { kind: "obsidian", path: "4-obsidian-vault/projects/serif-platform/sprints/", count: obsSprints.length },
       { kind: "obsidian", path: "4-obsidian-vault/daily/", count: obsDailies.length, note: "summarize-only (high volume, low-value context)" },
       { kind: "obsidian", path: "4-obsidian-vault/{identity,feedback,...}.md", count: obsRootDocs.length, note: "principles → config.yaml" },
-      { kind: "graphify", path: "5-graphify-out/GRAPH_REPORT.md", count: 0, note: "REFERENCE_ONLY — replaced by Faz 4 native graph engine" }
+      { kind: "graphify", path: "5-graphify-out/GRAPH_REPORT.md", count: 0, note: "REFERENCE_ONLY — replaced by yerlesik graph engine" }
     ],
     classification,
     normalizations: allNormalizations,
@@ -222,7 +222,7 @@ export async function migrateCommand({ args }) {
   console.log(``);
 
   if (!isApply) {
-    console.log(`No canonical writes. No source modifications. Apply requires Faz 5 user approval.`);
+    console.log(`No canonical writes. No source modifications. Apply requires explicit user approval.`);
     return 0;
   }
 

@@ -34,7 +34,11 @@ Saf-Node, sıfır bağımlılık, stdio/JSON-RPC.
 
 ## Claude Code'a ekleme
 
-Projenin kökünde `.mcp.json` (veya kullanıcı/proje MCP ayarı):
+Projenin kökünde `.mcp.json` (veya kullanıcı/proje MCP ayarı).
+
+> `<serif-brain-core-yolu>` yerine kendi kurulumunun yolunu yaz. Aracın
+> kendisi söyler — **`serif-brain --version`** çalıştırdığında `Kurulum:`
+> satırında hangi kopyanın çalıştığı ve nerede olduğu yazar.
 
 ```json
 {
@@ -42,7 +46,7 @@ Projenin kökünde `.mcp.json` (veya kullanıcı/proje MCP ayarı):
     "serif-brain": {
       "command": "node",
       "args": [
-        "/Users/muhammedserifdemir/Desktop/seriftech-packages/serif-brain-core/bin/serif-brain.mjs",
+        "<serif-brain-core-yolu>/bin/serif-brain.mjs",
         "mcp",
         "--project",
         "."

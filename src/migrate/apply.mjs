@@ -1,4 +1,4 @@
-// Migration apply — Faz 5'in 'move' kayitlarini canonical'a yaz, 'summarize' ozetle, 'archive' manifest'e dus.
+// Migration apply — migrate --apply'in 'move' kayitlarini canonical'a yaz, 'summarize' ozetle, 'archive' manifest'e dus.
 // SADECE .serif-brain/ icine yazar. Eski kaynaklara dokunmaz.
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -179,7 +179,7 @@ export function applyMigration({ brainRoot, candidates, dryRunData, archivePath 
       ``,
       `---`,
       ``,
-      `_Status: archived. Aktif context'e girmez. Faz 5 apply tarafindan uretildi._`,
+      `_Status: archived. Aktif context'e girmez. migrate --apply tarafindan uretildi._`,
       ``
     ].join("\n");
 

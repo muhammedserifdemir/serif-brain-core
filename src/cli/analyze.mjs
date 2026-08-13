@@ -43,6 +43,6 @@ export async function analyzeCommand({ args }) {
   console.log(``);
   console.log(`  Total: ${written.length} reports written under .serif-brain/reports/`);
   console.log(``);
-  console.log(`  Sonraki: review reports + Faz 7 (context compiler) onayi`);
+  console.log(`  Sonraki: raporlari incele, sonra: serif-brain context`);
   return 0;
 }

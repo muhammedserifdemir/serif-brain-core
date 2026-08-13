@@ -45,7 +45,7 @@ export function writeHealthReport(data, reportsDir) {
   lines.push(`| Duplicates | ${data.health?.duplicates.length || 0} |`);
   lines.push(``);
 
-  lines.push(`## Code Graph (Faz 4)`);
+  lines.push(`## Code Graph (graph engine)`);
   lines.push(``);
   if (!data.graph || data.graph.error) {
     lines.push(`*Graph yok veya hatali — \`serif-brain graph build\` calistir.*`);
@@ -62,7 +62,7 @@ export function writeHealthReport(data, reportsDir) {
   }
   lines.push(``);
 
-  lines.push(`## Migration Pipeline (Faz 5 dry-run)`);
+  lines.push(`## Migration Pipeline (dry-run)`);
   lines.push(``);
   if (!data.dry_run) {
     lines.push(`*Dry-run yok — \`serif-brain migrate --dry-run\` calistir.*`);

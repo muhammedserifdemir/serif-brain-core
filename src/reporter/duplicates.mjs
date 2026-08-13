@@ -72,7 +72,7 @@ export function writeDuplicatesReport(data, reportsDir) {
   lines.push(``);
   lines.push(`## Apply Behavior`);
   lines.push(``);
-  lines.push(`Apply (Faz 5 ileri zaman) calistiginda her cluster icin:`);
+  lines.push(`Apply (apply) calistiginda her cluster icin:`);
   lines.push(`1. **Temsilci sec:** Obsidian > legacy_yaml (richer body)`);
   lines.push(`2. **Temsilci canonical store'a yaz** (\`move\` action)`);
   lines.push(`3. **Diger uyeler archive'a dus** (\`archive\` action)`);
