@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { bucketOf, isTaskType } from "../src/dashboard/normalize.mjs";
 import { computeMetrics } from "../src/dashboard/metrics.mjs";
 import { upsertBrain, findBrain, brainRootOf } from "../src/dashboard/registry.mjs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 test("normalize: status kovalari", () => {
   assert.equal(bucketOf("done"), "done");
@@ -75,6 +77,10 @@ test("registry: findBrain isim/yol ile bulur", () => {
 });
 
 test("registry: brainRootOf hem repo hem .serif-brain kabul eder", () => {
-  assert.ok(brainRootOf("/tmp/proj").endsWith("/proj/.serif-brain"));
-  assert.equal(brainRootOf("/tmp/proj/.serif-brain"), "/tmp/proj/.serif-brain");
+  // Iddia isletim sisteminin ayracina gore kurulur: brainRootOf join() dondurur,
+  // Windows'ta "\" gelir. Sabit "/" yazmak urunu degil TESTI Windows'ta kirar.
+  const repo = join(tmpdir(), "proj");
+  assert.ok(brainRootOf(repo).endsWith(join("proj", ".serif-brain")));
+  const dogrudan = join(repo, ".serif-brain");
+  assert.equal(brainRootOf(dogrudan), dogrudan);
 });

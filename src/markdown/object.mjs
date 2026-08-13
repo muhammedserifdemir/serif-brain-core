@@ -1,7 +1,7 @@
 // Markdown object reader/writer/lister.
 // Canonical store path: .serif-brain/objects/projects/<project>/<type>s/<id>.md
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter.mjs";
 import { validateObject } from "./schema.mjs";
 
@@ -49,7 +49,12 @@ export function writeObject(brainRoot, frontmatter, body) {
     throw new Error(`Schema validation failed for ${frontmatter.id}:\n  - ${validation.errors.join("\n  - ")}`);
   }
   const path = objectPath(brainRoot, frontmatter.project, frontmatter.type, frontmatter.id);
-  const dir = path.replace(/\/[^/]+$/, "");
+  // `path.replace(/\/[^/]+$/, "")` KULLANMA. Windows'ta yol ters bolu ile
+  // ayrilir, regex hic tutmaz ve `dir` dosya adini DA icerir — sonra
+  // mkdirSync "<id>.md" ADINDA BIR KLASOR yaratir, writeFileSync EISDIR verir.
+  // Yani Windows'ta hicbir kayit yazilamiyordu. dirname() ayraci isletim
+  // sistemine gore cozer.
+  const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const text = serializeFrontmatter(frontmatter, body || "\n");
   writeFileSync(path, text);

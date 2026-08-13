@@ -356,9 +356,15 @@ export function loadTsconfigPaths(projectRoot) {
 /** Verilen dosyayı kapsayan en yakın paths kümesini seçer. */
 function yakinKume(kumeler, fromAbsPath) {
   if (!Array.isArray(kumeler)) return null;
-  const f = pResolve(fromAbsPath);
+  // Onek karsilastirmasi POSIX bicimde yapilir. `k.dir + "/"` ile ham
+  // karsilastirmak Windows'ta HIC tutmuyordu (yollar ters bolulu) — sonucu
+  // sessizdi ve tehlikeliydi: tsconfig kumesi bulunamayinca her takma ad
+  // "harici paket" sayiliyor, kenar uretilmiyor ve dosya grafta YAPRAK
+  // gorunuyordu ("kimse import etmiyor, guvenle degistir").
+  const f = posixYol(pResolve(fromAbsPath));
   for (const k of kumeler) {
-    if (f === k.dir || f.startsWith(k.dir + "/")) return k;
+    const d = posixYol(k.dir);
+    if (f === d || f.startsWith(d + "/")) return k;
   }
   return null;
 }

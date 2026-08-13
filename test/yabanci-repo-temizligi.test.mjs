@@ -21,8 +21,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const KOK = new URL("..", import.meta.url).pathname;
+// `.pathname` Windows'ta "/D:/a/..." doner → "D:\D:\a\..." (bkz. belge-dogrulugu).
+const KOK = fileURLToPath(new URL("..", import.meta.url));
 
 // Paket sahibinin OZEL urun/proje/musteri adlari. Yeni bir urun cikarsa buraya
 // eklenir — liste, yabancinin deposunda gormemesi gereken her seyi tarif eder.

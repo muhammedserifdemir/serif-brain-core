@@ -14,8 +14,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const KOK = new URL("..", import.meta.url).pathname;
+// `.pathname` KULLANMA: Windows'ta basinda egik cizgiyle "/D:/a/..." doner,
+// bir yola eklenince "D:\D:\a\..." olusur ve her okuma ENOENT verir.
+const KOK = fileURLToPath(new URL("..", import.meta.url));
 const oku = (p) => readFileSync(join(KOK, p), "utf8");
 
 /**

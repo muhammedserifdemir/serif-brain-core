@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import * as proc from "../src/dashboard/proc.mjs";
 import { findBrains } from "../src/dashboard/api.mjs";
@@ -102,7 +102,9 @@ test("kesif — .serif-brain iceren klasorler bulunur, node_modules atlanir", ()
     mkdirSync(join(kok, "node_modules", "paket", ".serif-brain"), { recursive: true });
     mkdirSync(join(kok, "duz-klasor"), { recursive: true });
 
-    const bulunan = findBrains(kok).map(p => p.replace(kok + "/", "")).sort();
+    // `p.replace(kok + "/", "")` Windows'ta hic tutmaz (ayrac "\") ve iddia
+    // MUTLAK yolla karsilastirilir. relative() + POSIX'e cevir.
+    const bulunan = findBrains(kok).map(p => relative(kok, p).split("\\").join("/")).sort();
     assert.deepEqual(bulunan, ["alt/projeB", "projeA"]);
   } finally { rmSync(kok, { recursive: true, force: true }); }
 });
