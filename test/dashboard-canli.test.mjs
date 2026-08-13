@@ -12,6 +12,17 @@ import { serve } from "../src/dashboard/server.mjs";
 
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 
+// server.close() TEK BASINA YETMEZ: dinleyiciyi kapatir ama KEEP-ALIVE
+// baglantilarini yikmaz. fetch (undici) soketi havuzda canli tutar, acik
+// soket olay dongusunu ayakta birakir ve kosucu dosyayi bitiremez:
+// "Promise resolution is still pending but the event loop has already resolved".
+// LINUX'ta takiliyor, macOS'ta takilmiyordu — bu yuzden yalniz CI'da gorundu
+// ve CI faturalandirma yuzunden hic kosmadigi icin aylarca fark edilmedi.
+function kapat(server) {
+  server.closeAllConnections?.();   // Node >=18.2
+  server.close();
+}
+
 function tmpRepo() {
   const d = mkdtempSync(join(tmpdir(), "sb-dash-"));
   mkdirSync(join(d, ".serif-brain"), { recursive: true });
@@ -118,7 +129,7 @@ test("server — bilinmeyen proje yoluyla surec BASLATILAMAZ", async () => {
     }).then(r => r.json());
     assert.equal(r.ok, false);
     assert.match(r.error, /bilinmeyen/i);
-  } finally { server.close(); }
+  } finally { kapat(server); }
 });
 
 test("server — yalniz 127.0.0.1'e baglanir (agdan erisilemez)", async () => {
@@ -129,7 +140,7 @@ test("server — yalniz 127.0.0.1'e baglanir (agdan erisilemez)", async () => {
       "panel surec baslatabildigi icin dis arayuze ACILMAMALI");
     const r = await fetch(`http://127.0.0.1:${port}/api/projects?sync=0`).then(r => r.json());
     assert.ok(Array.isArray(r.active));
-  } finally { server.close(); }
+  } finally { kapat(server); }
 });
 
 test("api — SILINMIS tek proje TUM paneli dusurmez", async () => {
@@ -146,7 +157,7 @@ test("api — SILINMIS tek proje TUM paneli dusurmez", async () => {
     assert.ok(Array.isArray(hayalet.critItems), "kayit sema-tam donmeli");
     assert.equal(hayalet.objCount, 0);
     assert.equal(typeof r.totals.blocked, "number", "toplamlar hesaplanabilmeli");
-  } finally { server.close(); }
+  } finally { kapat(server); }
 });
 
 test("server — arayuz servis edilir ve API uclari cevap verir", async () => {
@@ -161,7 +172,7 @@ test("server — arayuz servis edilir ve API uclari cevap verir", async () => {
 
     const yok = await fetch(`http://127.0.0.1:${port}/api/bilinmeyen`);
     assert.equal(yok.status, 404);
-  } finally { server.close(); }
+  } finally { kapat(server); }
 });
 
 test("cli — argumansiz 'dashboard' sunucu BASLATMAZ (varsayilan degismedi)", async () => {
@@ -248,7 +259,7 @@ test("panel — ayaktaMi() YABANCI servisi bizimki sanmaz", async () => {
   try {
     assert.equal(await ayaktaMi(port), false,
       "4700'u baska bir uygulama tutuyorsa panel oraya BAGLANMAMALI");
-  } finally { sahte.close(); }
+  } finally { kapat(sahte); }
 });
 
 test("panel — /api/health kimlik imzasi doner", async () => {
@@ -256,7 +267,7 @@ test("panel — /api/health kimlik imzasi doner", async () => {
   try {
     const j = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
     assert.equal(j.serif_brain, true, "kimlik imzasi olmadan 'tek sunucu' kurali kurulamaz");
-  } finally { server.close(); }
+  } finally { kapat(server); }
 });
 
 test("panel — sunucuyuGarantile IKINCI sunucu acmaz", async () => {
@@ -273,7 +284,7 @@ test("panel — sunucuyuGarantile IKINCI sunucu acmaz", async () => {
     const r = await sunucuyuGarantile(port);
     assert.equal(r.baslatildi, false, "ayakta olan varken yeni surec baslatilmamali");
     assert.equal(r.url, `http://127.0.0.1:${port}`);
-  } finally { mevcut.close(); }
+  } finally { kapat(mevcut); }
 });
 
 test("kesif — SERIF_BRAIN_SCAN_ROOTS varsayilanin YERINE gecer", async () => {

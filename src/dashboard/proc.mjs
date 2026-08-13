@@ -67,6 +67,12 @@ export function logs(repo, limit = 200) {
 }
 
 /** Projeyi calistir. cmd yoksa/repo yoksa hata dondurur (throw etmez). */
+/** Alt surecin stdio borularini kapatir — ebeveynde tanitici birakmaz. */
+function serbestBirak(child) {
+  try { child.stdout?.destroy(); } catch { /* zaten kapali */ }
+  try { child.stderr?.destroy(); } catch { /* zaten kapali */ }
+}
+
 export function start(repo, cmd, port) {
   if (!repo || !existsSync(repo)) return { ok: false, error: "proje klasoru bulunamadi" };
   if (!cmd) return { ok: false, error: "calistirma komutu tanimsiz (dashboard override ile ekle)" };
@@ -89,6 +95,12 @@ export function start(repo, cmd, port) {
   child.stderr.on("data", push("err"));
   child.on("exit", (code, sig) => {
     rec.log.push({ t: Date.now(), stream: "sys", line: `— surec bitti (kod ${code ?? sig})` });
+    // Borulari BIRAK. Surec olduruldugunde bile ebeveyndeki stdout/stderr
+    // tanitici(PipeWrap)lari acik kaliyordu: panel uzun sure calisip cok proje
+    // baslatinca dosya tanitici sizintisi olur, test kosumunda ise surec hic
+    // cikmaz ("event loop has already resolved" — Linux'ta takiliyordu,
+    // macOS'ta takilmiyordu, bu yuzden yalniz CI'da gorunuyordu).
+    serbestBirak(child);
   });
   child.on("error", (e) => rec.log.push({ t: Date.now(), stream: "sys", line: `— baslatilamadi: ${e.message}` }));
 
@@ -115,8 +127,12 @@ async function killPid(pid, { hardAfterMs = 4000 } = {}) {
 export async function stop(repo) {
   const rec = owned.get(repo);
   if (!rec) return { ok: false, error: "bu sureci panel baslatmadi — zorla kapatmak icin onay gerekir", needsConfirm: true };
-  if (rec.child.exitCode !== null) { owned.delete(repo); return { ok: true, already: true }; }
+  if (rec.child.exitCode !== null) { serbestBirak(rec.child); owned.delete(repo); return { ok: true, already: true }; }
   await killPid(rec.child.pid);
+  // `shell: true` ile baslatildigi icin oldurulen PID KABUKTUR; torun surec
+  // yasamaya devam edip borulari acik tutabilir. Bu yuzden oldurmek yetmez,
+  // boruyu ebeveyn tarafindan da birakmak gerekir.
+  serbestBirak(rec.child);
   owned.delete(repo);
   return { ok: true };
 }
