@@ -263,6 +263,13 @@ module_paths:                # dosya yolu → modül (en uzun prefix kazanır)
 layer_rules:                 # mimari kısıtlar; ihlal = review/layers exit 2
   - { from: ui, to: db, reason: "UI veriye doğrudan dokunmasın, servis katmanı kullan" }
 
+god_file_exempt:             # KASITLI hub'lar — god-file alarmı üretmesin
+  - "src/cli/index.mjs"      # glob serbest: "src/cli/*.mjs", "**/index.mjs"
+  # Bir CLI dağıtıcısı ya da barrel dosyası tanımı gereği her şeyi import eder.
+  # Ona her düzenlemede "god-file" demek asla düzeltilmeyecek kalıcı bir alarm
+  # üretir — ve kalıcı alarm, kullanıcıya kapıyı görmezden gelmeyi öğretir.
+  # Muafiyet SADECE god-file'ı susturur; katman ihlalini ve döngüyü yutmaz.
+
 bug_signatures:              # geçmiş hataların 'şekli' → projeye-özel linter
   - name: rls-eksik
     pattern: "create table"

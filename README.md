@@ -219,6 +219,8 @@ layer_rules:             # architectural rule; exit 2 on violation
   - { from: ui, to: db, reason: "use the service layer" }
 bug_signatures:          # the shape of past bugs (regex)
   - { name: missing-await, pattern: "(?<!await )db\\.(query|exec)\\(", message: "await missing?" }
+god_file_exempt:         # intentional hubs (a CLI dispatcher imports everything)
+  - "src/cli/index.mjs"  # glob ok: "src/cli/*.mjs", "**/index.mjs"
 capture_reminder: true   # remind about commits not yet in memory
 ```
 

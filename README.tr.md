@@ -177,6 +177,8 @@ layer_rules:             # mimari kural; ihlalde exit 2
   - { from: ui, to: db, reason: "servis katmanı kullan" }
 bug_signatures:          # geçmiş hataların 'şekli' (regex)
   - { name: supabase-await, pattern: "(?<!await )supabase\\.(from|rpc)\\(", message: "await eksik olabilir" }
+god_file_exempt:         # kasıtlı hub (CLI dağıtıcısı her komutu import eder)
+  - "src/cli/index.mjs"  # glob serbest: "src/cli/*.mjs", "**/index.mjs"
 capture_reminder: true   # hafızaya geçmemiş commit hatırlatıcısı
 ```
 
