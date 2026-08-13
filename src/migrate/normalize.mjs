@@ -17,17 +17,20 @@ const STATUS_MAP = {
 
 const VALID_STATUS = new Set(["queued","open","active","in_progress","blocked","done","rejected","archived"]);
 const VALID_PRIORITY = new Set(["critical","high","medium","low"]);
-const VALID_MODULES = new Set(["contentx","presentx","animatorx","studiox","testx","dashboard","auth","billing","shared","infra","unknown","build","electron","seriftech","misc","licensing","workflow","design-engine"]);
-
-const MODULE_MAP = {
-  testlms: "testx",
-  TestLMS: "testx",
-  TestX: "testx",
-  PresentX: "presentx",
-  ContentX: "contentx",
-  AnimatorX: "animatorx",
-  StudioX: "studiox"
-};
+// Modul adlari PROJEYE OZELDIR. Burada bir zamanlar sabit bir liste vardi ve o
+// liste paket yazarinin kendi urun modulleriydi (contentx/presentx/studiox...).
+// Sonucu isim sizintisindan agirdi: goc eden YABANCI birinin listede olmayan
+// TUM modulleri "unknown"a indiriliyordu — yani goc, modul bilgisini yok
+// ediyordu. Dogru kaynak config: `valid_modules` + `module_normalization`.
+// Ikisi de yoksa dogru davranis KISITLAMAMAKTIR: bilmedigimiz bir adi
+// "gecersiz" ilan etmek, veri silmenin kibar halidir.
+function moduleKurallari(config) {
+  const gecerli = Array.isArray(config?.valid_modules) && config.valid_modules.length
+    ? new Set(config.valid_modules.map((m) => String(m).toLowerCase()))
+    : null;
+  const harita = (config && typeof config.module_normalization === "object" && config.module_normalization) || {};
+  return { gecerli, harita };
+}
 
 export function normalizeStatus(raw) {
   if (!raw) return { value: null, normalized: false, warning: "missing status" };
@@ -54,23 +57,24 @@ export function normalizePriority(raw) {
   return { value: lower, normalized: false, original: raw, warning: `unknown priority: ${raw}` };
 }
 
-export function normalizeModule(raw) {
+export function normalizeModule(raw, config = null) {
   if (!raw) return { value: "unknown", normalized: false, warning: "missing module — defaulted to 'unknown'" };
   if (Array.isArray(raw)) {
-    const mapped = raw.map(m => normalizeModule(m).value);
+    const mapped = raw.map(m => normalizeModule(m, config).value);
     return { value: mapped.length === 1 ? mapped[0] : mapped, normalized: true, original: raw };
   }
+  const { gecerli, harita } = moduleKurallari(config);
   const trimmed = String(raw).trim();
-  if (MODULE_MAP[trimmed]) {
-    return { value: MODULE_MAP[trimmed], normalized: true, original: raw };
+  if (harita[trimmed]) {
+    return { value: harita[trimmed], normalized: true, original: raw };
   }
   const lower = trimmed.toLowerCase();
-  if (VALID_MODULES.has(lower)) return { value: lower, normalized: lower !== trimmed, original: raw };
+  if (!gecerli || gecerli.has(lower)) return { value: lower, normalized: lower !== trimmed, original: raw };
   return { value: "unknown", normalized: true, original: raw, warning: `unknown module '${raw}' — mapped to 'unknown'` };
 }
 
 // Apply all normalizations to a candidate; record changes.
-export function normalizeCandidate(cand) {
+export function normalizeCandidate(cand, config = null) {
   const changes = [];
   const warnings = cand.warnings ? [...cand.warnings] : [];
 

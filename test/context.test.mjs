@@ -31,9 +31,12 @@ const EMPTY_DATA = {
   timestamps: {},
 };
 
-test("buildCompactJson default — primary project = serif-platform", () => {
+test("buildCompactJson default — proje bilinmiyorsa BASKA bir projenin adi dusmez", () => {
+  // Eskiden varsayilan "serif-platform"du: paket yazarinin urunu. Yapilandirma
+  // yapmamis bir kullanicinin ciktisinda hic duymadigi bir proje adi belirirdi.
+  // "unknown" bilgi kaybi degil, DURUST bir cevaptir.
   const json = buildCompactJson(EMPTY_DATA, {});
-  assert.equal(json.project, "serif-platform", "default primary project");
+  assert.equal(json.project, "unknown");
 });
 
 test("buildCompactJson explicit primary — passed argument used", () => {

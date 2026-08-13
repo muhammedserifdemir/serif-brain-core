@@ -68,7 +68,11 @@ test("init default (isimsiz) — klasor adindan otomatik custom proje turetilir,
   }
 });
 
-test("init default — flagship (serif-platform klasoru/paketi) icin eski 4-projeli layout korunur", async () => {
+test("init: 'serif-platform' adli klasor de OZEL muamele GORMEZ", async () => {
+  // Eskiden bu ad 4 projeli (serif-platform/mevzuat-ai/serifLms/seriftech-packages)
+  // bir onyuklemeyi tetikliyordu — paket yazarinin 2026-04 gocune ait liste, genel
+  // amacli bir aracin icinde. Ayni adi tasiyan yabanci bir klasor, hic duymadigi
+  // uc proje ile karsilasirdi. Artik her klasor ayni kurala tabi: ad turetilir.
   const dir = makeFlagshipProject();
   const parent = join(dir, "..");
   try {
@@ -78,14 +82,12 @@ test("init default — flagship (serif-platform klasoru/paketi) icin eski 4-proj
     assert.equal(exit, 0);
 
     const brainRoot = join(dir, ".serif-brain");
-    for (const sub of ["bugs", "decisions", "notes", "modules", "sessions", "sprints"]) {
-      assert.ok(existsSync(join(brainRoot, "objects/projects/serif-platform", sub)));
-    }
-
     const cfg = readFileSync(join(brainRoot, "config.yaml"), "utf8");
-    assert.match(cfg, /id: serif-platform/);
-    assert.match(cfg, /id: mevzuat-ai/);
-    assert.match(cfg, /legacy_sources:/);
+    assert.match(cfg, /id: serif-platform/, "klasor adindan turetilen TEK proje");
+    assert.doesNotMatch(cfg, /id: mevzuat-ai/, "baska projeler UYDURULMAZ");
+    assert.doesNotMatch(cfg, /id: serifLms/);
+    assert.doesNotMatch(cfg, /module_normalization/, "urune ozgu normalizasyon yazilmaz");
+    assert.ok(!existsSync(join(brainRoot, "objects/projects/mevzuat-ai")));
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

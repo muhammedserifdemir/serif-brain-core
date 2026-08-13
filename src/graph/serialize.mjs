@@ -25,11 +25,19 @@ export function writeGraphDot(graph, brainRoot) {
     ""
   ];
 
-  const moduleColor = {
-    contentx: "lightblue", presentx: "lightgreen", animatorx: "khaki",
-    studiox: "thistle", testx: "lightcoral", dashboard: "lightcyan",
-    shared: "lightyellow", infra: "lightgray", unknown: "white"
+  // Modul rengi ADDAN TURETILIR. Eskiden sabit bir liste vardi ve o liste paket
+  // yazarinin kendi urun modulleriydi (contentx/presentx/studiox...) — yani bu
+  // araci kuran herkesin grafi gri cikiyor, yalnizca tek bir projede renkleniyordu.
+  // Deterministik: ayni modul her kosuda ayni rengi alir.
+  const PALET = ["lightblue", "lightgreen", "khaki", "thistle", "lightcoral",
+                 "lightcyan", "lightyellow", "lightpink", "palegreen", "lavender"];
+  const renkAl = (ad) => {
+    if (!ad || ad === "unknown") return "white";
+    let h = 0;
+    for (let i = 0; i < ad.length; i++) h = (h * 31 + ad.charCodeAt(i)) >>> 0;
+    return PALET[h % PALET.length];
   };
+  const moduleColor = new Proxy({}, { get: (_, k) => renkAl(String(k)) });
 
   // Subgraph per module — readability
   const filesByModule = new Map();

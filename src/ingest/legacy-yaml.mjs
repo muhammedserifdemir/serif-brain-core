@@ -100,7 +100,7 @@ export function extractBody(block, key) {
   return out.join("\n").trim();
 }
 
-export function ingestDecisionsYaml(archivePath) {
+export function ingestDecisionsYaml(archivePath, projeId = "unknown") {
   const file = join(archivePath, "1-project-brain", "decisions.yaml");
   if (!existsSync(file)) return [];
   const text = readFileSync(file, "utf8");
@@ -120,7 +120,7 @@ export function ingestDecisionsYaml(archivePath) {
       raw: { date, title, status, priority, modules, vault_ref: vaultRef },
       proposed: {
         type: "decision",
-        project: "serif-platform",
+        project: projeId,
         title,
         module: modules.length > 0 ? (modules.length === 1 ? modules[0] : modules) : "unknown",
         status,
@@ -135,7 +135,7 @@ export function ingestDecisionsYaml(archivePath) {
   return out;
 }
 
-export function ingestBugsYaml(archivePath) {
+export function ingestBugsYaml(archivePath, projeId = "unknown") {
   const file = join(archivePath, "1-project-brain", "bugs.yaml");
   if (!existsSync(file)) return [];
   const text = readFileSync(file, "utf8");
@@ -158,7 +158,7 @@ export function ingestBugsYaml(archivePath) {
       raw: { id, desc, module, status, priority, date, closed },
       proposed: {
         type: "bug",
-        project: "serif-platform",
+        project: projeId,
         title: desc || id,
         module: module || "unknown",
         status,

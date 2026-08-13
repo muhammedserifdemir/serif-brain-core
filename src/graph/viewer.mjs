@@ -259,11 +259,17 @@ function renderViewerHtml(graph) {
       task: "#f78fb3", concept: "#7bdff2", dependency: "#b8c0d9", session: "#a3e635",
       note: "#7bdff2"
     };
-    const moduleColors = {
-      contentx: "#4cc9f0", presentx: "#80ed99", animatorx: "#ffd166", studiox: "#c77dff",
-      testx: "#ff6b6b", dashboard: "#72efdd", shared: "#fef08a", infra: "#cbd5e1",
-      auth: "#a7f3d0", billing: "#fdba74", unknown: "#94a3b8"
-    };
+    // Modul rengi ADDAN turetilir (deterministik). Sabit liste paket yazarinin
+    // kendi urun modulleriydi: baska herkesin grafi tek renk cikiyordu.
+    const MODUL_PALET = ["#4cc9f0", "#80ed99", "#ffd166", "#c77dff", "#ff6b6b",
+                         "#72efdd", "#fef08a", "#a7f3d0", "#fdba74", "#f472b6"];
+    const moduleColors = new Proxy({}, { get: (_, k) => {
+      const ad = String(k);
+      if (!ad || ad === "unknown") return "#94a3b8";
+      let h = 0;
+      for (let i = 0; i < ad.length; i++) h = (h * 31 + ad.charCodeAt(i)) >>> 0;
+      return MODUL_PALET[h % MODUL_PALET.length];
+    } });
 
     // ----- data -----
     const nodes = GRAPH.nodes.map((n, i) => ({ ...n, idx: i, x: 0, y: 0, vx: 0, vy: 0, fx: null, fy: null }));

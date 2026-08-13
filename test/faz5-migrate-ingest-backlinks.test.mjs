@@ -25,11 +25,24 @@ test("normalizePriority: TOP → high (uyarılı)", () => {
   assert.ok(top.warning);
 });
 
-test("normalizeModule: legacy isim eşlemesi + array + unknown", () => {
-  assert.equal(normalizeModule("TestX").value, "testx");
-  assert.equal(normalizeModule("AnimatorX").value, "animatorx");
-  assert.equal(normalizeModule("YokModül").value, "unknown");
-  assert.deepEqual(normalizeModule(["TestX", "ContentX"]).value, ["testx", "contentx"]);
+test("normalizeModule: esleme ve gecerli liste CONFIG'ten gelir, sabit degil", () => {
+  // Eskiden bu kurallar koda gomuluydu ve paket yazarinin urun modulleriydi.
+  // Sonucu isim sizintisindan agirdi: goc eden yabancinin listede olmayan TUM
+  // modulleri "unknown"a iniyordu — goc, modul bilgisini yok ediyordu.
+  const cfg = {
+    valid_modules: ["testx", "animatorx", "contentx"],
+    module_normalization: { TestX: "testx", AnimatorX: "animatorx", ContentX: "contentx" },
+  };
+  assert.equal(normalizeModule("TestX", cfg).value, "testx");
+  assert.equal(normalizeModule("AnimatorX", cfg).value, "animatorx");
+  assert.equal(normalizeModule("YokModul", cfg).value, "unknown", "listede yoksa unknown");
+  assert.deepEqual(normalizeModule(["TestX", "ContentX"], cfg).value, ["testx", "contentx"]);
+
+  // CONFIG YOKSA kisitlama da yoktur: bilmedigimiz bir adi "gecersiz" ilan
+  // etmek, veri silmenin kibar halidir.
+  assert.equal(normalizeModule("odeme").value, "odeme");
+  assert.equal(normalizeModule("Odeme").value, "odeme", "yalniz kucuk harfe iner");
+  assert.deepEqual(normalizeModule(["Odeme", "Kargo"]).value, ["odeme", "kargo"]);
 });
 
 test("normalizeCandidate: status+priority+module birlikte normalize + changes", () => {

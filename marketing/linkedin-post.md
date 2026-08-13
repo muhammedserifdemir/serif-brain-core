@@ -9,7 +9,7 @@
 | Brain'li proje | **19** (boş olmayan) | `find ~ -name .serif-brain` + obje sayımı |
 | Karar/hata kaydı | **1.217** | aynı taramanın toplamı |
 | En büyük kod grafı | **2.605 düğüm** | `graph.json` nodes |
-| Test | **362** | `npm test` |
+| Test | **364** | `npm test` |
 | Kapı kurulu | **global** → tüm projeler | `~/.claude/settings.json` |
 
 > ⚠ Önceki taslak "17 proje, 930 kayıt, 229 test" diyordu ve **merkez iddiası <!-- belge-dogrulugu:yoksay -->
@@ -43,7 +43,7 @@
 > kaldım — çünkü tekrar eden bir uyarı, uyarı değil gürültüdür.
 >
 > Bugünkü hâli: 19 proje, 1.217 karar/hata kaydı, en büyüğü 2.605 düğümlük kod
-> grafı. Sıfır bağımlılık, saf Node, 362 test.
+> grafı. Sıfır bağımlılık, saf Node, 364 test.
 >
 > En çok şu ders kaldı: bir kuralın işe yaraması için doğru olması yetmiyor —
 > **atlanamaz olması gerekiyor.**

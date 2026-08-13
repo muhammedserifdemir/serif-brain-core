@@ -1,50 +1,51 @@
 // File path -> module mapping. Order matters: more specific prefixes first.
 // Genislemek istersen .serif-brain/config.yaml'a 'module_paths' anahtarini ekle.
 
-const RULES = [
-  // ContentX (3 olasi konum)
-  ["apps/contentx/", "contentx"],
-  ["apps/content-studio/", "contentx"],
-  ["apps/content-generator/", "contentx"],
+// GENEL yerlesim kurallari. Burada bir zamanlar paket yazarinin kendi urun
+// klasorleri vardi (apps/contentx/, apps/presentation-designer/, apps/serif-studio/
+// ...). Sonucu olculdu: config yazmamis projelerde HICBIR kural eslesmiyor ve her
+// dosya "unknown" moduline dusuyordu — 11 gercek projede besinin orani %25 ustu,
+// birininki %100. O dosyalarda modul-seviyesi hafiza, hotspot ve risk sessizce
+// zayif calisir.
+//
+// Yerine ekosistemden bagimsiz KONVANSIYON: kapsayici dizinin altindaki ilk
+// segment modul adidir (`src/auth/login.ts` → auth). Bu, bir sirketin klasor
+// adlarini ezberlemek yerine herkeste calisan bir kuraldir.
+const KAPSAYICI = ["apps/", "packages/", "modules/", "services/", "src/", "lib/"];
 
-  // PresentX (2 olasi konum)
-  ["apps/presentation-designer/", "presentx"],
-  ["apps/presentx/", "presentx"],
-
-  // AnimatorX (V1 + V2)
-  ["apps/animation-studio/", "animatorx"],
-  ["apps/animator-x/", "animatorx"],
-
-  // StudioX
-  ["apps/serif-studio/", "studiox"],
-  ["apps/studiox/", "studiox"],
-
-  // Family-gallery / unknown apps
-  ["apps/family-gallery/", "unknown"],
-
-  // TestX (var olduğunda)
-  ["apps/testx/", "testx"],
-  ["apps/testlms/", "testx"],
-
-  // Dashboard
+// Tek-segmentli, kendiliginden modul olan tepe dizinler.
+const TEKIL = [
   ["dashboard/", "dashboard"],
-
-  // Shared / infra
-  ["shared/", "shared"],
+  ["server/", "server"],
+  ["client/", "client"],
   ["public/", "shared"],
+  ["shared/", "shared"],
   ["scripts/", "infra"],
-  [".serif-brain/", "infra"]
+  ["infra/", "infra"],
+  ["docs/", "docs"],
+  [".serif-brain/", "infra"],
 ];
 
 export function ownerOf(relPath) {
-  for (const [prefix, mod] of RULES) {
-    if (relPath.startsWith(prefix)) return mod;
+  const yol = String(relPath || "");
+  for (const [prefix, mod] of TEKIL) {
+    if (yol.startsWith(prefix)) return mod;
   }
-  // apps/<other>/ — bilinmeyen alt-uygulama
-  if (relPath.startsWith("apps/")) {
-    const second = relPath.split("/")[1] || "";
-    return second ? `unknown` : "unknown";
+  for (const kap of KAPSAYICI) {
+    if (!yol.startsWith(kap)) continue;
+    const parcalar = yol.slice(kap.length).split("/");
+    // Alt dizin varsa adi modul olur; dogrudan `src/a.ts` ise modul yoktur.
+    if (parcalar.length > 1 && parcalar[0]) return parcalar[0].toLowerCase();
+    return "unknown";
   }
+  // DUZ YERLESIM (tepe dizinin kendisi modul: `engine/`, `orchestrator/`) BILEREK
+  // kapsanmadi. Denendi ve uc testi kirdi — hepsi ayni kasitli kurali koruyor:
+  // "ne graf ne config biliyorsa unknown kalir, YALAN URETMEZ". Her tepe dizini
+  // modul saymak bir tahmindir; tahmini gercek gibi sunmak bu aracin en temel
+  // sozlesmesini bozar. Duz yerlesimli projeler icin dogru yol config:
+  //   module_paths: { "engine/": engine, "orchestrator/": orchestrator }
+  // `init` bunu klasor yapisindan zaten turetiyor. (Olcum: cizgi-film-otomasyon
+  // 118/118 unknown — bu bir yanlis alarm degil, config eksigi; doctor soyluyor.)
   return "unknown";
 }
 

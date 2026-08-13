@@ -1,8 +1,8 @@
 ---
 id: bug-YYYYMMDD-slug
 type: bug
-project: serif-platform
-module: testx                    # contentx | presentx | animatorx | studiox | testx | dashboard | shared | ...
+project: <proje-id>              # config.yaml icindeki aktif proje
+module: <modul>                  # module_paths ile turetilir; ornek: auth | billing | ui
 title: "Kisa, eylem-odakli baslik"
 status: open                     # open | active | in_progress | blocked | done | rejected | archived
 priority: high                   # critical | high | medium | low

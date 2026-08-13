@@ -99,7 +99,7 @@ Kapsanmayanı da yazın; sessiz kapsam, yanlış güven üretir.
 
 "0 hata / hepsi yeşil" olmayan olgun kod tabanlarında tek ölçü sayının
 kendisidir — ve o sayı **kapsama** bağlıdır. Aynı testleri `shared/` diye
-çağırmakla `shared/design-ir shared/studiox-adapter shared/__tests__` diye
+çağırmakla `shared/cekirdek shared/adaptor shared/__tests__` diye
 çağırmak farklı dosya kümesi toplar; sayı değişir, siz bunu regresyon
 sanarsınız (veya daha kötüsü: regresyonu kaçırırsınız).
 

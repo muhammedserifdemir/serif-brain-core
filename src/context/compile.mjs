@@ -8,13 +8,25 @@ import { join } from "node:path";
 import { loadConfig } from "../markdown/schema.mjs";
 import { pri, daysSince, rankObjects } from "../util/rank.mjs";
 
+/**
+ * Aktif proje id'si. Bulunamazsa BASKA BIR PROJENIN ADI dondurulemez: eskiden
+ * "serif-platform" (paket yazarinin urunu) dusuyordu ve hicbir yapilandirma
+ * yapmamis bir kullanicinin uretilmis bagliaminda, hic duymadigi bir projenin
+ * adi beliriyordu. Varsayilan ya turetilir ya durust olur.
+ */
 function resolvePrimaryProject(brainRoot) {
+  const turet = () => {
+    // .serif-brain'in bir ust dizini = proje koku; onun adi makul bir tahmindir.
+    const parcalar = String(brainRoot).replace(/[\\/]+$/, "").split(/[\\/]/);
+    const i = parcalar.lastIndexOf(".serif-brain");
+    return (i > 0 ? parcalar[i - 1] : parcalar[parcalar.length - 1]) || "unknown";
+  };
   try {
     const cfg = loadConfig(brainRoot);
     const active = (cfg.projects || []).filter(p => p.active);
-    return active[0]?.id || "serif-platform";
+    return active[0]?.id || turet();
   } catch {
-    return "serif-platform";
+    return turet();
   }
 }
 
@@ -312,7 +324,7 @@ export function buildClaudeMarkdown(data, opts = {}) {
 }
 
 // ─── compact.json ───
-export function buildCompactJson(data, opts = {}, primaryProject = "serif-platform") {
+export function buildCompactJson(data, opts = {}, primaryProject = "unknown") {
   const moduleFilter = opts.module || null;
   const part = partition(data, moduleFilter);
 

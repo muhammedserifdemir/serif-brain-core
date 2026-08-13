@@ -45,7 +45,7 @@ Bu komut su 3 dosyayi gunceller (5 saniyenin altinda):
 Module bazli dar bagliam:
 
 ```bash
-serif-brain context --module presentx
+serif-brain context --module auth
 ```
 
 ## Yeni Karar / Bug Kaydetme
@@ -53,14 +53,14 @@ serif-brain context --module presentx
 ```bash
 serif-brain add bug \
   --project <path> \
-  --title "PresentX seed inconsistency" \
-  --module presentx \
+  --title "Oturum tokeni yenilenmiyordu" \
+  --module auth \
   --priority high
 
 serif-brain add decision \
   --project <path> \
-  --title "ContentX-PresentX seed unification" \
-  --module contentx,presentx \
+  --title "Token yenileme tek yerden yapilir" \
+  --module auth,api \
   --status active \
   --priority critical
 ```
@@ -76,8 +76,8 @@ serif-brain analyze
 cat .serif-brain/reports/decisions.md
 
 # Tek modul
-serif-brain context --module presentx
-cat .serif-brain/context/CLAUDE.generated-presentx.md
+serif-brain context --module auth
+cat .serif-brain/context/CLAUDE.generated-auth.md
 ```
 
 ## Kod Tabani Analiz
@@ -136,9 +136,9 @@ serif-brain migrate --dry-run    # SADECE rapor uretir, hicbir sey yazmaz
 
 1. **Canonical:** SQLite (`brain.db`) + Markdown object dosyalari
 2. **Derived:** graph/, reports/, context/, indexes/ — silinebilir, regenerate edilir
-3. **Frozen archive:** eski 5 sistem `~/SerifBrainArchive/legacy-2026-04-29-230615/` altinda, sadece okunur
+3. **Frozen archive:** goc edilmis eski sistemler `config.legacy_sources` altinda, sadece okunur
 4. **Status filtreleri:** `done|closed|completed|rejected|archived` aktif context'e GIRMEZ
-5. **Module standardi:** `testlms→testx`, `PresentX→presentx` vb. (config.yaml normalization)
+5. **Module standardi:** modul adlari config.yaml `module_paths` ile tek bicime indirgenir
 6. **Native:** Obsidian/Graphify yok — bilgi agi ve grafi kendi engine'larimizla
 
 ## Hangi Komut Ne Yapar — Hizli Bakis

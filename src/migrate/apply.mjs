@@ -6,9 +6,18 @@ import { writeObject, makeId, objectPath } from "../markdown/object.mjs";
 
 const VALID_STATUS = new Set(["queued","open","active","in_progress","blocked","done","rejected","archived"]);
 const VALID_PRIORITY = new Set(["critical","high","medium","low"]);
-const VALID_MODULES = new Set(["contentx","presentx","animatorx","studiox","testx","dashboard","auth","billing","shared","infra","unknown"]);
+// Gecerli modul listesi PROJEYE OZELDIR; config'ten gelir. Yoksa KISITLAMA YOK:
+// sabit liste paket yazarinin urun modulleriydi ve goc eden yabancinin listede
+// olmayan TUM modullerini "unknown"a indiriyordu (isim sizintisindan agir: veri
+// kaybi). Bkz. migrate/normalize.mjs — ayni kural.
+function gecerliModuller(config) {
+  return Array.isArray(config?.valid_modules) && config.valid_modules.length
+    ? new Set(config.valid_modules.map((m) => String(m).toLowerCase()))
+    : null;
+}
 
-function defensiveNormalize(c) {
+function defensiveNormalize(c, config = null) {
+  const gecerli = gecerliModuller(config);
   const fm = c.proposed;
   const warnings = [];
 
@@ -34,7 +43,7 @@ function defensiveNormalize(c) {
   // Module: array tek elementse string yap; her elemanı valid değilse "unknown"a indir
   let mods = Array.isArray(fm.module) ? fm.module : (fm.module ? [fm.module] : ["unknown"]);
   mods = mods.map(m => {
-    if (typeof m !== "string" || !VALID_MODULES.has(m)) {
+    if (typeof m !== "string" || (gecerli && !gecerli.has(m.toLowerCase()))) {
       warnings.push(`module '${m}' invalid → unknown`);
       return "unknown";
     }
@@ -73,7 +82,7 @@ function buildBody(c) {
   return `\n# ${c.proposed.title}\n\n${raw}${provenance}\n`;
 }
 
-export function applyMigration({ brainRoot, candidates, dryRunData, archivePath }) {
+export function applyMigration({ brainRoot, candidates, dryRunData, archivePath, projeId = "unknown", config = null }) {
   const written = [];
   const archived = [];
   const summarized = [];
@@ -92,11 +101,11 @@ export function applyMigration({ brainRoot, candidates, dryRunData, archivePath 
     }
 
     // Defensiv normalize
-    const { fm: normalized, warnings } = defensiveNormalize(c);
+    const { fm: normalized, warnings } = defensiveNormalize(c, config);
     for (const w of warnings) allWarnings.push({ source: c.source.path, warning: w });
 
     // ID üret
-    const project = normalized.project || "serif-platform";
+    const project = normalized.project || projeId;
     const created = new Date(normalized.created_at);
     let id = makeId(normalized.type, normalized.title, isNaN(created) ? new Date() : created);
 
@@ -186,7 +195,7 @@ export function applyMigration({ brainRoot, candidates, dryRunData, archivePath 
     const fm = {
       id: makeId("note", "Migrated Daily Notes Summary"),
       type: "note",
-      project: "serif-platform",
+      project: projeId,
       title: "Migrated Daily Notes Summary",
       status: "archived",
       created_at: new Date().toISOString(),

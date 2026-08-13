@@ -29,6 +29,18 @@ export async function migrateCommand({ args }) {
 
   const isApply = args.flags.apply === true;
   const isDryRun = !isApply;
+  // Goc edilen kayitlar HANGI projeye yazilacak: brain'in kendi aktif projesi.
+  // Eskiden sabit "serif-platform" yaziliyordu — paket yazarinin urunu; baska
+  // birinin gocunde o ada ait, var olmayan bir proje uretilirdi.
+  const brainConfig = (() => {
+    try { return loadConfig(join(projectRoot, ".serif-brain")); } catch { return null; }
+  })();
+  const hedefProje = (() => {
+    try {
+      const cfg = loadConfig(join(projectRoot, ".serif-brain"));
+      return (cfg.projects || []).find((p) => p.active)?.id || "unknown";
+    } catch { return "unknown"; }
+  })();
 
   console.log(`[serif-brain migrate ${isApply ? "--apply" : "--dry-run"}]`);
   console.log(`  Project:  ${projectRoot}`);
@@ -40,13 +52,13 @@ export async function migrateCommand({ args }) {
   console.log(`Reading sources...`);
   const t0 = Date.now();
 
-  const legacyDecisions = ingestDecisionsYaml(archivePath);
-  const legacyBugs = ingestBugsYaml(archivePath);
-  const obsDecisions = ingestObsidianDecisions(archivePath);
-  const obsBugs = ingestObsidianBugs(archivePath);
-  const obsSprints = ingestObsidianSprints(archivePath);
+  const legacyDecisions = ingestDecisionsYaml(archivePath, hedefProje);
+  const legacyBugs = ingestBugsYaml(archivePath, hedefProje);
+  const obsDecisions = ingestObsidianDecisions(archivePath, hedefProje);
+  const obsBugs = ingestObsidianBugs(archivePath, hedefProje);
+  const obsSprints = ingestObsidianSprints(archivePath, hedefProje);
   const obsDailies = listObsidianDailies(archivePath);
-  const obsRootDocs = listObsidianRootDocs(archivePath);
+  const obsRootDocs = listObsidianRootDocs(archivePath, hedefProje);
   const legacyTopLevel = listTopLevelYamlFiles(archivePath);
   const graphifySummary = readGraphifyReport(archivePath);
 
@@ -73,7 +85,7 @@ export async function migrateCommand({ args }) {
   for (const path of obsDailies) {
     candidates.push({
       source: { kind: "obsidian", path },
-      proposed: { type: "note", project: "serif-platform", title: `Daily: ${path.split("/").pop()}`, status: "archived", body: "" },
+      proposed: { type: "note", project: hedefProje, title: `Daily: ${path.split("/").pop()}`, status: "archived", body: "" },
       summarize_only: true
     });
   }
@@ -82,7 +94,7 @@ export async function migrateCommand({ args }) {
   for (const path of obsRootDocs) {
     candidates.push({
       source: { kind: "obsidian", path },
-      proposed: { type: "note", project: "serif-platform", title: `Root doc: ${path.split("/").pop()}`, status: "archived", body: "" },
+      proposed: { type: "note", project: hedefProje, title: `Root doc: ${path.split("/").pop()}`, status: "archived", body: "" },
       summarize_only: true,
       reason: "config/principles already migrated to .serif-brain/config.yaml"
     });
@@ -92,7 +104,7 @@ export async function migrateCommand({ args }) {
   for (const path of legacyTopLevel) {
     candidates.push({
       source: { kind: "legacy_yaml", path },
-      proposed: { type: "note", project: "serif-platform", title: `Legacy: ${path.split("/").pop()}`, status: "archived", body: "" },
+      proposed: { type: "note", project: hedefProje, title: `Legacy: ${path.split("/").pop()}`, status: "archived", body: "" },
       summarize_only: true,
       reason: "config/principles already migrated to .serif-brain/config.yaml"
     });
@@ -103,7 +115,7 @@ export async function migrateCommand({ args }) {
 
   // Normalize
   for (const c of candidates) {
-    if (!c.error) normalizeCandidate(c);
+    if (!c.error) normalizeCandidate(c, brainConfig);
   }
 
   // ─── 3. Dedup ───
@@ -158,9 +170,9 @@ export async function migrateCommand({ args }) {
       { kind: "legacy_yaml", path: "1-project-brain/decisions.yaml", count: legacyDecisions.length },
       { kind: "legacy_yaml", path: "1-project-brain/bugs.yaml", count: legacyBugs.length },
       { kind: "legacy_yaml", path: "1-project-brain/{identity,project,tech,...}.yaml", count: legacyTopLevel.length, note: "principles → config.yaml (already migrated, no per-record import)" },
-      { kind: "obsidian", path: "4-obsidian-vault/projects/serif-platform/decisions/", count: obsDecisions.length, errors: obsDecisions.filter(c => c.error).length },
-      { kind: "obsidian", path: "4-obsidian-vault/projects/serif-platform/bugs/", count: obsBugs.length, errors: obsBugs.filter(c => c.error).length },
-      { kind: "obsidian", path: "4-obsidian-vault/projects/serif-platform/sprints/", count: obsSprints.length },
+      { kind: "obsidian", path: "4-obsidian-vault/projects/<proje>/decisions/", count: obsDecisions.length, errors: obsDecisions.filter(c => c.error).length },
+      { kind: "obsidian", path: "4-obsidian-vault/projects/<proje>/bugs/", count: obsBugs.length, errors: obsBugs.filter(c => c.error).length },
+      { kind: "obsidian", path: "4-obsidian-vault/projects/<proje>/sprints/", count: obsSprints.length },
       { kind: "obsidian", path: "4-obsidian-vault/daily/", count: obsDailies.length, note: "summarize-only (high volume, low-value context)" },
       { kind: "obsidian", path: "4-obsidian-vault/{identity,feedback,...}.md", count: obsRootDocs.length, note: "principles → config.yaml" },
       { kind: "graphify", path: "5-graphify-out/GRAPH_REPORT.md", count: 0, note: "REFERENCE_ONLY — replaced by yerlesik graph engine" }
@@ -230,7 +242,7 @@ export async function migrateCommand({ args }) {
   console.log(`══════════════════════════════════════`);
   console.log(`APPLY — yazma fazi basliyor`);
   console.log(`══════════════════════════════════════`);
-  const applied = applyMigration({ brainRoot, candidates, dryRunData: audit, archivePath });
+  const applied = applyMigration({ brainRoot, candidates, dryRunData: audit, archivePath, projeId: hedefProje, config: brainConfig });
 
   console.log(``);
   console.log(`Apply sonucu:`);

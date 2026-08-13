@@ -1,8 +1,8 @@
 ---
 id: decision-YYYYMMDD-slug
 type: decision
-project: serif-platform
-module: shared                   # tek string veya liste: [contentx, presentx]
+project: <proje-id>              # config.yaml icindeki aktif proje
+module: <modul>                  # tek string veya liste: [auth, ui]
 title: "Karari tek cumlede ozetleyen baslik"
 status: queued                   # queued | active | in_progress | blocked | done | rejected | archived
 priority: high                   # critical | high | medium | low

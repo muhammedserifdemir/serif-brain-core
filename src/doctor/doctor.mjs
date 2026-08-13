@@ -26,13 +26,20 @@ const LEGACY_HOOK_PATTERNS = [
 // (hardcoded kullanıcı adı DEĞİL). Bunlar yalnız "eski kaynaklar temizlendi mi"
 // bilgi kontrolüdür; yoksa doctor "kaldırıldı ✓" der.
 const HOME = homedir();
-const LEGACY_SOURCES = [
-  { id: "project-brain",       path: join(HOME, "Desktop/serif-platform/.claude/brain") },
-  { id: "claude-brain-package", path: join(HOME, "Desktop/seriftech-packages/claude-brain") },
-  { id: "skill-sherif-brain-claude", path: join(HOME, ".claude/skills/sherif-brain-claude") },
-  { id: "obsidian-vault",      path: join(HOME, "Obsidian-Dev-Vault") },
-  { id: "graphify-out",        path: join(HOME, "Desktop/serif-platform/graphify-out") }
-];
+// Bu liste bir zamanlar SABITTI ve paket yazarinin kendi klasor duzenini
+// (Desktop/serif-platform/...) tasiyordu — genel amacli bir aracin icinde tek
+// bir kullanicinin gocu. Artik goc eden kisi kendi kaynaklarini config'e yazar:
+//   legacy_sources:
+//     - { id: eski-brain, path: "~/eski/yol" }
+function legacySources(config) {
+  const list = Array.isArray(config?.legacy_sources) ? config.legacy_sources : [];
+  return list
+    .filter((s) => s && s.path)
+    .map((s) => ({
+      id: s.id || String(s.path).split("/").filter(Boolean).pop(),
+      path: String(s.path).replace(/^~(?=\/|$)/, HOME),
+    }));
+}
 
 function check(label, ok, detail = "") {
   const mark = ok === true ? "✓" : ok === false ? "✗" : "·";
@@ -299,7 +306,7 @@ export async function doctorCommand({ args }) {
   // Isaret TERSTI: eski kaynagin KALDIRILMIS olmasi ISTENEN durumdur, ama
   // "MOVED/REMOVED" kirmizi ✗ ile basiliyordu — goc tamamlanmis bir brain
   // basarisiz gorunuyordu. Artik: gitmisse ✓ (goc tamam), duruyorsa bilgi.
-  for (const src of LEGACY_SOURCES) {
+  for (const src of legacySources(config)) {
     const duruyor = existsSync(src.path);
     check(`  ${src.id}`, duruyor ? " " : true, duruyor ? "hala duruyor (dokunulmadi)" : "temizlenmis ✓");
   }

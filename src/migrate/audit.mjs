@@ -108,7 +108,7 @@ export function writeMigrationAudit(brainRoot, audit) {
   lines.push(``);
   lines.push(`If you run \`serif-brain migrate --apply\`:`);
   lines.push(``);
-  lines.push(`1. **${audit.classification.move}** Markdown object dosyasi yazilacak under \`.serif-brain/objects/projects/serif-platform/\`:`);
+  lines.push(`1. **${audit.classification.move}** Markdown object dosyasi yazilacak: \`.serif-brain/objects/projects/${audit.project_id || "<proje>"}/\``);
   for (const [type, count] of Object.entries(audit.move_breakdown_by_type || {})) {
     lines.push(`   - ${type}s/: ${count} dosya`);
   }
@@ -179,7 +179,7 @@ export function writeContextPollution(brainRoot, audit) {
 
   lines.push(`## Deprecated module names`);
   lines.push(``);
-  lines.push(`- \`testlms\` → \`testx\` rename: **${audit.module_renames || 0}** kayit etkilendi`);
+  lines.push(`- modul adi normalizasyonu (config module_normalization): **${audit.module_renames || 0}** kayit`);
   lines.push(``);
 
   lines.push(`## TOP priority anomalies`);
