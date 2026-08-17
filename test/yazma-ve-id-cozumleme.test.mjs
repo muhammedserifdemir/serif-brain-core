@@ -163,3 +163,86 @@ test("MCP brain_close: kapatir; olmayan id JSON-RPC HATASI verir (sessiz basari 
   });
   assert.ok(err.result?.isError || err.error, "basarisiz yazma sessiz kalmamali");
 });
+
+// ── GOVDE YAZMA ─────────────────────────────────────────────────────────────
+// Kok neden (2026-08-15): createObject govde parametresi KABUL ETMIYORDU; her
+// kayit statik bos sablonla doguyordu. record ayrica 'done' dogdugu icin
+// closeObject'in `already` dali onu noop'a dusuruyor, yani record hicbir kod
+// yolundan icerik alamiyordu. Olcum: record %61 bos (61/100), decision %10
+// (19/183) — 6 katlik fark tam olarak bu iki satirin sonucu.
+
+test("createObject: body verilince govde DISKE yazilir (bos sablon degil)", () => {
+  const { root, brainRoot } = mkBrain();
+  const r = createObject({
+    brainRoot, projectRoot: root, config: config(["tek"]),
+    type: "record", title: "gemini default gecisi", module: "core", files: [],
+    body: "## Ne yapildi\nTum modullerde default model degistirildi.\n\n## Kanit\nbenchmark 12/12 gecti.",
+  });
+  assert.equal(r.ok, true);
+  const raw = readFileSync(r.path, "utf8");
+  assert.match(raw, /benchmark 12\/12 gecti/, "verilen govde diskte olmali");
+  assert.doesNotMatch(raw, /## Sonuc \/ Kanit\n- \n/, "bos sablon govdenin yanina yapismamali");
+  assert.equal(r.govdesiz, false);
+});
+
+test("createObject: body verilmezse ESKI davranis birebir korunur", () => {
+  const { root, brainRoot } = mkBrain();
+  const r = createObject({
+    brainRoot, projectRoot: root, config: config(["tek"]),
+    type: "record", title: "govdesiz kayit", module: "core", files: [],
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.govdesiz, true, "cagirana govdesiz oldugu bildirilmeli");
+  assert.match(readFileSync(r.path, "utf8"), /## Ne yapildi/, "sablon eskisi gibi yazilmali");
+});
+
+test("closeObject: 'done' DOGAN record'a not eklenebilir (artik noop degil)", () => {
+  const { root, brainRoot } = mkBrain();
+  const r = createObject({
+    brainRoot, projectRoot: root, config: config(["tek"]),
+    type: "record", title: "sonradan doldurulacak", module: "core", files: [],
+  });
+  assert.equal(r.status, "done", "record done dogar — testin dayanagi bu");
+
+  const c = closeObject({ brainRoot, id: r.id, note: "asil icerik buraya" });
+  assert.equal(c.noop, false, "not verilmisse noop'a dusmemeli");
+  assert.equal(c.appendedToClosed, true);
+  const raw = readFileSync(r.path, "utf8");
+  assert.match(raw, /asil icerik buraya/, "not gercekten diske yazilmali");
+  assert.match(raw, /## Ek Not/, "kapali kayda eklenen not 'Tamamlanma' degildir");
+});
+
+test("closeObject: notsuz cagri kapali kayitta HALA noop (close.mjs sozlesmesi)", () => {
+  const { root, brainRoot } = mkBrain();
+  const r = createObject({
+    brainRoot, projectRoot: root, config: config(["tek"]),
+    type: "record", title: "dokunulmayacak", module: "core", files: [],
+  });
+  const c = closeObject({ brainRoot, id: r.id });
+  assert.equal(c.noop, true, "eski noop davranisi korunmali");
+});
+
+test("closeObject: kapali kayda not eklemek completed_at'i BUGUNE kaydirmaz", () => {
+  const { root, brainRoot } = mkBrain();
+  const r = createObject({
+    brainRoot, projectRoot: root, config: config(["tek"]),
+    type: "bug", title: "once kapanan", module: "core", files: [],
+  });
+  const ilk = closeObject({ brainRoot, id: r.id, note: "kapandi", now: new Date("2026-01-10T10:00:00Z") });
+  assert.equal(ilk.completed_at, "2026-01-10");
+  const sonra = closeObject({ brainRoot, id: r.id, note: "ek bilgi", now: new Date("2026-08-15T10:00:00Z") });
+  assert.equal(sonra.completed_at, "2026-01-10", "is ocakta bitti; agustos notu bunu degistirmemeli");
+});
+
+test("MCP brain_add: body parametresi ucdan uca gecer", () => {
+  const { brainRoot } = mkBrain();
+  const { handle } = createBrainMcp({ brainRoot });
+  const added = JSON.parse(handle({
+    jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: { name: "brain_add", arguments: {
+      type: "decision", title: "mcp govde testi", files: [], body: "MCP uzerinden yazilan govde.",
+    } },
+  }).result.content[0].text);
+  assert.equal(added.govdesiz, false);
+  assert.match(readFileSync(added.path, "utf8"), /MCP uzerinden yazilan govde/);
+});

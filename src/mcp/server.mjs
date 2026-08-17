@@ -204,12 +204,16 @@ export const TOOLS = [
     description:
       "Hafizaya yeni kayit yaz: bug (yasanan hata), decision (verilen karar), " +
       "plan (yol haritasi), record (yapilmis is, status:done dogar). " +
-      "Oturumda ogrenilen sey buraya yazilmazsa bir sonraki oturumda YOKTUR.",
+      "Oturumda ogrenilen sey buraya yazilmazsa bir sonraki oturumda YOKTUR. " +
+      "`body` DAIMA yaz: bilgi su an SENDE, sonra olmayacak. body'siz kayit " +
+      "basliktan baska bir sey ogretmeyen bos bir kabuktur — ozellikle record " +
+      "'done' dogdugu icin bir daha kimsenin onune gelmez.",
     inputSchema: {
       type: "object",
       properties: {
         type: { type: "string", enum: ["bug", "decision", "plan", "record"] },
         title: { type: "string", description: "Tek cumlelik baslik (id bundan turer)" },
+        body: { type: "string", description: "Kaydin govdesi (markdown). Verilmezse BOS sablon yazilir — bunu yapma." },
         module: { type: "string", description: "config.valid_modules'ten biri" },
         priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
         severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
@@ -426,6 +430,7 @@ function callTool(name, a = {}, brainRoot) {
       config: loadConfig(brainRoot),
       type: a.type,
       title: a.title,
+      body: typeof a.body === "string" ? a.body : null,
       module: a.module,
       priority: a.priority,
       severity: a.severity,

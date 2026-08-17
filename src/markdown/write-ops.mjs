@@ -115,6 +115,7 @@ export function gitTouchedFiles(projectRoot, limit = 12) {
 export function createObject({
   brainRoot, projectRoot, config,
   type, title, module, priority, severity, status, tags,
+  body = null,
   files = null, projectId = null, id = null, force = false, now = new Date(),
 }) {
   if (!type || !TYPE_DEFAULTS[type]) {
@@ -167,7 +168,21 @@ export function createObject({
     ...(type === "bug" ? { summary: title } : {}),
   };
 
-  const result = writeObject(brainRoot, fm, `\n# ${title}\n${def.body}`);
+  // GOVDE: `body` verilmezse tipin BOS sablonu yazilir — eski davranis birebir
+  // korunur. Verilirse sablon yerine gecer.
+  //
+  // NEDEN BU PARAMETRE EKLENDI: createObject gövde parametresi KABUL ETMIYORDU;
+  // her kayit statik bos sablonla doguyordu ve icerik ancak dosya elle acilarak
+  // yazilabiliyordu. Kayit acan (CLI ya da ajan) o anda BILGIYE SAHIPTI ama
+  // yazacak yeri yoktu. Olcum (2026-08-15, serif-platform): decisions/ altindaki
+  // 285 kaydin 80'i (%28) gövdesiz sablon. Kirilim mekanizmayi dogruluyor —
+  // bkz. closeObject'teki `already` notu.
+  const govdeVar = !!(body && String(body).trim());
+  const govde = govdeVar
+    ? `\n# ${title}\n\n${String(body).trim()}\n`
+    : `\n# ${title}\n${def.body}`;
+
+  const result = writeObject(brainRoot, fm, govde);
   return {
     ok: true,
     id: objId,
@@ -181,6 +196,10 @@ export function createObject({
     // insanlarin kaydetmeyi tamamen birakmasina yol acar. Uyari eyleme
     // donusen bir komutla birlikte verilir.
     dosyasiz: fileList.length === 0,
+    // Gövdesiz kayit da UYARILIR ama ENGELLENMEZ — dosyasiz kayitla ayni gerekce
+    // (yukaridaki nota bak). Uyari, `record` icin daha agirdir: record 'done'
+    // dogar, yani hicbir is akisinda tekrar onunue gelmez.
+    govdesiz: !govdeVar,
     adaylar: fileList.length === 0 ? gitRecentFiles(projectRoot) : [],
     warnings: result.validation.warnings,
     hint: type === "decision" && DONE_TITLE_RE.test(title)
@@ -215,19 +234,30 @@ export function closeObject({
 
   const { frontmatter: fm, body } = readObject(targetPath);
   const already = ["done", "rejected", "archived"].includes(fm.status);
-  if (already && !force) return { ok: true, noop: true, id, project, status: fm.status };
+  // `record` TYPE_DEFAULTS geregi status:done DOGAR. Bu dal onu ebediyen noop'a
+  // dusuruyordu ve createObject de gövde yazamadigi icin (bkz. oradaki not)
+  // record'un icerik alabilecegi TEK kod yolu burasiydi — kapaliydi.
+  // Olcum (2026-08-15, serif-platform): record'larin %61'i (61/100) bos sablon,
+  // decision'larin %10'u (19/183). 6 katlik fark tesadufi degil: decision 'active'
+  // dogup `close --note` ile dolabiliyor, record dolamiyordu.
+  // NOT VERILMISSE noop yapmayiz: durumu degistirmeden notu ekleriz.
+  if (already && !force && !note) return { ok: true, noop: true, id, project, status: fm.status };
 
   const nowIso = now.toISOString();
   const today = nowIso.slice(0, 10);
   const prevStatus = fm.status;
   fm.status = "done";
   fm.updated_at = nowIso;
-  fm.completed_at = today;
+  // Zaten kapali bir kayda not eklerken ORIJINAL kapanma tarihi korunur —
+  // yoksa her not ekleme, isin bugun bittigini soyleyen yanlis bir tarih yazar.
+  if (!fm.completed_at) fm.completed_at = today;
   if (commit) fm.commit = commit;
 
   let newBody = body;
   if (note) {
-    const section = [``, ``, `## Tamamlanma (${today})`, ``, note, ``];
+    // Kapali kayda eklenen not bir "tamamlanma" degil, sonradan gelen icerik.
+    const baslik = already ? `## Ek Not (${today})` : `## Tamamlanma (${today})`;
+    const section = [``, ``, baslik, ``, note, ``];
     if (commit) section.push(`Commit: \`${commit}\``, ``);
     newBody = newBody.replace(/\s+$/, "") + section.join("\n");
   }
@@ -235,8 +265,10 @@ export function closeObject({
   const result = writeObject(brainRoot, fm, newBody);
   return {
     ok: true, noop: false, id, project, path: result.path,
-    prevStatus, status: "done", completed_at: today,
+    prevStatus, status: "done", completed_at: fm.completed_at,
     commit: commit || null, noteAppended: !!note,
+    // Cagirana "bu bir kapatma degil, kapali kayda icerik ekleme" der.
+    appendedToClosed: already && !!note,
     warnings: result.validation.warnings,
   };
 }

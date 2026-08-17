@@ -1,16 +1,18 @@
 // serif-brain add bug | decision | plan | record
 // Ince CLI sarmalayici — yazma mantigi markdown/write-ops.mjs'te (MCP ile ORTAK).
 import { resolve, join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { loadConfig } from "../markdown/schema.mjs";
 import { createObject, TYPE_DEFAULTS } from "../markdown/write-ops.mjs";
 
 export async function addCommand({ args, subcommand }) {
   const type = subcommand[0];
   if (!type || !TYPE_DEFAULTS[type]) {
-    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|plan|record> --title "..." [--module testx] [--priority high] [--files a,b]`);
+    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|plan|record> --title "..." [--module testx] [--priority high] [--files a,b] [--body "..."|--stdin]`);
     console.error(`  plan   = yol haritasi/faz plani (status: active dogar, plans/ altina yazilir)`);
     console.error(`  record = yapilmis is kaydi (status: done dogar, decisions/ altina yazilir)`);
+    console.error(`  --body = kaydin govdesi; verilmezse BOS sablon yazilir ve elle doldurmayi beklersin`);
+    console.error(`  --stdin = govdeyi borudan oku:  echo "..." | serif-brain add record --title "..." --stdin`);
     return 1;
   }
 
@@ -34,6 +36,11 @@ export async function addCommand({ args, subcommand }) {
     severity: args.flags.severity,
     status: args.flags.status,
     tags: args.flags.tags,
+    // --stdin: govdeyi borudan oku. Cok satirli icerigi kabuk tirnaklariyla
+    // bogusmadan gecirmenin tek pratik yolu; ajanlar da bunu kullanabilir.
+    body: typeof args.flags.body === "string" && args.flags.body
+      ? args.flags.body
+      : (args.flags.stdin ? readFileSync(0, "utf8") : null),
     files: typeof args.flags.files === "string"
       ? args.flags.files.split(",").map((s) => s.trim()).filter(Boolean)
       : null,
@@ -63,6 +70,20 @@ export async function addCommand({ args, subcommand }) {
     console.log(`  relations.files: ${r.autoFilled} dosya git'ten otomatik dolduruldu (--files ile ezebilirsin)`);
   }
   for (const w of r.warnings) console.log(`    ⚠ ${w}`);
+
+  // Gövdesiz kayit, baslıktan baska bilgi tasimayan bir kabuktur: context'e
+  // girer, yer kaplar, hicbir sey ogretmez. `record` icin daha agir — 'done'
+  // dogdugu icin hicbir is akisinda tekrar onune gelmez.
+  if (r.govdesiz) {
+    console.log(``);
+    console.log(`  ⚠ Bu kayit GOVDESIZ — bos sablon yazildi.`);
+    if (type === "record") {
+      console.log(`    record 'done' dogar: bu dosya bir daha karsina CIKMAZ. Simdi doldur:`);
+      console.log(`      serif-brain close ${r.id} --note "ne yapildi / neden / kanit"`);
+    } else {
+      console.log(`    Doldur: ${r.path}`);
+    }
+  }
 
   // Dosyaya baglanmamis kayit, kapinin o dosyada SUSMASI demektir.
   if (r.dosyasiz) {
