@@ -168,15 +168,31 @@ degil: brain kayitlari yazildiklari andaki bilgiyle dogru olan bir GOZLEM
 GUNLUGUDUR, olgu kaynagi degil. Icindeki teshisler sik sik dar bir aramayla
 (tek dosyada grep, tek ornekle test) uretilip genel gercek gibi yazilmistir.
 
-Bu yuzden brain'den sonra su uc skill devreye girer:
+Bu yuzden brain'den sonra asagidaki zincir devreye girer.
 
-| Skill | Ne zaman |
-|---|---|
-| `cerrahi-plan` | koda dokunmadan once — teshis/etki/en kucuk kesik/bitti olcutu |
-| `ikiz-kod` | ayni mantigi ikinci kez yazmak uzereyken (gomulu/uretilmis kod, farkli runtime) |
-| `olcum-sozlesmesi` | sayi, oran veya karsilastirma uretmeden once |
-| `kanit-disiplini` | "bitti/tamam/calisiyor" demeden once |
-| `somut-rapor` | is bitince kullaniciya anlatirken |
+**Bu paket kurulunca baska bir skill'e ihtiyac yoktur** — `serif-brain init`
+(ya da `serif-brain skills update --apply`) zincirin TAMAMINI projeye kurar.
+Isin turune gore dogru kapiyi buradan sec:
+
+| Is turu | Hangi skill | Ne zaman |
+|---|---|---|
+| Yeni urun / yeni modul / kapsamli ozellik | `urun-teslim` | EN BASTA — urun/sistem/dilim karari |
+| Bug, beklenmeyen davranis, kucuk fix | `cerrahi-plan` | koda dokunmadan once — teshis/etki/en kucuk kesik |
+| Bug duzeltilecek ya da sozlesme degisecek | `test-once` | koda dokunmadan once — kirmizi testi GOR |
+| Ayni mantik ikinci kez yazilacak | `ikiz-kod` | gomulu/uretilmis kod, farkli runtime, sunucu/istemci |
+| Sayi, oran, karsilastirma, benchmark | `olcum-sozlesmesi` | olcumu KURMADAN once |
+| "Bitti / tamam / calisiyor" denecek | `kanit-disiplini` | iddiadan once — gercek komut ciktisi |
+| Kullaniciya anlatma / devir / ozet | `somut-rapor` | is bitince |
+
+Tipik yeni-ozellik akisi:
+`urun-teslim` (dilim sec) → `cerrahi-plan` (kesigi ciz) → `test-once`
+(kirmiziyi gor) → kod → `kanit-disiplini` (kapat) → `somut-rapor` (anlat)
+→ `serif-brain add decision --body "..."` (kalicilastir).
+
+**Acik is tavani:** `context/active-work.md` her oturumda WIP sayacini basar.
+Tavan asilmissa YENI IS ACILMAZ — once biri kapatilir. Yururlukteki
+kural/sozlesme kayitlari (`status: standing`) bu sayaca DAHIL DEGILDIR:
+kural is degildir, yaslanmaz, `prune` onu arsivlemez.
 
 **Brain'e ozel kural:** bir kayittaki teshisi plana temel yapacaksan O TURDA
 yeniden dogrula. Kayit yanlis ciktiysa duzelt ve `add record` ile not dus —
