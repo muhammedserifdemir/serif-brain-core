@@ -105,3 +105,53 @@ test("writeContext nested canonical/preview shape preserved (Bridge contract)", 
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ── WIP KAPISI + YURURLUKTEKI KURALLAR ──────────────────────────────────────
+// Kok neden (2026-08-15): `status: active` iki uyusmaz anlami birden tasiyordu —
+// "bunun uzerinde calisiyorum" ve "bu kural yururlukte". Olcum (serif-platform):
+// 159 aktif-benzeri kaydin 47'si kuraldi. Bu karisiklik prune'u tehlikeli,
+// active-work.md'yi okunmaz, WIP sayacini anlamsiz yapiyordu.
+import { buildActiveWork } from "../src/context/compile.mjs";
+
+function veri(objeler) {
+  return {
+    config: { wip_limit: 3 },
+    canonical: { objects: objeler.map(fm => ({ frontmatter: fm })) },
+    dry_run: null,
+  };
+}
+
+const obj = (id, status, title, type = "decision") =>
+  ({ id, type, status, title, priority: "high", module: "core", project: "tek" });
+
+test("active-work: WIP tavani asilinca UYARI verir ve kapatma komutunu gosterir", () => {
+  const md = buildActiveWork(veri([
+    obj("decision-1", "active", "is bir"),
+    obj("decision-2", "active", "is iki"),
+    obj("decision-3", "in_progress", "is uc"),
+    obj("decision-4", "queued", "is dort"),
+  ]));
+  assert.match(md, /AÇIK İŞ: 4 \/ 3/);
+  assert.match(md, /tavan 1 iş aşıldı/);
+  assert.match(md, /serif-brain close/, "uyari eyleme donusen komutla gelmeli");
+});
+
+test("active-work: `standing` WIP'e SAYILMAZ (kural is degildir)", () => {
+  const md = buildActiveWork(veri([
+    obj("decision-1", "active", "gercek is"),
+    obj("decision-2", "standing", "Legacy cleanup policy — silmek YASAK"),
+    obj("decision-3", "standing", "99-tip slayt roster — eksiltme yasak"),
+    obj("decision-4", "standing", "Solo-dev politikasi — worktree yasak"),
+  ]));
+  assert.match(md, /AÇIK İŞ: 1 \/ 3/, "3 kural sayilsaydi 4/3 olur ve yanlis alarm verirdi");
+  assert.doesNotMatch(md, /tavan .* aşıldı/);
+});
+
+test("active-work: kurallar AYRI bolumde listelenir, is listesine karismaz", () => {
+  const md = buildActiveWork(veri([
+    obj("decision-1", "active", "gercek is"),
+    obj("decision-2", "standing", "Export parity KIRMIZI BAYRAK"),
+  ]));
+  assert.match(md, /## Yürürlükteki Kurallar \(1\)/);
+  assert.match(md, /Export parity KIRMIZI BAYRAK/);
+});

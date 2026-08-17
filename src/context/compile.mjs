@@ -6,6 +6,7 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../markdown/schema.mjs";
+import { acikIsMi, yururluktekiKuralMi } from "../markdown/status-vocab.mjs";
 import { pri, daysSince, rankObjects } from "../util/rank.mjs";
 
 /**
@@ -384,6 +385,27 @@ export function buildActiveWork(data, opts = {}) {
   lines.push(`> Scope: ${moduleFilter ? `module:${moduleFilter}` : "global"}`);
   lines.push(``);
 
+  // ── WIP KAPISI ────────────────────────────────────────────────────────────
+  // Bu dosya her oturumda otomatik yuklenir; uyariyi buraya koymak, kullanicinin
+  // bir skill'i CAGIRMASINI gerektirmeyen tek yerdir. Dagilma anini yakalamanin
+  // sarti tam olarak budur: dagildiginda hatirlayacagin bir komut yoktur.
+  //
+  // `standing` SAYILMAZ — yururlukteki kural acik is degildir (status-vocab.mjs).
+  // Olcum (2026-08-15, serif-platform): 159 "aktif" kaydin 47'si kuraldi; onlari
+  // saymak sayaci anlamsizlastiriyordu ("17 acik is"in bir kismi is degildi).
+  const wipTavan = Number.isFinite(data?.config?.wip_limit) ? data.config.wip_limit : 3;
+  const acikIsler = [...part.canonical_bugs, ...part.canonical_decisions]
+    .filter(o => acikIsMi(o.status));
+  const asim = acikIsler.length - wipTavan;
+  if (asim > 0) {
+    lines.push(`> ⚠ **AÇIK İŞ: ${acikIsler.length} / ${wipTavan}** — tavan ${asim} iş aşıldı.`);
+    lines.push(`> **Yeni iş açmadan önce birini kapat** (\`serif-brain close <id> --note "..."\`).`);
+    lines.push(`> Bırakmak istediğin bulgu varsa iş açma, kuyruğa yaz — kuyruk tavana sayılmaz.`);
+  } else {
+    lines.push(`> **AÇIK İŞ: ${acikIsler.length} / ${wipTavan}**`);
+  }
+  lines.push(``);
+
   // Top 5 canonical critical/high
   // rankObjects ŞART: yalniz oncelige bakan bir sort, hepsi `critical` olan
   // bir listede hic karar vermez ve kararli sort giris sirasini (dosya adi =
@@ -410,6 +432,24 @@ export function buildActiveWork(data, opts = {}) {
     for (const fm of inProgress) {
       const m = modulesOf(fm).join(",");
       lines.push(`- ${fm.title} _(${fm.type}, ${m})_`);
+    }
+    lines.push(``);
+  }
+
+  // ── YURURLUKTEKI KURALLAR ────────────────────────────────────────────────
+  // Kurallar is listesinden AYRI gosterilir. Ayni listede olduklarinda iki zarar
+  // birden veriyorlardi: is listesi okunmaz oluyor, kural da "eski is" sanilip
+  // gozden kaciyordu. Buradakiler yaslanmaz ve prune'a yakalanmaz.
+  const kurallar = [...part.canonical_bugs, ...part.canonical_decisions]
+    .filter(o => yururluktekiKuralMi(o.status));
+  if (kurallar.length > 0) {
+    lines.push(`## Yürürlükteki Kurallar (${kurallar.length}) — iş değil, uyulacak sözleşme`);
+    lines.push(``);
+    for (const fm of rankObjects(kurallar).slice(0, 15)) {
+      lines.push(`- ${fm.title} — \`${fm.id}\``);
+    }
+    if (kurallar.length > 15) {
+      lines.push(`- _… ${kurallar.length - 15} tane daha: \`serif-brain search --status standing\`_`);
     }
     lines.push(``);
   }
