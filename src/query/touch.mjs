@@ -6,8 +6,9 @@
 // Onemli: KAPALI bug'lar da dahil edilir ("yara izi" = bu dosyada bir kez su hata
 // cozuldu, tekrar acma). Aktif kararlar ihlal edilmemesi gereken kisitlardir.
 import { toResult, modulesOf } from "./search.mjs";
+import { acikIsKumesi } from "../markdown/status-vocab.mjs";
 
-const WORKING = new Set(["open", "active", "in_progress", "blocked"]);
+const WORKING = acikIsKumesi();
 const PRIORITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 };
 
 function basenameOf(p) {

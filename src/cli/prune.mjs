@@ -6,10 +6,15 @@ import { resolve, join, dirname, relative } from "node:path";
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { loadConfig } from "../markdown/schema.mjs";
 import { loadObjects } from "../query/search.mjs";
+import { acikIsKumesi } from "../markdown/status-vocab.mjs";
 
 function toRe(p) { try { return p instanceof RegExp ? p : new RegExp(p); } catch { return null; } }
 
-const ACTIVE = new Set(["open", "active", "in_progress", "blocked", "queued"]);
+// `standing` BU KUMEDE YOK — yururlukteki kural yaslanarak arsive dusmez.
+// Olcum (2026-08-15, serif-platform): bu kume dogrudan yazildiginda 83 adayin
+// 30'u yururlukteki kural/sozlesmeydi; "silmek YASAK" diyen politika ve
+// solo-dev calisma politikasi da arsive tasinacakti.
+const ACTIVE = acikIsKumesi();
 
 export async function pruneCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());
@@ -23,6 +28,19 @@ export async function pruneCommand({ args }) {
   const autoRes = (cfg?.automation_id_patterns || ["-bridge-"]).map(toRe).filter(Boolean);
   const now = Date.now();
 
+  // BUG YASA GORE ARSIVLENMEZ.
+  //
+  // Bayat bir not unutulmus bir nottur; bayat bir bug DUZELTILMEMIS BIR
+  // PROBLEMDIR. Yas "duzeldi mi" sorusunu cevaplamaz — yalnizca "kimse
+  // dokunmadi" der, ki bir bug icin bu arsivlenme degil DIKKAT sebebidir.
+  // Yasa gore arsivlemek, unutmanin sessiz yoludur ve tam olarak bu aracin
+  // onlemesi gereken sey odur. Olcum (2026-08-15, serif-platform): 36 adayin
+  // 5'i acik bug'di; biri kullaniciya dokunan bir lisans hatasiydi.
+  // Bug'in cikis yolu `close` (duzeldi) ya da `rejected` (gecerli degil) —
+  // ikisi de bir KARARDIR, zamanasimi degil.
+  const bugDahil = args.flags["include-bugs"] === true;
+  let atlananBug = 0;
+
   const all = loadObjects(brainRoot);
   const candidates = [];
   for (const o of all) {
@@ -31,6 +49,7 @@ export async function pruneCommand({ args }) {
     const updMs = fm.updated_at || fm.created_at ? new Date(fm.updated_at || fm.created_at).getTime() : 0;
     const ageDays = updMs ? Math.floor((now - updMs) / 86400000) : null;
     const isStale = ACTIVE.has(fm.status) && ageDays !== null && ageDays > staleDays;
+    if (fm.type === "bug" && isStale && !isAuto && !bugDahil) { atlananBug++; continue; }
     if (isAuto || isStale) {
       const reasons = [];
       if (isAuto) reasons.push("otomasyon-churn");
@@ -42,6 +61,12 @@ export async function pruneCommand({ args }) {
   console.log(`[serif-brain prune] ${apply ? "APPLY" : "DRY-RUN"} — brain: ${brainRoot}`);
   console.log(`  Eşik: stale > ${staleDays} gün · otomasyon: ${autoRes.length} desen`);
   console.log(`  Aday: ${candidates.length} obje`);
+  if (atlananBug > 0) {
+    console.log(`  ⓘ ${atlananBug} bayat BUG atlandi — bug yasa gore arsivlenmez.`);
+    console.log(`    Bayat bug "unutulmus not" degil, DUZELTILMEMIS PROBLEM demektir.`);
+    console.log(`    Cikis yolu karardir: \`close <id> --note "..."\` (duzeldi) ya da status: rejected.`);
+    console.log(`    Yine de arsivlemek icin: prune --include-bugs`);
+  }
   if (candidates.length === 0) { console.log(`  ✓ Temizlenecek bir şey yok.`); return 0; }
 
   for (const c of candidates) {

@@ -1,5 +1,6 @@
 // Status / module / priority normalization.
 // Master prompt'tan sema ve kurallar.
+import { TUM_DURUMLAR, STANDING } from "../markdown/status-vocab.mjs";
 
 const STATUS_MAP = {
   completed: "done",
@@ -12,10 +13,14 @@ const STATUS_MAP = {
   open: "open",
   blocked: "blocked",
   rejected: "rejected",
-  archived: "archived"
+  archived: "archived",
+  // Yururlukteki kural/sozlesme/invariant — bkz. markdown/status-vocab.mjs
+  [STANDING]: STANDING,
+  policy: STANDING,
+  politika: STANDING,
 };
 
-const VALID_STATUS = new Set(["queued","open","active","in_progress","blocked","done","rejected","archived"]);
+const VALID_STATUS = new Set(TUM_DURUMLAR);
 const VALID_PRIORITY = new Set(["critical","high","medium","low"]);
 // Modul adlari PROJEYE OZELDIR. Burada bir zamanlar sabit bir liste vardi ve o
 // liste paket yazarinin kendi urun modulleriydi (contentx/presentx/studiox...).

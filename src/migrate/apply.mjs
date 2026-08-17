@@ -3,8 +3,9 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeObject, makeId, objectPath } from "../markdown/object.mjs";
+import { TUM_DURUMLAR } from "../markdown/status-vocab.mjs";
 
-const VALID_STATUS = new Set(["queued","open","active","in_progress","blocked","done","rejected","archived"]);
+const VALID_STATUS = new Set(TUM_DURUMLAR);
 const VALID_PRIORITY = new Set(["critical","high","medium","low"]);
 // Gecerli modul listesi PROJEYE OZELDIR; config'ten gelir. Yoksa KISITLAMA YOK:
 // sabit liste paket yazarinin urun modulleriydi ve goc eden yabancinin listede

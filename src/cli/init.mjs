@@ -8,6 +8,7 @@ import { planSkillSync, applySkillSync, listPackageSkills } from "../skills/sync
 import { initSonrasiPanel } from "../dashboard/launch.mjs";
 import { applyHookInstall } from "../hooks/install.mjs";
 import { applyClaudeMd } from "../context/claude-md.mjs";
+import { TUM_DURUMLAR } from "../markdown/status-vocab.mjs";
 import { execSync } from "node:child_process";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -56,7 +57,8 @@ function resolveProjects(args, projectRoot) {
 // Turetilemeyen durumda notr baslangic listesi
 const NEUTRAL_MODULES = ["core", "ui", "api", "pipeline", "infra", "docs", "unknown"];
 
-const VALID_STATUS = ["queued", "open", "active", "in_progress", "blocked", "done", "rejected", "archived"];
+// Durum sozlugunun tek kaynagi: markdown/status-vocab.mjs (`standing` dahil).
+const VALID_STATUS = [...TUM_DURUMLAR];
 const VALID_PRIORITY = ["critical", "high", "medium", "low"];
 // Bug severity'nin kendi ölçeği (priority'den ayrı). Tanımlı değilse şema
 // doğrulaması valid_priority'ye düşer (geriye-uyumlu).
@@ -127,6 +129,9 @@ function buildConfig(projectRoot, storeEngine, projects) {
     `valid_modules:`,
     ...modules.map(m => `  - ${m}`),
     ``,
+    `# standing = yururlukteki KURAL/SOZLESME/INVARIANT (politika, yasak, kanonik`,
+    `# format, mimari invariant, kapi sarti). prune'a yakalanmaz, WIP'e sayilmaz,`,
+    `# context'te kalir. Kural yaslanmaz: dokunulmamis olmasi yerlestigini gosterir.`,
     `valid_status:`,
     ...VALID_STATUS.map(s => `  - ${s}`),
     ``,

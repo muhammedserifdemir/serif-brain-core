@@ -2,6 +2,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { header } from "./loader.mjs";
+import { acikIsMi } from "../markdown/status-vocab.mjs";
 
 const DAY = 86400000;
 
@@ -15,7 +16,9 @@ export function writeStaleItemsReport(data, reportsDir) {
   for (const o of data.canonical.objects) {
     if (o.error) continue;
     const fm = o.frontmatter;
-    if (["done","rejected","archived"].includes(fm.status)) continue;
+    // Yalniz ACIK IS bayatlar. `standing` (yururlukteki kural) yaslanmaz —
+    // bkz. markdown/status-vocab.mjs.
+    if (!acikIsMi(fm.status)) continue;
     const upd = fm.updated_at ? new Date(fm.updated_at).getTime() : (o.mtime?.getTime() || 0);
     if (!upd) continue;
     const days = Math.floor((now - upd) / DAY);

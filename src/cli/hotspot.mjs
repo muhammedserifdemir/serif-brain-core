@@ -1,12 +1,13 @@
 // serif-brain hotspot [--days N] [--limit N] [--json]
 // Tehlike bolgesi: churn × merkezilik + modul bug yogunlugu fuzyonu.
 import { resolve, join } from "node:path";
+import { acikIsKumesi } from "../markdown/status-vocab.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { loadObjects, modulesOf } from "../query/search.mjs";
 import { getRecentCommits } from "../query/git-activity.mjs";
 import { computeHotspots, formatHotspots } from "../query/hotspot.mjs";
 
-const OPEN_BUG = new Set(["open", "active", "in_progress", "blocked"]);
+const OPEN_BUG = acikIsKumesi();
 
 export async function hotspotCommand({ args }) {
   const projectRoot = resolve(args.flags.project || process.cwd());

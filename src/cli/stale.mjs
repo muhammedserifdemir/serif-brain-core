@@ -2,11 +2,12 @@
 // Acik kararlar/bug'larin son N gunde degisen dosyalarla overlap'ini tespit eder.
 // SessionStart hook'unda kullanilmak uzere lightweight: hicbir sey yoksa cikis 0 ve sessiz.
 import { resolve, join } from "node:path";
+import { acikIsKumesi } from "../markdown/status-vocab.mjs";
 import { existsSync } from "node:fs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
 import { getRecentChangedFiles, getRecentCommitTitles } from "../query/git-activity.mjs";
 
-const OPEN_STATUSES = new Set(["in_progress", "open", "active", "queued"]);
+const OPEN_STATUSES = acikIsKumesi();
 const CLOSED_STATUSES = new Set(["done", "closed", "completed", "rejected", "archived"]);
 
 export async function staleCommand({ args }) {

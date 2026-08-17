@@ -1,5 +1,6 @@
 // Stale / orphan / duplicate detector.
 import { isContextExcluded } from "./schema.mjs";
+import { acikIsMi } from "./status-vocab.mjs";
 
 const DAY = 86400000;
 const STALE_DAYS = 30;
@@ -17,6 +18,11 @@ export function detectHealth(objects, backlinks, opts = {}) {
   for (const obj of objects) {
     if (obj.error) continue;
     const fm = obj.frontmatter;
+    // "Kapali degil" ile "acik is" AYNI SEY DEGILDIR: `standing` context'te
+    // KALIR (bilerek) ama acik is degildir. Bu testi yalniz `!isContextExcluded`
+    // olarak birakmak, 48 yururlukteki kurali "97 bayat kayit" diye raporluyordu.
+    // Once bu bakilir: config'e bagimli DEGIL ve tek basina dogru cevabi verir.
+    if (!acikIsMi(fm.status)) continue;
     if (isContextExcluded(fm)) continue;
     const upd = fm.updated_at ? new Date(fm.updated_at).getTime() : (obj.mtime?.getTime() || 0);
     if (upd && now - upd > staleThreshold) {
