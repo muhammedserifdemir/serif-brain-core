@@ -182,11 +182,13 @@ Isin turune gore dogru kapiyi buradan sec:
 | Ayni mantik ikinci kez yazilacak | `ikiz-kod` | gomulu/uretilmis kod, farkli runtime, sunucu/istemci |
 | Sayi, oran, karsilastirma, benchmark | `olcum-sozlesmesi` | olcumu KURMADAN once |
 | "Bitti / tamam / calisiyor" denecek | `kanit-disiplini` | iddiadan once — gercek komut ciktisi |
+| Deploy / canliya alma / "yayina hazir mi" | `prod-kapisi` | deploy'dan ONCE — tier'e gore cek listesi, repo+canli iki katman, kapi ikili |
 | Kullaniciya anlatma / devir / ozet | `somut-rapor` | is bitince |
 
 Tipik yeni-ozellik akisi:
 `urun-teslim` (dilim sec) → `cerrahi-plan` (kesigi ciz) → `test-once`
-(kirmiziyi gor) → kod → `kanit-disiplini` (kapat) → `somut-rapor` (anlat)
+(kirmiziyi gor) → kod → `kanit-disiplini` (kapat) → [deploy ise
+`prod-kapisi` (son kapi)] → `somut-rapor` (anlat)
 → `serif-brain add decision --body "..."` (kalicilastir).
 
 **Acik is tavani:** `context/active-work.md` her oturumda WIP sayacini basar.
