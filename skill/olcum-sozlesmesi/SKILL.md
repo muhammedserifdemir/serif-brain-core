@@ -62,6 +62,55 @@ kötüdür). Zinciri yazın, hangi halkada ölçtüğünüzü söyleyin.
 özellikle sonuç "hiçbir şey çalışmıyor" veya "her şey mükemmel" gibi uç bir
 değerse, çoğunlukla ölçüm kusurludur.
 
+## 1b. KOPYA YASAĞI — ölçüm üretimi TAKLİT ETMEZ, İTHAL EDER
+
+**Bu, YOL maddesinin çiğnenemez hâlidir. Ölçüm kodu üretim mantığını yeniden
+yazıyorsa ölçüm geçersizdir — çıktısı ne kadar ikna edici görünürse görünsün.**
+
+Bir oturumda beş kez arka arkaya çıktığı için ayrı madde oldu (2026-09-01):
+
+| ölçüm ne yaptı | rapor ne dedi | gerçek |
+|---|---|---|
+| karo seçimini etiketle kurdu | 526 komşu çift uyumlu | baştan sona tek karodan yol ölçülmüştü |
+| kapı "beklenen"i üretimle aynı formülden hesapladı | 120/120 | formül yanlıştı, ikisi birlikte yanlıştı |
+| aramayı tüm kütüphanede yaptı | 3/24 kaçıyor | üretim önce tip havuzuna bakıyor → 9/24 |
+| iki kademeli fallback'i atladı | 9/24 kaçıyor | fallback var → 7/24 |
+| prototip köprü tablosunu almadı | "gövdeleme kazandırmıyor" | taban yanlıştı, delta anlamsız |
+
+Beşinin de tek imzası var: **üretim fonksiyonu import edilmek yerine kopyalandı.**
+
+### Kural
+
+1. **İTHAL ET.** Ölçüm betiği üretimin fonksiyonunu doğrudan `import` etmeli
+   (`import { araPuan } from '../packages/stage/nesneler.ts'`). Import edemiyorsan
+   (başka dil, başka süreç, tarayıcı içi) ölçümü üretimin KENDİ girişinden koştur
+   (CLI, HTTP, debug köprüsü) — mantığı ikinci kez yazma.
+
+2. **ZİNCİRİN TAMAMINI İTHAL ET.** Tek fonksiyonu import edip çevresindeki süzgeç,
+   eşik, fallback ve sıralamayı elle kurmak da kopyadır. Üretimde
+   `puanla(havuz, 1) ?? puanla(hepsi, 2)` varsa ölçümde de o zincir olmalı.
+   Zincirin bir halkasını atlamak, tam olarak 3. ve 4. satırdaki hatalardır.
+
+3. **KALİBRE ET.** Ölçmeden önce, cevabı ÜRETİMDEN bilinen en az bir vakayı
+   ölçümden geçir. Bilinen cevabı vermiyorsa ölçüm bozuktur, ölçülen sistem değil.
+   (Bir kayıt logda `[nesne] ara eşleme: "hidrant" → fire_hydrant` diyorsa,
+   ölçümün de onu vermeli.)
+
+4. **KAPI KENDİ FORMÜLÜNÜ DENETLEYEMEZ.** Bir kapının "beklenen" değeri, denetlediği
+   kodun formülünden türetilmişse kapı yalnız tutarlılığı ölçer, DOĞRULUĞU değil.
+   Beklenen değer bağımsız kaynaktan gelmeli: fiziksel ölçü, standart, elle sayım,
+   şartname. ("36 m hatta 3,60 m'lik panel → 10 adet" formülden değil ölçüden gelir.)
+
+### Kopya kokusu — ölçüm betiğinde bunlardan biri varsa DUR
+
+- üretimdeki bir sabitin ikinci kopyası (`const FOOT_CAP = 1250` ölçüm dosyasında)
+- üretimdeki bir süzgecin yeniden yazımı (`filter(m => m.tip === tip)`)
+- "davranış aynası", "üretimle aynı mantık", "aynısını yapar" gibi yorumlar
+- eşik/sıra/varsayılan değerlerin elle tekrarı
+
+Kopya kaçınılmazsa (dil sınırı) `ikiz-kod` skill'i devreye girer: kopyayı üretilmiş
+çıktıdan söküp orijinalle aynı fikstür matrisinde karşılaştıran bir test yazılır.
+
 ## 2. Kapsam etiketi — her sayı üç şey taşır
 
 Çıplak sayı yanıltır. Aynı üründe iki kişi farklı yüzeyden bakıp ikisi de
@@ -128,6 +177,10 @@ Sayı beklenenden farklıysa, farkın nedenini ölçümle açıklayın — "muht
 - Sözleşmenin üç satırını yazmadan sayı üretmek.
 - Sentetik tek fikstürle bir iddiayı kapatmak (hipotez kurmak serbest).
 - Üretimdeki çağrı noktasını aramadan kendi ölçüm çağrısını kurmak.
+- **Üretim mantığını ölçüm betiğinde yeniden yazmak** (import edilebilirken). Zincirin
+  bir halkasını — süzgeç, eşik, fallback — atlamak da buna dahildir.
+- **Ölçümü bilinen-cevaplı bir vakayla kalibre etmeden** sonuca güvenmek.
+- Bir kapının "beklenen" değerini, denetlediği kodun formülünden türetmek.
 - Ölçütü iddiadan değil, hesap kolaylığından seçmek.
 - Çıplak sayı raporlamak (yüzey/örneklem/yol etiketi olmadan).
 - Temel çizgi karşılaştırmasında kapsamı değiştirmek.
@@ -142,3 +195,4 @@ Bu skill yalnız **ölçümü kurar**. Yakın sorumluluklar başka yerde:
 - Ortam tuzakları (çalışma dizini, üretilmiş kod, kopya ağaçlar) ve
   "bitti" doğrulaması → `kanit-disiplini`
 - Proje hafızasındaki teşhislerin hipotez sayılması → `serif-brain-core`
+- Kopya kaçınılmazsa (dil/süreç sınırı) kopyayı orijinalle eşleyen mekanik kapı → `ikiz-kod`
