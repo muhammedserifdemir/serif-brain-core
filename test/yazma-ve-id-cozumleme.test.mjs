@@ -125,7 +125,7 @@ function mcpCall(brainRoot, name, args) {
 
 test("MCP brain_add: hafizaya yazar ve sonucu dondurur", () => {
   const { brainRoot } = mkBrain();
-  const out = mcpCall(brainRoot, "brain_add", { type: "decision", title: "MCP uzerinden karar", module: "core", files: [] });
+  const out = mcpCall(brainRoot, "brain_add", { type: "decision", title: "MCP uzerinden karar", module: "core", files: [], body: "MCP govdesi" });
   const payload = JSON.parse(out.content[0].text);
   assert.equal(payload.ok, true);
   assert.ok(existsSync(payload.path));
@@ -138,9 +138,23 @@ test("MCP brain_add: yazilan kayit AYNI oturumda brain_search ile bulunur (cache
     handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }).result.content[0].text);
 
   call("brain_search", { text: "kubbe" }); // cache'i doldur (bos brain)
-  call("brain_add", { type: "bug", title: "kubbe cokmesi", module: "core", files: [] });
+  call("brain_add", { type: "bug", title: "kubbe cokmesi", module: "core", files: [], body: "kubbe coktu" });
   const hits = call("brain_search", { text: "kubbe" });
   assert.equal(hits.count, 1, "yazan taraf kendi yazdigini gormeli");
+});
+
+test("MCP brain_add: body YOKSA JSON-RPC hatasi + dosya yazilmaz; sablon:true ile gecer", () => {
+  const { brainRoot } = mkBrain();
+  const { handle } = createBrainMcp({ brainRoot });
+  const req = (args) => handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "brain_add", arguments: args } });
+  const red = req({ type: "decision", title: "govdesiz mcp", module: "core", files: [] });
+  assert.ok(red.result?.isError, "govdesiz kayit sessizce kabul edilmemeli");
+  assert.match(red.result.content[0].text, /body/);
+  const ara = JSON.parse(handle({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "brain_search", arguments: { text: "govdesiz mcp" } } }).result.content[0].text);
+  assert.equal(ara.count, 0, "reddedilen kayit diske yazilmamali");
+  const ok = req({ type: "decision", title: "govdesiz ama bilerek", module: "core", files: [], sablon: true });
+  assert.ok(!ok.result?.isError, ok.result?.content?.[0]?.text);
+  assert.equal(JSON.parse(ok.result.content[0].text).govdesiz, true);
 });
 
 test("MCP brain_close: kapatir; olmayan id JSON-RPC HATASI verir (sessiz basari yok)", () => {
@@ -148,7 +162,7 @@ test("MCP brain_close: kapatir; olmayan id JSON-RPC HATASI verir (sessiz basari 
   const { handle } = createBrainMcp({ brainRoot });
   const added = JSON.parse(handle({
     jsonrpc: "2.0", id: 1, method: "tools/call",
-    params: { name: "brain_add", arguments: { type: "bug", title: "kapanacak", files: [] } },
+    params: { name: "brain_add", arguments: { type: "bug", title: "kapanacak", files: [], body: "kapanacak bug" } },
   }).result.content[0].text);
 
   const closed = JSON.parse(handle({
@@ -183,6 +197,17 @@ test("createObject: body verilince govde DISKE yazilir (bos sablon degil)", () =
   assert.match(raw, /benchmark 12\/12 gecti/, "verilen govde diskte olmali");
   assert.doesNotMatch(raw, /## Sonuc \/ Kanit\n- \n/, "bos sablon govdenin yanina yapismamali");
   assert.equal(r.govdesiz, false);
+});
+
+test("govdesizMi: sablon bos, close notu dolu, tek satir icerik dolu", async () => {
+  const { govdesizMi, TYPE_DEFAULTS } = await import("../src/markdown/write-ops.mjs");
+  for (const t of Object.keys(TYPE_DEFAULTS)) {
+    assert.equal(govdesizMi(`# baslik\n${TYPE_DEFAULTS[t].body}`), true, `${t} sablonu bos sayilmali`);
+  }
+  assert.equal(govdesizMi(null), true);
+  assert.equal(govdesizMi("# baslik\n\n## Etki\n\n## Tamamlanma (2026-09-01)\n\nZaten kapaliydi."), false);
+  assert.equal(govdesizMi("- gercek madde"), false);
+  assert.equal(govdesizMi("# b\n- \n1. \n"), true);
 });
 
 test("createObject: body verilmezse ESKI davranis birebir korunur", () => {

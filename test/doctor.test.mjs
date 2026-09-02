@@ -138,6 +138,26 @@ test("custom init: doctor only Section 3 isolation — global output may have un
 // ama hicbiri hata vermez, sessizce zayiflar. Kullanicinin bunu OGRENMESI icin
 // bir yer olmali; yoksa "doctor temiz" derken arac yari kor calisir.
 // Olculdu (11 gercek proje): 5'inde oran %25 ustu, birinde %100.
+test("doctor: govdesiz kayit varsa UYARIR ve dosyayi listeler; dolu kayitta susar", async () => {
+  const { createObject } = await import("../src/markdown/write-ops.mjs");
+  const { loadConfig } = await import("../src/markdown/schema.mjs");
+  const dir = makeTmpProject("govdesiz");
+  await suppressLogs(() => initCommand({ args: { flags: { project: dir, "no-panel": true }, positional: [] } }));
+  const brainRoot = join(dir, ".serif-brain");
+  const config = loadConfig(brainRoot);
+  const dolu = createObject({ brainRoot, projectRoot: dir, config, type: "decision", title: "dolu karar", module: "unknown", files: [], body: "## Karar\nRLS secildi." });
+  assert.equal(dolu.ok, true, dolu.error);
+  let out = (await captureLogs(() => doctorCommand({ args: { flags: { project: dir }, positional: [] } }))).output;
+  assert.match(out, /Govdesiz kayitlar\s+0/, "dolu kayit govdesiz sayilmamali");
+
+  const bos = createObject({ brainRoot, projectRoot: dir, config, type: "bug", title: "bos bug", module: "unknown", files: [] });
+  assert.equal(bos.govdesiz, true);
+  out = (await captureLogs(() => doctorCommand({ args: { flags: { project: dir }, positional: [] } }))).output;
+  assert.match(out, /Govdesiz kayitlar\s+1/);
+  assert.match(out, /bos-bug/, "hangi dosya oldugu listelenmeli");
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test("doctor: modul atfi cokukse UYARIR ve nasil duzeltilecegini soyler", async () => {
   const { writeFileSync, mkdirSync } = await import("node:fs");
   const dir = makeTmpProject("modul");

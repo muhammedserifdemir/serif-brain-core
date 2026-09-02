@@ -50,9 +50,25 @@ test("add: bilinmeyen tip exit 1 + gecerli tipleri listeler", () => {
   assert.match(r.err, /bug\|decision\|plan\|record/);
 });
 
+test("add: govde olmadan exit 1 + dosya YAZILMAZ + secenekleri soyler", () => {
+  const root = mkProje();
+  const r = sb(root, ["add", "decision", "--title", "govdesiz karar", "--module", "core"]);
+  assert.equal(r.code, 1, "govdesiz kayit sessizce kabul edilmemeli");
+  assert.match(r.err, /--body/); assert.match(r.err, /--stdin/); assert.match(r.err, /--sablon/);
+  const ara = sb(root, ["search", "govdesiz karar", "--json"]);
+  assert.equal(JSON.parse(ara.out).results.length, 0, "reddedilen kayit diske yazilmamali");
+});
+
+test("add: --sablon ile bilerek bos sablon yazilir (uyariyla)", () => {
+  const root = mkProje();
+  const r = sb(root, ["add", "bug", "--title", "sonra doldurulacak", "--module", "core", "--sablon"]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /GOVDESIZ/, "bos sablon yazildigi acikca soylenmeli");
+});
+
 test("add → search → close: uctan uca CLI dongusu", () => {
   const root = mkProje();
-  const ekle = sb(root, ["add", "bug", "--title", "CLI uzerinden bug", "--module", "core"]);
+  const ekle = sb(root, ["add", "bug", "--title", "CLI uzerinden bug", "--module", "core", "--body", "login 500 donuyor"]);
   assert.equal(ekle.code, 0, ekle.err);
   const id = ekle.out.match(/id: (\S+)/)?.[1];
   assert.ok(id, "add ciktisi id vermeli");
@@ -68,8 +84,8 @@ test("add → search → close: uctan uca CLI dongusu", () => {
 
 test("add: AYNI baslik ikinci kez exit 1 + kullanilabilir alternatif id verir", () => {
   const root = mkProje();
-  sb(root, ["add", "bug", "--title", "ayni baslik"]);
-  const r = sb(root, ["add", "bug", "--title", "ayni baslik"]);
+  sb(root, ["add", "bug", "--title", "ayni baslik", "--body", "x"]);
+  const r = sb(root, ["add", "bug", "--title", "ayni baslik", "--body", "x"]);
   assert.equal(r.code, 1);
   assert.match(r.err, /--id \S+-2/, "cikmaz sokak degil, kopyalanabilir cozum vermeli");
 });
@@ -88,7 +104,7 @@ test("close: tanimsiz onekli id exit 1", () => {
 
 test("--json ciktilari GERCEKTEN ayristirilabilir (kapi ve MCP buna guveniyor)", () => {
   const root = mkProje();
-  sb(root, ["add", "bug", "--title", "json testi", "--module", "core"]);
+  sb(root, ["add", "bug", "--title", "json testi", "--module", "core", "--body", "json"]);
   sb(root, ["graph", "build"]);
   for (const args of [["brief", "--json"], ["search", "json", "--json"],
                       ["guard", "src/a.mjs", "--json"], ["impact", "src/a.mjs", "--json"],
@@ -124,7 +140,7 @@ test("doctor: saglikli projede exit 0", () => {
 
 test("validate: sema-gecerli brain'de exit 0", () => {
   const root = mkProje();
-  sb(root, ["add", "decision", "--title", "gecerli kayit", "--module", "core"]);
+  sb(root, ["add", "decision", "--title", "gecerli kayit", "--module", "core", "--body", "gecerli govde"]);
   const r = sb(root, ["validate"]);
   assert.equal(r.code, 0, r.out + r.err);
 });

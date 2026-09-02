@@ -8,11 +8,12 @@ import { createObject, TYPE_DEFAULTS } from "../markdown/write-ops.mjs";
 export async function addCommand({ args, subcommand }) {
   const type = subcommand[0];
   if (!type || !TYPE_DEFAULTS[type]) {
-    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|plan|record> --title "..." [--module testx] [--priority high] [--files a,b] [--body "..."|--stdin]`);
+    console.error(`[serif-brain add] kullanim: serif-brain add <bug|decision|plan|record> --title "..." (--body "..."|--stdin|--sablon) [--module testx] [--priority high] [--files a,b]`);
     console.error(`  plan   = yol haritasi/faz plani (status: active dogar, plans/ altina yazilir)`);
     console.error(`  record = yapilmis is kaydi (status: done dogar, decisions/ altina yazilir)`);
-    console.error(`  --body = kaydin govdesi; verilmezse BOS sablon yazilir ve elle doldurmayi beklersin`);
+    console.error(`  --body = kaydin govdesi (ZORUNLU; bilgi su an sende, sonra olmayacak)`);
     console.error(`  --stdin = govdeyi borudan oku:  echo "..." | serif-brain add record --title "..." --stdin`);
+    console.error(`  --sablon = bilerek bos sablon yaz (sonra elle dolduracaksin) — varsayilan DEGIL`);
     return 1;
   }
 
@@ -28,6 +29,27 @@ export async function addCommand({ args, subcommand }) {
     return 1;
   }
 
+  const govde = typeof args.flags.body === "string" && args.flags.body
+    ? args.flags.body
+    : (args.flags.stdin ? readFileSync(0, "utf8") : null);
+
+  // GOVDESIZ KAYIT VARSAYILAN OLARAK REDDEDILIR. Uyari yetmedi: uyari basildigi
+  // halde kayitlar bos kaldi (EduX 2026-09-02: son iki haftanin 24 kaydi
+  // basliktan ibaretti, kritik devir ve onarim plani dahil). Kayit acan o anda
+  // bilgiye SAHIPTIR; sonra doldurulmuyor. Bos sablon yalnizca acikca
+  // istenirse (--sablon) yazilir.
+  if (!govde || !String(govde).trim()) {
+    if (!args.flags.sablon) {
+      console.error(`[serif-brain add ${type}] GOVDE YOK — kayit yazilmadi.`);
+      console.error(`  Basliktan ibaret kayit hicbir sey ogretmez; "ne yapildi" sorusu cevapsiz kalir.`);
+      console.error(`  Secenekler:`);
+      console.error(`    --body "Baglam / karar / kanit..."     (tek satir yeter, sonra buyutulebilir)`);
+      console.error(`    echo "..." | serif-brain add ${type} --title "..." --stdin`);
+      console.error(`    --sablon                               (bilerek bos sablon; sonra elle doldur)`);
+      return 1;
+    }
+  }
+
   const r = createObject({
     brainRoot, projectRoot, config, type,
     title: args.flags.title,
@@ -38,9 +60,7 @@ export async function addCommand({ args, subcommand }) {
     tags: args.flags.tags,
     // --stdin: govdeyi borudan oku. Cok satirli icerigi kabuk tirnaklariyla
     // bogusmadan gecirmenin tek pratik yolu; ajanlar da bunu kullanabilir.
-    body: typeof args.flags.body === "string" && args.flags.body
-      ? args.flags.body
-      : (args.flags.stdin ? readFileSync(0, "utf8") : null),
+    body: govde && String(govde).trim() ? govde : null,
     files: typeof args.flags.files === "string"
       ? args.flags.files.split(",").map((s) => s.trim()).filter(Boolean)
       : null,

@@ -213,7 +213,8 @@ export const TOOLS = [
       properties: {
         type: { type: "string", enum: ["bug", "decision", "plan", "record"] },
         title: { type: "string", description: "Tek cumlelik baslik (id bundan turer)" },
-        body: { type: "string", description: "Kaydin govdesi (markdown). Verilmezse BOS sablon yazilir — bunu yapma." },
+        body: { type: "string", description: "Kaydin govdesi (markdown). ZORUNLU: verilmezse kayit REDDEDILIR (sablon: true ile bilerek bos sablon yazilabilir)." },
+        sablon: { type: "boolean", description: "true ise body olmadan bos sablon yazilir (sonra elle doldurulacak). Varsayilan false." },
         module: { type: "string", description: "config.valid_modules'ten biri" },
         priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
         severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
@@ -424,6 +425,11 @@ function callTool(name, a = {}, brainRoot) {
 
   // ── YAZMA ─────────────────────────────────────────────────────────────────
   if (name === "brain_add") {
+    // CLI ile AYNI kapi: govdesiz kayit reddedilir (bkz. src/cli/add.mjs).
+    const govdeVar = typeof a.body === "string" && a.body.trim();
+    if (!govdeVar && a.sablon !== true) {
+      throw new Error("body yok — kayit yazilmadi. Basliktan ibaret kayit hicbir sey ogretmez; body ver (tek satir yeter) ya da bilerek bos sablon icin sablon:true gonder.");
+    }
     const r = createObject({
       brainRoot,
       projectRoot: dirname(brainRoot),

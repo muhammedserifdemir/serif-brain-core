@@ -6,6 +6,7 @@ import { detectStoreEngine } from "../store/engine.mjs";
 import { loadConfig, validateObject } from "../markdown/schema.mjs";
 import { listAllObjects, listProjects } from "../markdown/object.mjs";
 import { buildBacklinks } from "../markdown/backlinks.mjs";
+import { govdesizMi } from "../markdown/write-ops.mjs";
 import { planHookInstall } from "../hooks/install.mjs";
 import { fileURLToPath } from "node:url";
 
@@ -213,6 +214,21 @@ export async function doctorCommand({ args }) {
       const { broken } = buildBacklinks(all);
       check(`Broken backlinks`, broken.length === 0 || "warn", `${broken.length}`);
       if (broken.length > 0) warnings++;
+
+      // Govdesiz kayitlar: baslik var, icerik yok. Context'e girer, yer kaplar,
+      // "ne yapildi" sorusuna cevap vermez. Arsivlenmis olanlar sayilmaz
+      // (bilerek baglamdan cikarilmis). Tanim tek yerde: govdesizMi().
+      const govdesiz = all
+        .filter(o => !["archived", "rejected"].includes(String(o.frontmatter?.status || "")))
+        .filter(o => govdesizMi(o.body));
+      check(`Govdesiz kayitlar`, govdesiz.length === 0 || "warn", `${govdesiz.length}`);
+      if (govdesiz.length > 0) {
+        warnings++;
+        const shown = govdesiz.slice(0, 10);
+        console.log(`\n  Basliktan ibaret kayitlar${govdesiz.length > 10 ? ` (ilk 10/${govdesiz.length})` : ""} — doldur ya da arsivle:`);
+        for (const o of shown) console.log(`    · ${rel(o.file_path)}`);
+        console.log(`    Doldurmak icin: serif-brain close <id> --note "..."  (ya da dosyayi ac). Yeni kayitta --body ver.`);
+      }
     } catch (e) {
       check(`Schema check`, false, `failed: ${e.message}`);
       errors++;

@@ -316,7 +316,7 @@ export function buildClaudeMarkdown(data, opts = {}) {
   lines.push(`serif-brain doctor             # saglik`);
   lines.push(`serif-brain context            # bu bagliami yenile`);
   lines.push(`serif-brain context --module <X>  # tek modul focus`);
-  lines.push(`serif-brain add bug --title "..." --module <X>`);
+  lines.push(`serif-brain add bug --title "..." --body "..." --module <X>   # govde zorunlu`);
   lines.push(`serif-brain rebuild-indexes    # backlink + index yenile`);
   lines.push(`\`\`\``);
   lines.push(``);

@@ -153,7 +153,7 @@ export function formatGuard(g) {
   if (g.verdict === "TEMIZ") L.push(`  ✓ Bilinen kisit/risk yok — yine de degisikligi test et.`);
   if (g.verdict === "KAYIT YOK") {
     L.push(`  · Bu dosya/modul icin HIC kayit yok — "risk yok" demek DEGIL, "bakilacak hafiza yok" demek.`);
-    L.push(`    Ogrendigin seyi birak: serif-brain add bug|decision --title "..." --files ${g.file || "<dosya>"}`);
+    L.push(`    Ogrendigin seyi birak: serif-brain add bug|decision --title "..." --body "..." --files ${g.file || "<dosya>"}`);
   }
   return L.join("\n");
 }

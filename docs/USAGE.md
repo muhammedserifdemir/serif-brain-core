@@ -51,10 +51,10 @@ Sonra **ilk hafızayı tohumla** — projenin zaten verilmiş kararlarını kayd
 sıfırdan başlamayalım:
 
 ```bash
-serif-brain add decision --title "RLS ile multi-tenant izolasyon" --module infra --priority high
-serif-brain add decision --title "Auth: Seriftech-ID merkezi" --module auth
+serif-brain add decision --title "RLS ile multi-tenant izolasyon" --module infra --priority high --body "Kiraci izolasyonu satir duzeyinde; superuser baglanti RLS'i baypas eder"
+serif-brain add decision --title "Auth: Seriftech-ID merkezi" --module auth --body "Tek kimlik saglayici; urunler token dogrular"
 # Mevcut bilinen bug'lar:
-serif-brain add bug --title "Webhook imza doğrulaması yok" --module billing --priority critical
+serif-brain add bug --title "Webhook imza doğrulaması yok" --module billing --priority critical --body "POST /webhook imzasiz istegi kabul ediyor"
 ```
 
 > İpucu: `add` bir şablon gövde yaratır; objeyi açıp `## Baglam / ## Karar /
@@ -84,8 +84,8 @@ açmadığından** emin ol. Bu, regresyonun bir numaralı önleyicisi.
 
 ### İş bitince — "yaz, kapat"
 ```bash
-serif-brain add bug --title "..." --module <X> --priority high   # yeni bulunan sorun
-serif-brain add decision --title "..." --module <X>              # verilen yeni karar
+serif-brain add bug --title "..." --body "..." --module <X> --priority high   # yeni bulunan sorun (govde ZORUNLU)
+serif-brain add decision --title "..." --body "..." --module <X>              # verilen yeni karar
 serif-brain close <id> --note "şu commit'le çözüldü"             # status flip + completed_at
 serif-brain rebuild-indexes                                      # indexleri tazele
 ```

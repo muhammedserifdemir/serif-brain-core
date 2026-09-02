@@ -77,6 +77,27 @@ export const TYPE_DEFAULTS = {
  * Aday OTOMATIK BAGLANMAZ — kullaniciya gosterilir. Yanlis dosya baglamak
  * hafizaya gurultu sokar ve olculen 5,6x sinyal/gurultu oranini dusurur.
  */
+/**
+ * Bir govde "bos sablon" mu? Baslik, ## basliklari, bos madde imleri ("- "),
+ * bos numarali madde ("1. ") ve bos satirlar disinda tek bir icerik satiri
+ * yoksa bostur. `close --note` ile eklenen "## Tamamlanma" notu icerik sayilir.
+ * Olcum araci burada TEK yerde: doctor, add ve raporlar ayni tanimi kullanir
+ * (2026-09-02: EduX'te 24 kayit basliktan ibaretti, hicbir arac saymiyordu).
+ */
+export function govdesizMi(body) {
+  if (!body) return true;
+  for (const raw of String(body).split("\n")) {
+    const l = raw.trim();
+    if (!l) continue;
+    if (l.startsWith("#")) continue;
+    if (/^[-*]\s*$/.test(l)) continue;
+    if (/^[-*]\s+[^:]{1,40}:\s*$/.test(l)) continue; // "- Hedef:" — etiket var, deger yok
+    if (/^\d+\.\s*$/.test(l)) continue;
+    return false;
+  }
+  return true;
+}
+
 export function gitRecentFiles(projectRoot, { days = 3, limit = 10 } = {}) {
   try {
     const out = execSync(

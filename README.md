@@ -14,7 +14,7 @@ that fire at edit time**.
 > Advice can be skipped. A gate cannot.
 
 Pure Node.js, **zero npm dependencies** (Node ≥ 22.5 — `node:sqlite` + the
-native test runner). 379 tests. The data is plain Markdown: readable with
+native test runner). 384 tests. The data is plain Markdown: readable with
 `git diff`, editable by hand, tied to no service.
 
 🇹🇷 [Türkçe README](README.tr.md) · 📖 [First 15 minutes](docs/BASLANGIC.md) (Turkish)
@@ -97,7 +97,7 @@ serif-brain brief                    # where are we + what changed since I last 
 serif-brain guard src/auth/login.ts  # BEFORE touching: decisions, scars, blast radius, risk
 # ... write code ...
 serif-brain review                   # before commit: layer violations, cycles, bug signatures
-serif-brain add bug --title "..." --files src/auth/login.ts
+serif-brain add bug --title "..." --body "ne oldu / neden / kanit" --files src/auth/login.ts
 serif-brain close bug-2026... --note "how it was fixed"
 serif-brain capture --days 14        # propose records from commits you never wrote down
 ```
