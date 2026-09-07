@@ -1,3 +1,5 @@
+import { languageDef, isResolvable } from "../scanner/languages.mjs";
+import { buildGraph } from "../graph/build.mjs";
 // serif-brain review [--ref REF] [--json]
 // Pre-commit yapisal kapi: degisen dosyalar uzerinde check (katman/dongu/god) +
 // lint (bug imzalari). Faz: Bug Signatures — "commit'ten once neyi bozdum?".
@@ -10,7 +12,6 @@ import { checkFile } from "../query/check.mjs";
 import { lintContent } from "../query/signatures.mjs";
 import { readFileSafe, classifyFile } from "../scanner/scan-files.mjs";
 
-const SRC_RE = /\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte)$/;
 const STALE_GRAPH_MIN = 7 * 24 * 60; // 7 gun — bunun otesinde graf "bayat" sayilir
 // Tarayicinin (scan-files.mjs) grafa ALMADIGI siniflar. Bunlar icin "grafta yok"
 // bir eksiklik degil, tasarim karari — "graph build kos" demek eyleme donusmez.
@@ -26,10 +27,12 @@ export async function reviewCommand({ args }) {
   const signatures = config?.bug_signatures || [];
 
   const graphPath = join(brainRoot, "graph", "graph.json");
-  const graph = existsSync(graphPath) ? JSON.parse(readFileSync(graphPath, "utf8")) : null;
+  const graph = args.flags.snapshot
+    ? (existsSync(graphPath) ? JSON.parse(readFileSync(graphPath, "utf8")) : null)
+    : await buildGraph({ projectRoot, brainRoot, config });
 
   const ref = typeof args.flags.ref === "string" ? args.flags.ref : "HEAD";
-  const changed = getChangedFiles(projectRoot, ref).filter((f) => SRC_RE.test(f));
+  const changed = getChangedFiles(projectRoot, ref).filter((f) => languageDef(f));
 
   // KAPSAM: yapisal denetim sadece grafta OLAN dosyalar icin calisir. Grafta
   // olmayan (yeni/yeni-adlandirilmis) dosyalar sessizce "temiz" gorunmesin —
@@ -65,20 +68,18 @@ export async function reviewCommand({ args }) {
   for (const rel of changed) {
     const abs = join(projectRoot, rel);
     const issues = [];
-    const grafaGirmez = GRAPH_EXCLUDED_KINDS.has(classifyFile(rel)) || taramaDisiYol(rel);
+    const grafaGirmez = !isResolvable(rel) || GRAPH_EXCLUDED_KINDS.has(classifyFile(rel)) || taramaDisiYol(rel);
 
-    if (graph) {
+    if (grafaGirmez) {
+      outOfScope.push(rel);
+    } else if (graph) {
       const node = resolveFileNode(graph, rel);
       if (node) {
         const c = checkFile(graph, node.id, { rules, god_threshold: config?.god_threshold, god_file_exempt: config?.god_file_exempt });
         if (!c.ok) for (const i of c.issues) issues.push({ kind: "graph", detail: i });
-      } else if (grafaGirmez) {
-        outOfScope.push(rel);
       } else {
         uncovered.push(rel);
       }
-    } else if (grafaGirmez) {
-      outOfScope.push(rel);
     } else {
       uncovered.push(rel);
     }
@@ -96,7 +97,8 @@ export async function reviewCommand({ args }) {
     out_of_scope: outOfScope.length,
     out_of_scope_files: outOfScope,
     graph_missing: !graph,
-    graph_age_min: graphAgeMin(graphPath),
+    graph_age_min: args.flags.snapshot ? graphAgeMin(graphPath) : 0,
+    mode: args.flags.snapshot ? "snapshot" : "live",
   };
 
   if (args.flags.json) {
@@ -145,7 +147,7 @@ function printCoverage(cov) {
   // Kapsam disi dosyalar UYARI degil — bilgi. Graf onlari hicbir zaman
   // indekslemeyecegi icin "duzelt" onerisi de yok.
   if (cov.out_of_scope) {
-    console.log(`  · ${cov.out_of_scope} dosya yapisal denetim KAPSAMI DISINDA (test / tip bildirimi / scan_exclude_paths) — grafa tasarim geregi girmez.`);
+    console.log(`  · ${cov.out_of_scope} dosya yapisal denetim KAPSAMI DISINDA (test / tip bildirimi / tarama disi / import grafi desteklenmeyen dil).`);
   }
   if (cov.graph_age_min != null && cov.graph_age_min > STALE_GRAPH_MIN) {
     const days = Math.round(cov.graph_age_min / 1440);

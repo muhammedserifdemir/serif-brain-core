@@ -16,10 +16,24 @@ function send(res, code, data) {
 }
 
 function readBody(req) {
-  return new Promise((res) => {
-    let b = "";
-    req.on("data", (c) => { b += c; if (b.length > 1e6) req.destroy(); });
-    req.on("end", () => { try { res(JSON.parse(b || "{}")); } catch { res({}); } });
+  return new Promise((resolve, reject) => {
+    const chunks = []; let bytes = 0;
+    const fail = (statusCode, message) => reject(Object.assign(new Error(message), { statusCode }));
+    req.on("data", chunk => {
+      bytes += chunk.length;
+      if (bytes > 1e6) { fail(413, "request body too large"); return; }
+      chunks.push(chunk);
+    });
+    req.on("error", reject);
+    req.on("aborted", () => fail(400, "request aborted"));
+    req.on("end", () => {
+      if (bytes > 1e6) return;
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+        if (!body || typeof body !== "object" || Array.isArray(body)) return fail(400, "JSON object required");
+        resolve(body);
+      } catch { fail(400, "invalid JSON"); }
+    });
   });
 }
 
@@ -128,16 +142,25 @@ async function handle(req, res, url) {
 
 export function createDashboardServer() {
   return createServer((req, res) => {
-    const url = new URL(req.url, "http://127.0.0.1");
+    const expected = `127.0.0.1:${req.socket.localPort}`;
+    const host = req.headers.host;
+    if (host !== expected && host !== `localhost:${req.socket.localPort}`) return send(res, 403, { error: "invalid host" });
+    if (req.headers.origin && req.headers.origin !== `http://${host}`) return send(res, 403, { error: "invalid origin" });
+    if (req.headers["sec-fetch-site"] === "cross-site") return send(res, 403, { error: "cross-site request" });
+    if (req.method === "POST" && req.headers["content-type"]?.split(";")[0].trim() !== "application/json") return send(res, 415, { error: "application/json required" });
+    let url;
+    try { url = new URL(req.url, `http://${host}`); }
+    catch { return send(res, 400, { error: "invalid URL" }); }
     handle(req, res, url).catch((e) => {
       // Panel hatasi oturumu dusurmez; hata JSON olarak doner ve gorunur olur.
-      try { send(res, 500, { error: String(e && e.message || e) }); } catch { /* yanit kapanmis */ }
+      try { send(res, e.statusCode || 500, { error: String(e && e.message || e) }); } catch { /* yanit kapanmis */ }
     });
   });
 }
 
 /** port 0 verilirse isletim sistemi bos port secer (Electron bunu kullanir). */
 export function serve({ port = 4700, host = "127.0.0.1" } = {}) {
+  if (host !== "127.0.0.1") throw new Error("dashboard must bind to 127.0.0.1");
   const server = createDashboardServer();
   return new Promise((res, rej) => {
     server.once("error", rej);

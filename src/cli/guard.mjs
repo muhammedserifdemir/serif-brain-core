@@ -1,4 +1,4 @@
-// serif-brain guard <dosya> [--days N] [--json]
+// serif-brain guard <dosya> [--days N] [--json] [--snapshot]
 // Edit-oncesi BIRLESIK brifing: touch + impact + risk + lint tek cikti.
 import { resolve, join, relative, isAbsolute } from "node:path";
 import { existsSync } from "node:fs";
@@ -19,7 +19,7 @@ export async function guardCommand({ args, subcommand }) {
   const relPath = posixYol(relative(projectRoot, abs)) || target;
   const days = parseInt(args.flags.days, 10) || 30;
 
-  const g = gatherGuard({ projectRoot, brainRoot, relPath, days });
+  const g = gatherGuard({ projectRoot, brainRoot, relPath, days, snapshot: !!args.flags.snapshot });
 
   if (args.flags.json) { console.log(JSON.stringify(g, null, 2)); return 0; }
   console.log(formatGuard(g));

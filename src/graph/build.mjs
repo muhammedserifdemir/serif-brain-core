@@ -1,4 +1,5 @@
 // Full graph builder — code scan + objects'i birlestirir.
+import { createHash } from "node:crypto";
 import { resolve as pResolve, basename } from "node:path";
 import { scanFiles, readFileSafe, countLines } from "../scanner/scan-files.mjs";
 import { parseImportsFor, parseTodos, parseIdMentions } from "../scanner/parse-imports.mjs";
@@ -28,8 +29,12 @@ const NODE_TYPES = ["project","file","module","component","route","api","bug","d
 const EDGE_TYPES = ["imports","uses","owns","mentions","fixes","caused_by","blocked_by","duplicates","related_to","stale_after","belongs_to","generated_from","scripts"];
 
 function nid(type, key) { return `${type}:${key}`; }
+function sha256(text) { return createHash("sha256").update(text).digest("hex"); }
 
-export async function buildGraph({ projectRoot, brainRoot, projectId, config }) {
+// Preserve the Promise-based API for existing integrations.
+export async function buildGraph(options) { return buildGraphSync(options); }
+
+export function buildGraphSync({ projectRoot, brainRoot, projectId, config }) {
   const startedAt = Date.now();
 
   // Modul sahipligi config-farkinda: .serif-brain/config.yaml'daki `module_paths`
@@ -90,18 +95,28 @@ export async function buildGraph({ projectRoot, brainRoot, projectId, config }) 
   for (const f of files) {
     const mtimeMs = f.mtime?.getTime?.() ?? 0;
     const prev = prevCache.files?.[f.rel_path];
-    let loc, imports, todos, mentions;
-    if (prev && prev.mtimeMs === mtimeMs && prev.size === f.size) {
+    let loc, imports, todos, mentions, hash;
+    // Iki kademeli onbellek. (1) mtime+boyut ayni → dosya HIC okunmaz; hook her
+    // duzenlemede kosar, 2.295 dosyayi okumak 50-260 ms (OS onbellegine gore),
+    // ozetlemek 21 ms olculdu (serif-platform, 2026-09-07). Bilincli bedel:
+    // mtime ve boyutu korunarak degistirilen dosya (cp -p / utimes) gorulmez.
+    // (2) mtime degisti ama icerik ayni (dal degistirme, checkout) → ozet
+    // eslesir, parse tekrarlanmaz.
+    if (prev && prev.hash && prev.mtimeMs === mtimeMs && prev.size === f.size) {
+      ({ loc, imports, todos, mentions, hash } = prev);
+      cacheHits++;
+    } else if (prev && prev.hash && (hash = sha256(readFileSafe(f.abs_path))) === prev.hash) {
       ({ loc, imports, todos, mentions } = prev);
       cacheHits++;
     } else {
       const text = readFileSafe(f.abs_path);
+      hash = hash || sha256(text);
       loc = countLines(text);
       imports = parseImportsFor(f.rel_path, text);
       todos = parseTodos(text);
       mentions = parseIdMentions(text);
     }
-    nextCache[f.rel_path] = { mtimeMs, size: f.size, loc, imports, todos, mentions };
+    nextCache[f.rel_path] = { mtimeMs, size: f.size, hash, loc, imports, todos, mentions };
     todoCount += todos.length;
 
     addNode({

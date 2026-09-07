@@ -18,7 +18,7 @@ jobs:
       matrix:
         # node:sqlite + native test runner Node 22.5+ ister.
         node: ["22.x", "24.x"]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,3 +39,6 @@ jobs:
           node ./bin/serif-brain.mjs --help
           node ./bin/serif-brain.mjs --version
         shell: bash
+
+      - name: Deterministic graph benchmark
+        run: node scripts/benchmark.mjs 1000

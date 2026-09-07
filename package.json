@@ -20,12 +20,14 @@
     "hooks/",
     "skill/",
     "src/",
-    "templates/"
+    "templates/",
+    "scripts/"
   ],
   "scripts": {
     "doctor": "node ./bin/serif-brain.mjs doctor",
     "test": "node --test \"test/*.test.mjs\"",
-    "prepublishOnly": "node --test \"test/*.test.mjs\""
+    "prepublishOnly": "node --test \"test/*.test.mjs\"",
+    "benchmark": "node scripts/benchmark.mjs"
   },
   "engines": {
     "node": ">=22.5.0"

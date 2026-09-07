@@ -5,7 +5,7 @@
 // yazmak gerekirdi — ve iki kopya, "CLI'da calisti ama MCP'de baska sey yazdi"
 // sinifinda sessiz ayrisma demektir. Burasi CIKTI URETMEZ: sonucu dondurur,
 // metni cagiran (CLI ya da MCP) bicimlendirir.
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readObject, writeObject, makeId, objectPath } from "./object.mjs";
 import { loadConfig } from "./schema.mjs";
@@ -100,8 +100,8 @@ export function govdesizMi(body) {
 
 export function gitRecentFiles(projectRoot, { days = 3, limit = 10 } = {}) {
   try {
-    const out = execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --relative --name-only --pretty=format: --diff-filter=d`,
+    const out = execFileSync("git",
+      ["-C", projectRoot, "log", `--since=${days} days ago`, "--relative", "--name-only", "--pretty=format:", "--diff-filter=d"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 8 * 1024 * 1024 },
     );
     const sayac = new Map();
@@ -117,7 +117,7 @@ export function gitTouchedFiles(projectRoot, limit = 12) {
   const files = new Set();
   for (const cmd of ["diff --relative --name-only HEAD", "diff --cached --relative --name-only"]) {
     try {
-      const out = execSync(`git -C "${projectRoot}" ${cmd}`, {
+      const out = execFileSync("git", ["-C", projectRoot, ...cmd.split(" ")], {
         encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
       });
       for (const f of out.split("\n").map((s) => s.trim()).filter(Boolean)) {
@@ -267,7 +267,7 @@ export function closeObject({
   const nowIso = now.toISOString();
   const today = nowIso.slice(0, 10);
   const prevStatus = fm.status;
-  fm.status = "done";
+  fm.status = already && !force ? prevStatus : "done";
   fm.updated_at = nowIso;
   // Zaten kapali bir kayda not eklerken ORIJINAL kapanma tarihi korunur —
   // yoksa her not ekleme, isin bugun bittigini soyleyen yanlis bir tarih yazar.
@@ -286,7 +286,7 @@ export function closeObject({
   const result = writeObject(brainRoot, fm, newBody);
   return {
     ok: true, noop: false, id, project, path: result.path,
-    prevStatus, status: "done", completed_at: fm.completed_at,
+    prevStatus, status: fm.status, completed_at: fm.completed_at,
     commit: commit || null, noteAppended: !!note,
     // Cagirana "bu bir kapatma degil, kapali kayda icerik ekleme" der.
     appendedToClosed: already && !!note,

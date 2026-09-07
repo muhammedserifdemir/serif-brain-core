@@ -1,12 +1,12 @@
 // Git aktivite sinyali — son N gunde degisen dosyalar + commit basliklari.
 // `stale` ve `brief` ortak kullanir (eskiden stale icinde inline'di). Git yoksa
 // veya repo degilse sessizce bos doner — brain git-bagimsiz calismali.
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 export function getRecentChangedFiles(projectRoot, days) {
   try {
-    const out = execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --name-only --pretty=format:`,
+    const out = execFileSync("git",
+      ["-C", projectRoot, "log", `--since=${days} days ago`, "--relative", "--name-only", "--pretty=format:"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     );
     return new Set(out.split("\n").map((s) => s.trim()).filter(Boolean));
@@ -17,8 +17,8 @@ export function getRecentChangedFiles(projectRoot, days) {
 
 export function getRecentCommitTitles(projectRoot, days) {
   try {
-    return execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --pretty=format:%s`,
+    return execFileSync("git",
+      ["-C", projectRoot, "log", `--since=${days} days ago`, "--pretty=format:%s"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     ).toLowerCase();
   } catch {
@@ -31,16 +31,16 @@ export function getRecentCommitTitles(projectRoot, days) {
 export function getChangedFiles(projectRoot, ref = "HEAD") {
   const files = new Set();
   try {
-    const diff = execSync(`git -C "${projectRoot}" diff --name-only ${ref}`, {
+    const diff = execFileSync("git", ["-C", projectRoot, "diff", "--relative", "--name-only", "-z", ref, "--"], {
       encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
     });
-    for (const f of diff.split("\n").map((s) => s.trim()).filter(Boolean)) files.add(f);
+    for (const f of diff.split("\0").filter(Boolean)) files.add(f);
   } catch { /* git yok/ref yok */ }
   try {
-    const untracked = execSync(`git -C "${projectRoot}" ls-files --others --exclude-standard`, {
+    const untracked = execFileSync("git", ["-C", projectRoot, "ls-files", "--others", "--exclude-standard", "-z"], {
       encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
     });
-    for (const f of untracked.split("\n").map((s) => s.trim()).filter(Boolean)) files.add(f);
+    for (const f of untracked.split("\0").filter(Boolean)) files.add(f);
   } catch { /* yoksay */ }
   return [...files];
 }
@@ -53,8 +53,8 @@ export function getChangedFiles(projectRoot, ref = "HEAD") {
 export function getRecentCommits(projectRoot, days) {
   try {
     // \x1e (RS) her commit'i ayirir; \x1f (US) hash ile subject'i ayirir.
-    const out = execSync(
-      `git -C "${projectRoot}" log --since="${days} days ago" --name-only --pretty=format:"%x1e%H%x1f%aI%x1f%s"`,
+    const out = execFileSync("git",
+      ["-C", projectRoot, "log", `--since=${days} days ago`, "--relative", "--name-only", "--pretty=format:%x1e%H%x1f%aI%x1f%s"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 32 * 1024 * 1024 },
     );
     const commits = [];

@@ -80,7 +80,7 @@ export function start(repo, cmd, port) {
   if (cur && cur.child.exitCode === null) return { ok: false, error: "zaten calisiyor", pid: cur.child.pid };
 
   const child = spawn(cmd, {
-    cwd: repo, shell: true, detached: false,
+    cwd: repo, shell: true, detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, FORCE_COLOR: "0" },
   });
@@ -127,8 +127,13 @@ async function killPid(pid, { hardAfterMs = 4000 } = {}) {
 export async function stop(repo) {
   const rec = owned.get(repo);
   if (!rec) return { ok: false, error: "bu sureci panel baslatmadi — zorla kapatmak icin onay gerekir", needsConfirm: true };
-  if (rec.child.exitCode !== null) { serbestBirak(rec.child); owned.delete(repo); return { ok: true, already: true }; }
-  await killPid(rec.child.pid);
+  if (process.platform === "win32" && rec.child.exitCode !== null) { serbestBirak(rec.child); owned.delete(repo); return { ok: true, already: true }; }
+  if (process.platform === "win32") {
+    try { execFileSync("taskkill", ["/PID", String(rec.child.pid), "/T", "/F"], { stdio: "ignore" }); }
+    catch { return { ok: false, error: "process tree could not be stopped" }; }
+  } else {
+    await killPid(-rec.child.pid);
+  }
   // `shell: true` ile baslatildigi icin oldurulen PID KABUKTUR; torun surec
   // yasamaya devam edip borulari acik tutabilir. Bu yuzden oldurmek yetmez,
   // boruyu ebeveyn tarafindan da birakmak gerekir.

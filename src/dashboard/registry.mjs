@@ -1,3 +1,4 @@
+import { atomicWrite } from "../util/atomic-write.mjs";
 // Dashboard registry — hangi brain'lerin izleneceğini ve kullanıcı override'larını
 // merkezi tek dosyada tutar: ~/.serif-brain-registry.json
 // (SERIF_BRAIN_REGISTRY env ile değiştirilebilir). Brain objelerine DOKUNMAZ.
@@ -23,7 +24,7 @@ export function loadRegistry() {
 }
 
 export function saveRegistry(reg) {
-  writeFileSync(registryPath(), JSON.stringify(reg, null, 2));
+  atomicWrite(registryPath(), JSON.stringify(reg, null, 2));
   return registryPath();
 }
 

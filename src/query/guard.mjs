@@ -12,11 +12,15 @@ import { scoreRisk } from "./risk.mjs";
 import { ownerOfConfigured } from "../scanner/module-owner.mjs";
 import { getRecentCommits } from "./git-activity.mjs";
 import { readFileSafe } from "../scanner/scan-files.mjs";
+import { buildGraphSync } from "../graph/build.mjs";
 
 const RISK_ICON = { critical: "⛔", high: "⚠", medium: "•", low: "✓" };
 
 // Bir dosya icin tum sinyalleri topla (CLI + MCP ortak; query katmaninda kalir).
-export function gatherGuard({ projectRoot, brainRoot, relPath, days = 30 }) {
+// snapshot=false: graf GUNCEL kaynaktan kurulur (check/review ile ayni kaynak —
+// PreToolUse guard'in 25 gunluk grafla, PostToolUse check'in canli grafla
+// konusmasi ayni oturumda celiskiydi). snapshot=true: kayitli graph.json.
+export function gatherGuard({ projectRoot, brainRoot, relPath, days = 30, snapshot = false }) {
   const config = loadConfig(brainRoot);
   const module = ownerOfConfigured(relPath, config);
   const objects = loadObjects(brainRoot);
@@ -24,8 +28,10 @@ export function gatherGuard({ projectRoot, brainRoot, relPath, days = 30 }) {
 
   let impact = null, dependents = 0;
   const graphPath = join(brainRoot, "graph", "graph.json");
-  if (existsSync(graphPath)) {
-    const graph = JSON.parse(readFileSync(graphPath, "utf8"));
+  const graph = snapshot
+    ? (existsSync(graphPath) ? JSON.parse(readFileSync(graphPath, "utf8")) : null)
+    : buildGraphSync({ projectRoot, brainRoot, config });
+  if (graph) {
     const node = resolveFileNode(graph, relPath);
     if (node) { impact = computeImpact(graph, node.id); dependents = impact.direct_dependents.length; }
   }

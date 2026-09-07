@@ -141,3 +141,13 @@ Bu ölçüm iki kez yanlış yapıldı ve düzeltildi. İkisi de aynı derse ç�
 kurulabilir: `gatherGuard()` üzerinden dosya sınıflandırma, `loadObjects()`
 üzerinden kayıt/ilişki sayımı, kontrol grubu için aynı depodan deterministik
 rastgele dosya seçimi. Kapsam etiketi her sayının yanında verilmelidir.
+
+## Yorum düzeltmesi — 2026-09-05
+
+%80,5, dosyaya bağlı kaydedilmiş bug örnekleminde önceki bir kaydın varlığını
+ölçer. Önceki kaydın yeni hatayı önleyecek içerik taşıdığını veya davranışı
+değiştirdiğini ölçmez. 5,6× oranı bu seçilmiş örneklemde kayıt varlığı oranlarının
+kıyaslamasıdır; hata önleme başarısı veya genel sinyal/gürültü ölçümü değildir.
+Aşağıdaki geliştirme planında bağımsız değerlendirme ve kör içerik etiketlemesi
+tanımlanmıştır. Yeni `scripts/benchmark.mjs` performans için tekrarlanabilir
+sentetik veri sağlar; geçmiş 20 proje ölçümünü yeniden üretmez.

@@ -1,3 +1,4 @@
+import { atomicWrite } from "../util/atomic-write.mjs";
 // Artımlı tarama cache'i — dosya başına parse sonucunu (import/mention/todo/loc)
 // mtime+size ile saklar. Değişmeyen dosyalar yeniden okunmaz/parse edilmez.
 // .serif-brain/.cache/scan.json (gitignore'da). Saf-Node.
@@ -22,7 +23,7 @@ export function saveScanCache(brainRoot, files) {
   const p = join(brainRoot, ".cache", "scan.json");
   try {
     mkdirSync(dirname(p), { recursive: true });
-    writeFileSync(p, JSON.stringify({ version: CACHE_VERSION, files }));
+    atomicWrite(p, JSON.stringify({ version: CACHE_VERSION, files }));
   } catch {
     /* cache yazılamazsa sessiz geç — sadece optimizasyon */
   }

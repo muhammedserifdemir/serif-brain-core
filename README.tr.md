@@ -7,16 +7,16 @@ bug'ın hangi dosyada yara izi bıraktığını, neyin bilerek böyle yapıldı�
 bilmez. serif-brain projenin hafızasını dosya sistemine yazar, bunu kod grafına
 bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 
-> Tavsiye atlanabilir, kapı atlanamaz.
+> İlgili hafıza düzenleme anında kendiliğinden görünür. Hook uyarır; CLI kontrolleri CI politikasını uygulayabilir.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 384 test.
+runner). 392 test.
 
-Aracın gerçekten işe yarayıp yaramadığı 20 gerçek projede ölçüldü: kayıt tutulan
-yerde hafıza, ihtiyaç anında ilgili bilgiyi **%80,5** oranında içeriyordu —
-rastgele bir dosyada bu oran %14,3. **Sinyal/gürültü 5,6×.** Yöntem ve kapsam
-etiketleri: [docs/OLCUM.md](docs/OLCUM.md). Veri kaynağı düz Markdown: `git diff` ile okunur, elle
-düzenlenir, hiçbir servise bağlı değildir.
+20 projedeki geçmiş analizde, dosyaya bağlanmış 133 bug'ın 107'sinde (%80,5)
+aynı dosyada daha eski bir kayıt bulundu; rastgele dosya kontrolünde bu oran
+%14,3'tü. Bu, önceki kaydın varlığını ölçer; hatayı önlediğini göstermez.
+[Yöntem ve sınırlar](docs/OLCUM.md). Veri kaynağı düz Markdown: `git diff` ile
+okunur, elle düzenlenir, hiçbir servise bağlı değildir.
 
 ---
 
@@ -226,3 +226,18 @@ npm test        # node --test test/*.test.mjs — sıfır bağımlılık
 
 MIT — © 2026 Muhammed Serif Demir. `package.json`'da `private: true` bilinçlidir:
 paket npm'e yayınlanmaz (bakım yükü), git üzerinden kurulur.
+
+## Review reliability / Denetim güvenilirliği
+
+`guard`, `check`, MCP `brain_guard`/`brain_check` ve `review` güncel kaynak
+dosyalarından graf kurar; hook'ların düzenleme öncesi ve sonrası aynı grafı görmesi
+bu sayededir. Değişmeyen dosya (aynı mtime + boyut) yeniden okunmaz; mtime'ı
+yenilenen ama içeriği aynı dosya içerik özetiyle tanınır ve yeniden ayrıştırılmaz.
+Bilinçli sınır: mtime ve boyutu korunarak değiştirilen dosya görülmez.
+`--snapshot` yalnız CLI üzerinden kayıtlı grafı incelemek içindir; güncel kodun
+onayı olarak kullanılmamalıdır. `impact`, `layers` ve diğer graf raporları
+kayıtlı grafı kullanmayı sürdürür; bunlar için `graph build` çalıştırın.
+Review bütün kayıtlı dillerde imza tarar; import grafı olmayan dillerin yapısal
+kapsamı açıkça ayrılır. Hook'lar engellemez; `review` bulguda exit 2 verir.
+
+[Geliştirme planı ve kabul ölçütleri](docs/GELISTIRME-PLANI.md).

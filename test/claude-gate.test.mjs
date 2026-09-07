@@ -100,7 +100,7 @@ test("kapi — modul geneli kayitlar OZETLENIR (her Edit'te tam liste basmaz)", 
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test("kapi — stop modu: kapsam eksigini tur sonunda bildirir", () => {
+test("kapi — stop modu: yeni dosyayi canli grafa alir, yalanci kapsam uyarisi vermez", () => {
   const tmp = makeBrainProject();
   try {
     // src/a.mjs grafta VAR, src/yeni.mjs olmayacak → "uncovered" yolu test edilir
@@ -118,10 +118,7 @@ test("kapi — stop modu: kapsam eksigini tur sonunda bildirir", () => {
 
     const out = runGate("stop", { cwd: tmp }, { CLAUDE_PROJECT_DIR: tmp });
     const j = parseEmit(out);
-    assert.ok(j, "kapsam eksikken stop kapisi konusmali");
-    assert.equal(j.hookSpecificOutput.hookEventName, "Stop");
-    assert.match(j.hookSpecificOutput.additionalContext, /KAPSAM/);
-    assert.match(j.hookSpecificOutput.additionalContext, /src\/yeni\.mjs/);
+    assert.equal(j, null, "yeni temiz dosya canli grafla denetlenir; eski graf eksikligi uyari degildir");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 

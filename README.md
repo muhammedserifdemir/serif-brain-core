@@ -11,10 +11,10 @@ deliberately built that way. serif-brain writes your project's memory to the
 filesystem, links it to the code graph, and turns it into **mechanical gates
 that fire at edit time**.
 
-> Advice can be skipped. A gate cannot.
+> Relevant memory appears automatically at edit time. Hooks advise; CLI checks can enforce CI policy.
 
 Pure Node.js, **zero npm dependencies** (Node ≥ 22.5 — `node:sqlite` + the
-native test runner). 384 tests. The data is plain Markdown: readable with
+native test runner). 392 tests. The data is plain Markdown: readable with
 `git diff`, editable by hand, tied to no service.
 
 🇹🇷 [Türkçe README](README.tr.md) · 📖 [First 15 minutes](docs/BASLANGIC.md) (Turkish)
@@ -51,7 +51,7 @@ synthetic fixtures. Full method and scope labels in
 |---|---|
 | When a bug happened, did memory already hold something about that file? | **80.5%** |
 | Same question for a **random** file (control) | **14.3%** |
-| **Signal-to-noise** | **5.6×** |
+| **Prior-record prevalence ratio** | **5.6×** |
 | Files where the gate has something specific to say | 15.6% |
 | Files where it stays silent | 78.3% |
 | Memory coverage over tracked files | 5.8% |
@@ -60,13 +60,12 @@ synthetic fixtures. Full method and scope labels in
 
 The honest reading: **the gate is silent most of the time, and that is the
 main weakness** — memory only exists where you wrote it. But where it does
-speak, the signal is 5.6× above chance. The tool doesn't create value on its
+speak, prior records are concentrated in the selected bug-linked files. The tool doesn't create value on its
 own; it creates value when you link a record to a file.
 
 > Scope label: the 80.5% covers *recorded, file-linked* bugs only. Bugs that
 > were never written down are outside this measurement. So "prevents 80% of
-> bugs" would be false; "where records exist, memory held the relevant fact
-> 80% of the time" is what was measured.
+> bugs" would be false; "107 of 133 recorded, file-linked bugs had an older record on the same file" is what was measured. Content relevance and prevention were not evaluated.
 
 ---
 
@@ -272,3 +271,18 @@ npm test        # node --test "test/*.test.mjs" — zero dependencies
 
 MIT — © 2026 Muhammed Serif Demir. `private: true` in `package.json` is
 deliberate: the package is not published to npm, it is installed from git.
+
+## Review reliability / Denetim güvenilirliği
+
+`guard`, `check`, MCP `brain_guard`/`brain_check` ve `review` güncel kaynak
+dosyalarından graf kurar; hook'ların düzenleme öncesi ve sonrası aynı grafı görmesi
+bu sayededir. Değişmeyen dosya (aynı mtime + boyut) yeniden okunmaz; mtime'ı
+yenilenen ama içeriği aynı dosya içerik özetiyle tanınır ve yeniden ayrıştırılmaz.
+Bilinçli sınır: mtime ve boyutu korunarak değiştirilen dosya görülmez.
+`--snapshot` yalnız CLI üzerinden kayıtlı grafı incelemek içindir; güncel kodun
+onayı olarak kullanılmamalıdır. `impact`, `layers` ve diğer graf raporları
+kayıtlı grafı kullanmayı sürdürür; bunlar için `graph build` çalıştırın.
+Review bütün kayıtlı dillerde imza tarar; import grafı olmayan dillerin yapısal
+kapsamı açıkça ayrılır. Hook'lar engellemez; `review` bulguda exit 2 verir.
+
+[Geliştirme planı ve kabul ölçütleri](docs/GELISTIRME-PLANI.md).

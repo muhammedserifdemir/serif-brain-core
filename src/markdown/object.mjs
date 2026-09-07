@@ -1,6 +1,7 @@
 // Markdown object reader/writer/lister.
 // Canonical store path: .serif-brain/objects/projects/<project>/<type>s/<id>.md
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync } from "node:fs";
+import { atomicWrite } from "../util/atomic-write.mjs";
 import { join, dirname } from "node:path";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter.mjs";
 import { validateObject } from "./schema.mjs";
@@ -26,10 +27,12 @@ function dirForType(type) {
 }
 
 export function objectsRoot(brainRoot, project) {
+  if (typeof project !== "string" || !/^[a-zA-Z0-9_-]+$/.test(project)) throw new Error("invalid project path");
   return join(brainRoot, "objects", "projects", project);
 }
 
 export function objectPath(brainRoot, project, type, id) {
+  if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("invalid object id path");
   const dir = dirForType(type);
   if (!dir) throw new Error(`Unknown object type: ${type}`);
   return join(objectsRoot(brainRoot, project), dir, `${id}.md`);
@@ -57,7 +60,7 @@ export function writeObject(brainRoot, frontmatter, body) {
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const text = serializeFrontmatter(frontmatter, body || "\n");
-  writeFileSync(path, text);
+  atomicWrite(path, text);
   return { path, validation };
 }
 

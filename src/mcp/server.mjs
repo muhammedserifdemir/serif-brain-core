@@ -11,6 +11,7 @@ import { compileTouch } from "../query/touch.mjs";
 import { computeImpact, resolveFileNode } from "../query/impact.mjs";
 import { computeHotspots } from "../query/hotspot.mjs";
 import { findLayerViolations } from "../query/layers.mjs";
+import { buildGraphSync as buildGraph } from "../graph/build.mjs";
 import { checkFile } from "../query/check.mjs";
 import { lintContent } from "../query/signatures.mjs";
 import { readFileSafe } from "../scanner/scan-files.mjs";
@@ -342,12 +343,10 @@ function callTool(name, a = {}, brainRoot) {
 
   if (name === "brain_check") {
     if (!a.path) throw new Error("path gerekli");
-    const graphPath = join(brainRoot, "graph", "graph.json");
-    if (!existsSync(graphPath)) return JSON.stringify({ found: false, error: "graph.json yok — once 'serif-brain graph build'" });
-    const graph = JSON.parse(readFileSync(graphPath, "utf8"));
+    const cfg = loadConfig(brainRoot);
+    const graph = buildGraph({ projectRoot: dirname(brainRoot), brainRoot, config: cfg });
     const node = resolveFileNode(graph, a.path);
     if (!node) return JSON.stringify({ found: false, path: a.path });
-    const cfg = loadConfig(brainRoot);
     return JSON.stringify(checkFile(graph, node.id, { rules: cfg?.layer_rules || [], god_threshold: cfg?.god_threshold, god_file_exempt: cfg?.god_file_exempt }), null, 2);
   }
 

@@ -1,3 +1,4 @@
+import { buildGraph } from "../graph/build.mjs";
 // serif-brain check <dosya> [--json]
 // PostEdit graf saglik kontrolu: katman ihlali + dongu + god-file (tek dosya).
 import { resolve, join, relative, isAbsolute } from "node:path";
@@ -13,11 +14,13 @@ export async function checkCommand({ args, subcommand }) {
   if (!existsSync(brainRoot)) throw new Error(`Brain root missing: ${brainRoot} — run 'serif-brain init' first`);
 
   const graphPath = join(brainRoot, "graph", "graph.json");
-  if (!existsSync(graphPath)) {
+  if (args.flags.snapshot && !existsSync(graphPath)) {
     if (!args.flags.json) console.error(`[serif-brain check] graph.json yok — once: serif-brain graph build`);
     return 0; // hook-dostu: bloklamaz
   }
-  const graph = JSON.parse(readFileSync(graphPath, "utf8"));
+  const config = loadConfig(brainRoot);
+  const graph = args.flags.snapshot ? JSON.parse(readFileSync(graphPath, "utf8"))
+    : await buildGraph({ projectRoot, brainRoot, config });
 
   const target = subcommand[0] || (typeof args.flags.file === "string" ? args.flags.file : null);
   if (!target) {
@@ -33,13 +36,12 @@ export async function checkCommand({ args, subcommand }) {
     return 0;
   }
 
-  const config = loadConfig(brainRoot);
   const c = checkFile(graph, node.id, { rules: config?.layer_rules || [], god_threshold: config?.god_threshold, god_file_exempt: config?.god_file_exempt });
 
   if (args.flags.json) {
     console.log(JSON.stringify(c, null, 2));
-    return c.ok ? 0 : 2;
+    return c.ok === false ? 2 : 0;
   }
   console.log(formatCheck(c));
-  return c.ok ? 0 : 2;
+  return c.ok === false ? 2 : 0;
 }

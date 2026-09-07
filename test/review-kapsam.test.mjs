@@ -34,7 +34,7 @@ function capture(fn) {
     .finally(() => { console.log = orig; });
 }
 
-const review = (tmp, flags = {}) => capture(() => reviewCommand({ args: { flags: { project: tmp, ...flags }, _: [] } }));
+const review = (tmp, flags = {}) => capture(() => reviewCommand({ args: { flags: { project: tmp, snapshot: true, ...flags }, _: [] } }));
 
 // Grafta OLAN tek dosyalik minimal graf
 const graphWith = (rel) => ({
