@@ -32,15 +32,35 @@ async function cmdServe(flags) {
 // Dock uygulamasi (Electron) AYRI pakette: cekirdek "sifir bagimlilik"
 // garantisini korusun diye. Bu komut kabugu bulur, kuruluysa acar; degilse
 // tam olarak ne yapilacagini soyler — sessizce basarisiz olmaz.
+// Dock uygulamasinin KAYNAK deposu (serif-brain-dashboard) sabit bir yolda
+// aranmaz: SERIF_BRAIN_DASHBOARD_SRC verilirse o, yoksa paket yazarinin
+// gelistirme duzeni (~/Desktop/seriftech-packages/...) YALNIZ diskte varsa.
+// Yabanci bir makinede hicbiri yoktur → sessizce atlanir, hata uretilmez.
+function dashboardKaynagi() {
+  const adaylar = [
+    process.env.SERIF_BRAIN_DASHBOARD_SRC,
+    join(homedir(), "Desktop", "seriftech-packages", "serif-brain-dashboard"),
+  ].filter(Boolean);
+  return adaylar.find(existsSync) || null;
+}
+
 function electronAdaylari() {
   const ev = homedir();
+  const kaynak = dashboardKaynagi();
   return [
     process.env.SERIF_BRAIN_APP,
     "/Applications/serif-brain.app",
     join(ev, "Applications", "serif-brain.app"),
-    join(ev, "Desktop", "seriftech-packages", "serif-brain-dashboard", "dist", "mac-arm64", "serif-brain.app"),
-    join(ev, "Desktop", "seriftech-packages", "serif-brain-dashboard", "dist", "mac-x64", "serif-brain.app"),
+    ...(kaynak ? [join(kaynak, "dist", "mac-arm64", "serif-brain.app"),
+                  join(kaynak, "dist", "mac-x64", "serif-brain.app")] : []),
   ].filter(Boolean);
+}
+
+// Varsayilan calisma koku: SERIF_BRAIN_KOK > ~/Desktop (varsa) > ev dizini.
+export function varsayilanKok() {
+  if (process.env.SERIF_BRAIN_KOK) return process.env.SERIF_BRAIN_KOK;
+  const masaustu = join(homedir(), "Desktop");
+  return existsSync(masaustu) ? masaustu : homedir();
 }
 
 function cmdApp() {
@@ -50,13 +70,13 @@ function cmdApp() {
     console.log(`[dashboard] Dock uygulamasi acildi: ${bulunan}`);
     return 0;
   }
-  const kaynak = join(homedir(), "Desktop", "seriftech-packages", "serif-brain-dashboard");
+  const kaynak = dashboardKaynagi();
   console.log(`[dashboard] Dock uygulamasi bulunamadi.`);
   console.log(``);
   console.log(`Tarayici paneli her zaman calisir (kurulum gerekmez):`);
   console.log(`  serif-brain dashboard serve`);
   console.log(``);
-  if (existsSync(kaynak)) {
+  if (kaynak) {
     console.log(`Dock uygulamasini uretmek icin:`);
     console.log(`  cd ${kaynak}`);
     console.log(`  npm install && npm run dist`);
@@ -64,7 +84,7 @@ function cmdApp() {
   } else {
     console.log(`Dock uygulamasi ayri pakette (serif-brain-dashboard) — cekirdegin`);
     console.log(`sifir bagimlilik garantisi bozulmasin diye Electron buraya konmadi.`);
-    console.log(`Kaynak beklenen konum: ${kaynak}`);
+    console.log(`Kaynagi klonlayip SERIF_BRAIN_DASHBOARD_SRC=/yol ile gosterin.`);
   }
   console.log(``);
   console.log(`Baska konumdaysa: SERIF_BRAIN_APP=/yol/serif-brain.app serif-brain dashboard app`);
@@ -83,7 +103,7 @@ async function cmdOpen(flags) {
 }
 
 function defaultOut() {
-  return process.env.SERIF_BRAIN_DASHBOARD_OUT || join(homedir(), "Desktop", "serif-brain-dashboard.html");
+  return process.env.SERIF_BRAIN_DASHBOARD_OUT || join(varsayilanKok(), "serif-brain-dashboard.html");
 }
 
 // Bir kök altında (maxdepth 4) tüm .serif-brain dizinlerini bul
@@ -149,7 +169,7 @@ function cmdAdd(repoArg, flags) {
 }
 
 function cmdScan(dirArg) {
-  const root = resolve(dirArg || join(homedir(), "Desktop"));
+  const root = resolve(dirArg || varsayilanKok());
   const brains = findBrains(root);
   const reg = loadRegistry();
   let added = 0;

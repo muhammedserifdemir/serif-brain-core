@@ -108,7 +108,7 @@ document.getElementById('grid').innerHTML=DATA.active.map((p,i)=>{
 }).join('')
 +'<div class="addcard"><div class="plus">+</div><h3>Projeyi dashboard\\'a ekle</h3>'
 +'<p>Claude\\'a <b>"şu projeyi dashboard\\'a ekle"</b> de — güncel durumu (git, port, brain objeleri) okuyup kart oluşturur.</p>'
-+'<div class="cmd">serif-brain dashboard add ~/Desktop/&lt;proje&gt;</div></div>';
++'<div class="cmd">serif-brain dashboard add ~/projeler/&lt;proje&gt;</div></div>';
 
 DATA.active.forEach((p,i)=>{
  const det=document.querySelector('.expand[data-i="'+i+'"]');if(!det)return;

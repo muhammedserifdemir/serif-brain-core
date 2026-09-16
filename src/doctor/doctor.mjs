@@ -28,7 +28,7 @@ const LEGACY_HOOK_PATTERNS = [
 // bilgi kontrolüdür; yoksa doctor "kaldırıldı ✓" der.
 const HOME = homedir();
 // Bu liste bir zamanlar SABITTI ve paket yazarinin kendi klasor duzenini
-// (Desktop/serif-platform/...) tasiyordu — genel amacli bir aracin icinde tek
+// (masaustu/serif-platform/...) tasiyordu — genel amacli bir aracin icinde tek
 // bir kullanicinin gocu. Artik goc eden kisi kendi kaynaklarini config'e yazar:
 //   legacy_sources:
 //     - { id: eski-brain, path: "~/eski/yol" }

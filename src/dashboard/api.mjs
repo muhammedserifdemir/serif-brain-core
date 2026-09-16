@@ -15,11 +15,14 @@ const SKIP = new Set(["node_modules", "dist", "build", "out", ".git", "Library",
  * Otomatik kesif kokleri. SERIF_BRAIN_SCAN_ROOTS verilirse varsayilanin
  * YERINE gecer (eklenmez). Boylece kok kumesi tam olarak denetlenebilir —
  * demo/ekran-goruntusu ve test icin gercek projelerin panele sizmamasi sart.
- * Verilmezse ~/Desktop taranir.
+ * Verilmezse varsayilan kok taranir (SERIF_BRAIN_KOK > masaustu varsa > ev).
  */
 export function scanRoots() {
   const ozel = (process.env.SERIF_BRAIN_SCAN_ROOTS || "").split(":").map(s => s.trim()).filter(Boolean);
-  return ozel.length ? ozel : [join(homedir(), "Desktop")];
+  if (ozel.length) return ozel;
+  if (process.env.SERIF_BRAIN_KOK) return [process.env.SERIF_BRAIN_KOK];
+  const masaustu = join(homedir(), "Desktop");
+  return [existsSync(masaustu) ? masaustu : homedir()];
 }
 
 /** Bir kok altinda .serif-brain iceren repo'lari bul (maxdepth 4). */
