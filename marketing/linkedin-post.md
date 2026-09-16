@@ -43,7 +43,7 @@
 > kaldım — çünkü tekrar eden bir uyarı, uyarı değil gürültüdür.
 >
 > Bugünkü hâli: 19 proje, 1.217 karar/hata kaydı, en büyüğü 2.605 düğümlük kod
-> grafı. Sıfır bağımlılık, saf Node, 392 test.
+> grafı. Sıfır bağımlılık, saf Node, 396 test.
 >
 > En çok şu ders kaldı: bir kuralın işe yaraması için doğru olması yetmiyor —
 > **atlanamaz olması gerekiyor.**

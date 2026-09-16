@@ -2,6 +2,57 @@
 
 Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
+## [1.2.0] — 2026-09-16
+
+`git log v1.1.0..HEAD` (2026-08-12 → 2026-09-16) + bu turun değişiklikleri.
+
+### Düzeltildi — `close <id>` dosya adı ≠ frontmatter id olan kaydı bulamıyordu
+- Ölçüm (2026-09-16, mevzuat-ai brain'i): elle adlandırılmış 2 karar dosyası
+  (`decision-…-hetzner-coolify-cloudflare.md`, içindeki id `decision-…-hosting`)
+  `close` ile "obje bulunamadı" verdi — kayıt diskte dururken. Id'nin kaynağı
+  **frontmatter'dır**: dosya adıyla bulunamazsa tip dizini frontmatter id'siyle
+  taranır (`locate.mjs` `findByFrontmatterId`/`resolveObjectPath`), bulunan
+  dosya **yerinde** güncellenir (`writeObject` `{ path }`); id yoluna ikinci
+  kopya yazılmaz. `locateObject` artık gerçek yolu döner. 4 yeni test
+  (`test/close-dosya-adi-id.test.mjs`, önce kırmızı).
+
+### Değiştirildi — dashboard sabit geliştirme yolu koşullu oldu
+- `dashboard app` paket yazarının `~/Desktop/seriftech-packages/serif-brain-dashboard`
+  düzenini sabit taşıyordu. Artık `SERIF_BRAIN_DASHBOARD_SRC` > o yol **yalnız
+  diskte varsa**; yabancı makinede sessizce atlanır, hata üretmez.
+- Varsayılan çalışma kökü (`dashboard scan`, panel çıktısı, otomatik keşif):
+  `SERIF_BRAIN_KOK` > `~/Desktop` (varsa) > ev dizini (`varsayilanKok()`).
+
+### Eklendi — güvenilirlik (2026-09-07, `7c83dcb`)
+- `guard` / `check` / `review` **canlı graf** üzerinde çalışır (bayat grafla
+  yanlış "güvenle değiştir" yok); panel sertleştirme; **atomik yazma**
+  (yarım dosya bırakmaz); **alt-klasör brain yolu** (monorepo içinde
+  `.serif-brain/` kökte olmak zorunda değil).
+- Kayıt açarken **gövde zorunlu** (`--sablon` istisna); `doctor` gövdesiz
+  kayıt sayar (`0e33adc`). `record` kapanı açıldı; `standing` durumu; durum
+  sözlüğü tek kaynak; `context` active-work'e WIP kapısı + yürürlükteki kurallar.
+- `prune`: bug yaşa göre arşivlenmez + ilk testleri. Skill paketi: `prod-kapisi`,
+  `urun-teslim`, `test-once`, `olcum-sozlesmesi` (1b kopya yasağı).
+
+### Düzeltildi — taşınabilirlik ve doğruluk (2026-08-12/13)
+- **Windows**: kayıt yazılamıyordu, takma adlar ölüydü, CRLF + 8.3 kısa ad +
+  ayraç varsayımı (28 → 0); CI ilk kez gerçekten koştu.
+- **Panel**: öldürülen sürecin boruları açık kalıyordu → Linux'ta test koşumu
+  hiç bitmiyordu; silinmiş tek proje paneli düşürüyordu.
+- **Graf**: TypeScript ESM `./x.js` yazımı dosyayı yaprak sanıp "güvenle
+  değiştir" diyordu; Python/Ruby importları yanlış alarm üretiyordu.
+- `doctor` modül atfı **kapsamını** raporlar (araç yarı kör çalışırken "temiz"
+  diyordu); kasıtlı hub god-file alarmı üretmez (`god_file_exempt`).
+- Paket yabancıya SerifX360 kalıntısı taşıyordu (şablon, skill, renk, modül
+  listesi) — temizlendi; README yalan söylerse test kırmızı olur
+  (`belge-dogrulugu`); hangi kopyanın çalıştığı basılır.
+- Onboarding: "ilk 15 dakika" rehberi, `init` kapanışı, `guard`'ın en değerli
+  sinyali basılmıyordu; kapı hatasını yutmuyor, `hooks test` onu ateşler;
+  `relink` + dosyasız kayıt uyarısı ("KAYIT YOK" ≠ "TEMİZ").
+
+### Test
+- 325 → **396** (bu tur +4). `belge-dogrulugu` README'deki sayıyı denetler.
+
 ## [1.1.0] — 2026-08-12
 
 ### Eklendi — çok dilli tarama

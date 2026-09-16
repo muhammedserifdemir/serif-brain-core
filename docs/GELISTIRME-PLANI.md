@@ -29,7 +29,7 @@ Sınırlar: Panel yerel kullanıcı yetkisiyle komut çalıştıran güvenilir b
 
 ## 3. Tekrarlanabilir kalite — uygulandı / platform doğrulaması bekliyor
 
-- 9 yeni regresyon testi; toplam 392 test.
+- 9 yeni regresyon testi; toplam 396 test.
 - `npm run benchmark -- 1000`: geçici, deterministik 1.000 dosyalık zincir üretir; 999 import kenarını doğrular; soğuk ve sıcak graf sürelerini JSON olarak raporlar; geçici veriyi temizler.
 - CI matrisi Node 22/24 × Linux/Windows/macOS. Sentetik benchmark CI'a eklendi.
 - README hook'ların engelleyici olmadığını açıklar; kayıt varlığı ile hata önleme etkisi ayrılır.

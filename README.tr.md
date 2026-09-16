@@ -10,7 +10,7 @@ bağlar ve **düzenleme anında devreye giren mekanik kapılara** çevirir.
 > İlgili hafıza düzenleme anında kendiliğinden görünür. Hook uyarır; CLI kontrolleri CI politikasını uygulayabilir.
 
 Saf Node.js, **sıfır npm bağımlılığı** (Node ≥ 22.5 — `node:sqlite` + native test
-runner). 392 test.
+runner). 396 test.
 
 20 projedeki geçmiş analizde, dosyaya bağlanmış 133 bug'ın 107'sinde (%80,5)
 aynı dosyada daha eski bir kayıt bulundu; rastgele dosya kontrolünde bu oran

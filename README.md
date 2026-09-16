@@ -14,7 +14,7 @@ that fire at edit time**.
 > Relevant memory appears automatically at edit time. Hooks advise; CLI checks can enforce CI policy.
 
 Pure Node.js, **zero npm dependencies** (Node ≥ 22.5 — `node:sqlite` + the
-native test runner). 392 tests. The data is plain Markdown: readable with
+native test runner). 396 tests. The data is plain Markdown: readable with
 `git diff`, editable by hand, tied to no service.
 
 🇹🇷 [Türkçe README](README.tr.md) · 📖 [First 15 minutes](docs/BASLANGIC.md) (Turkish)
