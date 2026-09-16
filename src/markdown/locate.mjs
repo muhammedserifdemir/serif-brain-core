@@ -9,7 +9,30 @@
 // Bu, `rank.mjs`'teki hatanin ayni sinifi: aday kumesi iki gorunuyor ama
 // yalnizca biri gercek — karar verilebilir durumda karar verilmiyor.
 import { existsSync } from "node:fs";
-import { listProjects, objectPath } from "./object.mjs";
+import { listProjects, objectPath, listObjects, readObject } from "./object.mjs";
+
+/**
+ * Dosya adi ≠ frontmatter id olan kaydi bul. Id'nin KAYNAGI frontmatter'dir;
+ * dosya adi yalniz hizli yoldur. 2026-09-16 (mevzuat-ai): elle adlandirilmis
+ * 2 karar dosyasi `close` ile bulunamadi, kayit diskte dururken "obje
+ * bulunamadi" dendi. Tip dizini kucuktur (yuzler), tarama ucuzdur ve yalniz
+ * hizli yol bos dondugunde calisir.
+ */
+export function findByFrontmatterId(brainRoot, project, type, id) {
+  for (const file of listObjects(brainRoot, project, type)) {
+    try {
+      if (readObject(file).frontmatter?.id === id) return file;
+    } catch { /* bozuk dosya: atla */ }
+  }
+  return null;
+}
+
+/** Once dosya adi, yoksa frontmatter id: kaydin gercek yolu ya da null. */
+export function resolveObjectPath(brainRoot, project, type, id) {
+  const hizli = objectPath(brainRoot, project, type, id);
+  if (existsSync(hizli)) return hizli;
+  return findByFrontmatterId(brainRoot, project, type, id);
+}
 
 const TYPE_OF_ID = [
   ["bug-", "bug"],
@@ -45,14 +68,16 @@ export function locateObject(brainRoot, id, { type = null } = {}) {
   if (!t) return { type: null, matches: [], project: null, path: null, projects };
 
   const matches = [];
+  const paths = {};
   for (const p of projects) {
-    if (existsSync(objectPath(brainRoot, p, t, id))) matches.push(p);
+    const yol = resolveObjectPath(brainRoot, p, t, id);
+    if (yol) { matches.push(p); paths[p] = yol; }
   }
   return {
     type: t,
     matches,
     project: matches.length === 1 ? matches[0] : null,
-    path: matches.length === 1 ? objectPath(brainRoot, matches[0], t, id) : null,
+    path: matches.length === 1 ? paths[matches[0]] : null,
     projects,
   };
 }

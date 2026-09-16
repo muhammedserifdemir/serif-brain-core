@@ -46,12 +46,14 @@ export function readObject(filePath) {
   return { frontmatter, body, file_path: filePath, mtime: statSync(filePath).mtime };
 }
 
-export function writeObject(brainRoot, frontmatter, body) {
+export function writeObject(brainRoot, frontmatter, body, { path: hedefYol = null } = {}) {
   const validation = validateObject(frontmatter);
   if (!validation.valid) {
     throw new Error(`Schema validation failed for ${frontmatter.id}:\n  - ${validation.errors.join("\n  - ")}`);
   }
-  const path = objectPath(brainRoot, frontmatter.project, frontmatter.type, frontmatter.id);
+  // `path` verilirse MEVCUT dosya yerinde guncellenir: dosya adi ≠ id olan
+  // kayitta id yoluna ikinci bir kopya yazmak veri ayrismasi olurdu.
+  const path = hedefYol || objectPath(brainRoot, frontmatter.project, frontmatter.type, frontmatter.id);
   // `path.replace(/\/[^/]+$/, "")` KULLANMA. Windows'ta yol ters bolu ile
   // ayrilir, regex hic tutmaz ve `dir` dosya adini DA icerir — sonra
   // mkdirSync "<id>.md" ADINDA BIR KLASOR yaratir, writeFileSync EISDIR verir.

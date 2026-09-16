@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readObject, writeObject, makeId, objectPath } from "./object.mjs";
 import { loadConfig } from "./schema.mjs";
-import { locateObject, targetProject } from "./locate.mjs";
+import { locateObject, targetProject, resolveObjectPath } from "./locate.mjs";
 
 // writeObject → validateObject → getConfig() modul-duzeyi durumu okur; config
 // yuklenmemisse ATAR. CLI bunu her komutta yapiyordu, MCP yapmiyordu: uzun-omurlu
@@ -250,8 +250,12 @@ export function closeObject({
     }
   }
 
-  const targetPath = objectPath(brainRoot, project, loc.type, id);
-  if (!existsSync(targetPath)) return { ok: false, error: `bulunamadi: ${targetPath}` };
+  // Dosya adi ≠ frontmatter id olabilir (elle adlandirilmis kayit): once hizli
+  // yol, yoksa tip dizini frontmatter id'siyle taranir.
+  const targetPath = resolveObjectPath(brainRoot, project, loc.type, id);
+  if (!targetPath || !existsSync(targetPath)) {
+    return { ok: false, error: `bulunamadi: ${objectPath(brainRoot, project, loc.type, id)}` };
+  }
 
   const { frontmatter: fm, body } = readObject(targetPath);
   const already = ["done", "rejected", "archived"].includes(fm.status);
@@ -283,7 +287,7 @@ export function closeObject({
     newBody = newBody.replace(/\s+$/, "") + section.join("\n");
   }
 
-  const result = writeObject(brainRoot, fm, newBody);
+  const result = writeObject(brainRoot, fm, newBody, { path: targetPath });
   return {
     ok: true, noop: false, id, project, path: result.path,
     prevStatus, status: fm.status, completed_at: fm.completed_at,
