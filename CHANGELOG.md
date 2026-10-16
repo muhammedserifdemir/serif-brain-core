@@ -2,6 +2,22 @@
 
 Tüm önemli değişiklikler bu dosyada. [SemVer](https://semver.org/lang/tr/).
 
+## [1.3.0] — 2026-10-16
+
+### Değiştirildi — `serif-brain-core` skill'i hafıza + disiplin merkezi oldu
+- Ayrı duran yazılım mühendisliği disiplini skill'i bu skill'e katıldı: ölçek
+  (S0–S3), koddan önce kabul satırı, kusur kataloğu + `scripts/katalog-tara.sh`,
+  kanıt merdiveni, kayma alarmları, yasaklar. Ayrıntılı kapılar
+  `references/disiplin.md`, katalog `references/kusur-katalogu.md`, modül defteri
+  `references/modul-defteri.md`.
+- Zincirin tek haritası artık burada; alt skill'ler tabloyu tekrar etmez.
+- Skill, CLI'nın güncel yüzeyini öğretir (`brief`, `guard`, `search`, `close`,
+  `review`, `sync-commits`); geçiş dönemi (Faz 5/8) notları kaldırıldı.
+- S0/S1'de ayrı plan kartı kaldırıldı; `cerrahi-plan` yalnız kök neden belirsiz,
+  çok dosyalı ya da davranış değiştiren işte çağrılır.
+- Ölçüm: çekirdek SKILL.md 15.1 KB + 6.6 KB (iki ayrı skill) → 8.6 KB tek dosya;
+  "her zaman sor" soruları çekirdeğe alındığı için S1'de katalog dosyası okunmaz.
+
 ## [1.2.0] — 2026-09-16
 
 `git log v1.1.0..HEAD` (2026-08-12 → 2026-09-16) + bu turun değişiklikleri.
