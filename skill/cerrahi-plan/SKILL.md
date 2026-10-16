@@ -1,6 +1,6 @@
 ---
 name: cerrahi-plan
-description: "Cerrahi Plan — koda dokunmadan ÖNCE zorunlu teşhis ve planlama zinciri. Bu skill'i her bug fix, davranış değişikliği, refactor veya 'şunu düzelt', 'şu hatayı çöz', 'şu özelliği ekle' isteğinin BAŞINDA mutlaka kullan; özellikle semptomun nedeni belirsizken, birden çok dosyaya dokunulacakken veya mevcut bir davranış değişecekken. Amaç yanlış teşhisle doğru kod yazmayı engellemek: kök neden kanıtla bulunur, etki haritası çıkarılır, en küçük değişiklik seçilir, 'bitti' ölçütü düzenlemeden önce yazılır. Kanıt Disiplini skill'i işi kapatır; bu skill işi açar."
+description: "Cerrahi Plan — (Çatı: serif-brain-core yüklenmediyse ÖNCE onu yükle; zincirdeki teşhis adımıdır.) Koda dokunmadan önce teşhis ve planlama. Kök neden belirsizken, birden çok dosyaya dokunulacakken veya mevcut bir davranış değişecekken kullan; nedeni belli tek akışlı küçük düzeltmede ayrı plan adımı gerekmez, doğrudan kabul satırıyla başlanır. Amaç yanlış teşhisle doğru kod yazmayı engellemek: kök neden kanıtla bulunur, etki haritası çıkarılır, en küçük değişiklik seçilir, 'bitti' ölçütü düzenlemeden önce yazılır. Kanıt Disiplini işi kapatır; bu skill işi açar."
 ---
 
 # Cerrahi Plan

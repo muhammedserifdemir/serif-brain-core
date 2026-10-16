@@ -1,6 +1,6 @@
 ---
 name: kanit-disiplini
-description: "Kanıt Disiplini — kod/geliştirme işlerinde 'bitti', 'tamam', 'hazır', 'çalışıyor' demeden önce zorunlu doğrulama zinciri. Bu skill'i her kodlama görevinin SONUNDA mutlaka kullan; bug fix, release, version bump, refactor, UI değişikliği, prompt değişikliği veya herhangi bir 'durumu raporla' isteğinde de kullan. Kullanıcı 'test et', 'kontrol et', 'emin misin', 'gerçekten çalışıyor mu' dediğinde de tetiklenir. Amaç varsayımla ilerlemeyi engellemek: build/test çıktısı görülmeden başarı iddia edilmez, UI stringlerinde Türkçe karakter bozulması taranır, port/servis sahipliği lsof ile doğrulanır."
+description: "Kanıt Disiplini — (Çatı: serif-brain-core §5 kanıt merdiveni adımıdır; UI işinde kanıt karesi alınamazsa iş DOĞRULANMADI statüsünde kalır.) kod/geliştirme işlerinde 'bitti', 'tamam', 'hazır', 'çalışıyor' demeden önce zorunlu doğrulama zinciri. Bu skill'i her kodlama görevinin SONUNDA mutlaka kullan; bug fix, release, version bump, refactor, UI değişikliği, prompt değişikliği veya herhangi bir 'durumu raporla' isteğinde de kullan. Kullanıcı 'test et', 'kontrol et', 'emin misin', 'gerçekten çalışıyor mu' dediğinde de tetiklenir. Amaç varsayımla ilerlemeyi engellemek: build/test çıktısı görülmeden başarı iddia edilmez, UI stringlerinde Türkçe karakter bozulması taranır, port/servis sahipliği lsof ile doğrulanır."
 ---
 
 # Kanıt Disiplini
