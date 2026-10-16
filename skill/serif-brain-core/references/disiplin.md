@@ -6,7 +6,8 @@ dokunduğun konunun bölümünü oku.
 ## §1 Bağlam kapısı — dokunmadan önce
 
 1. **Hafıza:** `serif-brain brief`; davranışını değiştireceğin dosya için
-   `serif-brain guard <dosya>`. Brain yoksa `git log -5 -- <dosya>` + README/CLAUDE.md.
+   `serif-brain guard <dosya>`. Claude Code kapısı kuruluysa ikisi de otomatik gelir;
+   elle yalnız blok gelmediyse koşulur. Brain yoksa `git log -5 -- <dosya>` + README/CLAUDE.md.
    Brain teşhisleri hipotezdir; bu turda yeniden doğrulanır.
 2. **Ağaç kimin:** `git status`. Sana ait olmayan commit'lenmemiş değişikliğe dokunulmaz,
    commit'lenmez, temizlenmez; raporda belirtilir.

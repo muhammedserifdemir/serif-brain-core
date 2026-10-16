@@ -15,6 +15,11 @@ Bu dosya yalnız yargı gerektiren kısmı anlatır.
 
 ## 1. Hafıza — `serif-brain`
 
+**Kapı kuruluysa bunların çoğu kendiliğinden gelir** (`serif-brain hooks status`):
+oturum açılışında `brief`, her Edit/Write öncesi `guard`, sonrası `check`, Stop'ta
+`review` çıktısı `[serif-brain …]` bloğu olarak bağlama düşer. O bloğu oku, aynı
+komutu elle tekrar koşma. Kapı yoksa ya da blok gelmediyse aşağıdakileri elle çalıştır.
+
 | An | Komut |
 |---|---|
 | Oturum başı | `serif-brain brief` — aktif bug/karar, son dokunulanlar, park kuyruğu |
@@ -69,7 +74,7 @@ işlem varsa dur, sahibe sor.
 
 ## 4. Uygulama
 
-1. **Bağlam:** `brief` + `guard <dosya>`; `git status` (başkasının commit'lenmemiş
+1. **Bağlam:** `brief` + `guard <dosya>` (kapıdan gelmediyse); `git status` (başkasının commit'lenmemiş
    değişikliğine dokunma); sunucu/build ihtimalinde `lsof -i`. Hata görüldüğü yerde
    üretilmeden düzeltmeye başlanmaz.
 2. **Önce kırmızı** (**test-once**): hatayı yakalayan test önce kırmızı, sonra yeşil
