@@ -1,203 +1,144 @@
 ---
 name: serif-brain-core
-description: |
-  Bagimsiz proje hafiza, bilgi ag ve graf analiz sistemi. Obsidian, Graphify ve eski
-  `.claude/brain` YAML sistemine RUNTIME bagimliligi YOKTUR. `serif-brain` CLI ile
-  proje hafizasi yonetilir, kararlar/buglar Markdown object dosyalari olarak tutulur,
-  kod grafi ve raporlar derived ciktilar olarak `.serif-brain/` altinda uretilir.
-
-  Trigger: "brain", "context", "ne karar vermistik", "bug kaydet", "karar kaydet",
-  "kod grafi", "rapor uret", "saglik kontrolu", "serif-brain"
-when_to_use: |
-  - Session basinda proje bagliami yuklemek icin: serif-brain context
-  - Yeni bug/karar kaydetmek icin: serif-brain add bug | add decision
-  - Kod tabanini analiz etmek icin: serif-brain scan code, serif-brain graph build
-  - Tum raporlari uretmek icin: serif-brain analyze
-  - Sistem sagligini kontrol icin: serif-brain doctor
+description: "Serif Brain Core — proje hafızası (serif-brain CLI) ve yazılım mühendisliği disiplininin MERKEZİ; kod YAZAN, DEĞİŞTİREN veya GÜNCELLEYEN her işin giriş kapısı. Oturum başında hafızayı yükler (brief), dosyaya dokunmadan önce brifing verir (guard), ölçek seçtirir (S0 nokta · S1 dilim · S2 modül · S3 ürün), kabul ölçütünü koddan önce yazdırır, diff'i kusur kataloğuna karşı betikle taratır, kanıtsız 'bitti' dedirtmez ve diğer disiplin skill'lerini (cerrahi-plan, test-once, kanit-disiplini, prod-kapisi …) doğru sırada çağırır. Tetikleyiciler: herhangi bir kod değişikliği (bug fix, düzelt, özellik ekle, refactor, güncelle, bağımlılık yükselt, config, env, migration, şema); 'şu modüle gir', 'modülü bitir', 'yayına hazırla', 'eksikleri tamamla', 'dağıldık'; yeni ürün/özellik planı; 'bitti' iddiasından önce; 'brain', 'ne karar vermiştik', 'bug kaydet', 'karar kaydet', 'neredeyiz', 'serif-brain'. English: implement, build, fix, refactor, upgrade, ship, release, feature, module, code change, project memory."
 ---
 
-# serif-brain-core
+# Serif Brain Core — hafıza + disiplin merkezi
 
-Bu skill **yeni** Serif Brain Core sistemine bagli calisir. Eski `sherif-brain-claude`
-skill'i ve eski `.claude/brain/` YAML sistemi runtime'da KULLANILMAZ.
+İki işi tek yerde yapar: projenin **hafızasını** taşır ve kod değişikliğinin
+**disiplinini** yönetir. Disiplin zincirinin tek haritası buradadır; başka skill'ler
+bu tabloyu tekrar etmez.
 
-## Mutlak Sinirlar
+Ana ilke: **kuralı modele okutma, sisteme yakalat.** Mekanik kontroller betik, hook
+ve CLI kapısındadır (`katalog-tara.sh`, `serif-brain review`, `serif-brain lint`).
+Bu dosya yalnız yargı gerektiren kısmı anlatır.
 
-- ❌ Obsidian vault'a dokunma (sadece migration sirasinda OKUNUR)
-- ❌ Graphify output'a dokunma (sadece referans)
-- ❌ Eski `.claude/brain/*.yaml` dosyalarina dokunma (Faz 8'e kadar SerifBrainArchive'da)
-- ❌ Eski `sherif-brain-claude/` skill'ine dokunma
-- ❌ `.claude/settings.json` hooklarini elle degistirme (Faz 8 plan + onayli apply)
-- ✅ TEK referans nokta: `.serif-brain/` ve `serif-brain` CLI ciktisi
+## 1. Hafıza — `serif-brain`
 
-## Session Basinda
-
-```bash
-serif-brain context --project <proje-yolu>
-```
-
-Bu komut su 3 dosyayi gunceller (5 saniyenin altinda):
-
-- `.serif-brain/context/CLAUDE.generated.md` — kisa, gorev odakli bagliam
-- `.serif-brain/context/compact.json` — makine-okur ozeti
-- `.serif-brain/context/active-work.md` — su anki odak listesi
-
-Module bazli dar bagliam:
-
-```bash
-serif-brain context --module auth
-```
-
-## Yeni Karar / Bug Kaydetme
-
-```bash
-serif-brain add bug \
-  --project <path> \
-  --title "Oturum tokeni yenilenmiyordu" \
-  --module auth \
-  --priority high
-
-serif-brain add decision \
-  --project <path> \
-  --title "Token yenileme tek yerden yapilir" \
-  --module auth,api \
-  --status active \
-  --priority critical
-```
-
-Default davranis: ID zaten varsa **HATA** verir, alternatif ID onerir.
-Overwrite icin `--force` (dikkatli kullan).
-
-## Soru: "Ne karar vermistik?"
-
-```bash
-# Tum kararlar
-serif-brain analyze
-cat .serif-brain/reports/decisions.md
-
-# Tek modul
-serif-brain context --module auth
-cat .serif-brain/context/CLAUDE.generated-auth.md
-```
-
-## Kod Tabani Analiz
-
-```bash
-serif-brain scan code        # quick walk + ozet
-serif-brain graph build      # full graph.json + graph.dot
-serif-brain graph report     # 11 mimari analiz
-```
-
-Ciktilar:
-- `.serif-brain/graph/graph.json`
-- `.serif-brain/graph/graph.dot` (GraphViz)
-- `.serif-brain/reports/graph-analysis.md`
-- `.serif-brain/reports/architecture.md`
-
-## Raporlar (Faz 6)
-
-```bash
-serif-brain analyze   # 7 rapor uretir:
-```
-
-- `health.md` — sistem sagligi (en ust seviye ozet)
-- `bugs.md` — canonical + dry-run preview bugs
-- `decisions.md` — canonical + preview decisions
-- `architecture.md` — module map + god files + cycles
-- `stale-items.md` — 30+ gun aktif kayitlar
-- `duplicates.md` — dedup kume detaylari
-- `migration-readiness.md` — apply oncesi karar listesi
-
-## Saglik Kontrolu
-
-```bash
-serif-brain doctor
-```
-
-7 bolum:
-1. Runtime & Store Engine (node:sqlite check)
-2. Canonical Layout
-3. Active Project (object counts)
-3b. Object Schema Health (parse / validation / backlinks)
-3c. Graph Engine
-4. Migration Readiness (archive presence)
-5. Legacy Sources (untouched check)
-6. Legacy Hooks (Faz 8 input)
-
-## Migration (Henuz Apply Yok)
-
-```bash
-serif-brain migrate --dry-run    # SADECE rapor uretir, hicbir sey yazmaz
-```
-
-`--apply` Faz 5 onayindan sonra etkin olacak. Su an sadece dry-run.
-
-## Mimari Ilkeler
-
-1. **Canonical:** SQLite (`brain.db`) + Markdown object dosyalari
-2. **Derived:** graph/, reports/, context/, indexes/ — silinebilir, regenerate edilir
-3. **Frozen archive:** goc edilmis eski sistemler `config.legacy_sources` altinda, sadece okunur
-4. **Status filtreleri:** `done|closed|completed|rejected|archived` aktif context'e GIRMEZ
-5. **Module standardi:** modul adlari config.yaml `module_paths` ile tek bicime indirgenir
-6. **Native:** Obsidian/Graphify yok — bilgi agi ve grafi kendi engine'larimizla
-
-## Hangi Komut Ne Yapar — Hizli Bakis
-
-| Soru | Komut |
+| An | Komut |
 |---|---|
-| "Aktif bugs?" | `serif-brain context` → CLAUDE.generated.md |
-| "Kararlari listele" | `cat .serif-brain/indexes/decision-index.md` |
-| "Kod istatistigi" | `serif-brain scan code` |
-| "Modul X riskleri" | `serif-brain context --module X` |
-| "Apply oncesi durum" | `cat .serif-brain/reports/migration-readiness.md` |
-| "Sistem saglikli mi?" | `serif-brain doctor` |
+| Oturum başı | `serif-brain brief` — aktif bug/karar, son dokunulanlar, park kuyruğu |
+| Dosyaya dokunmadan önce | `serif-brain guard <dosya>` — o dosyanın kararları, bug izleri, etki alanı, risk |
+| Hafızada ara | `serif-brain search "<metin>" --module X` |
+| Kayıt | `serif-brain add bug\|decision\|plan\|record --title … --module … --body …` |
+| Kapat | `serif-brain close <id> --note … --commit <sha>` ya da commit'te `Brain-Closes: <id>` + `sync-commits` |
+| Commit öncesi kapı | `serif-brain review` (katman/döngü/god-file + bug imzası; sorun varsa exit 2) |
+| Diğer her şey | `serif-brain --help` (graph, impact, hotspot, analyze, doctor, mcp …) |
 
-## Asla Yapilmamasi Gerekenler
+- Brain kayıtları **gözlem günlüğüdür, olgu kaynağı değil.** Teşhisler çoğu zaman dar
+  bir aramayla (tek dosyada grep) yazılmıştır. Plana temel yapacağın kaydı **o turda
+  yeniden doğrula**; yanlış çıkarsa düzelt ve `add record` ile not düş.
+- **Açık iş tavanı:** `brief` WIP sayacını basar. Tavan aşılmışsa yeni iş açılmaz.
+  `status: standing` kural kayıtları sayaca girmez.
+- `.serif-brain/` altında `graph/`, `reports/`, `context/`, `indexes/` türetilmiş
+  çıktıdır, yeniden üretilir; kanonik olan `brain.db` + `objects/` dosyalarıdır.
+- `serif-brain` komutu bulunamazsa sessizce atlama: sahibine PATH sorununu söyle.
 
-- Eski `.claude/brain/*.yaml` dosyalarini guncelleme. Faz 5 apply'dan sonra bunlar
-  kullanim disi olacak (silinmez, sadece referans).
-- Obsidian'a karar/bug yazma. Yeni canonical: `.serif-brain/objects/`.
-- `.claude/settings.json` SessionStart hook'unu elle degistirme. Faz 8 ile
-  `serif-brain hooks plan` + `apply` ile yapilir.
-- Graphify cache'i regenerate etme. Faz 4 native graph engine yeterli.
+## 2. Ölçek seç — atlanmaz
 
-## Bu Skill Yuklendikten Sonra — Disiplin Zinciri
+İlk satır: `ÖLÇEK: S1 — <neden>`.
 
-Brain bagliami yuklendiginde is baslamis demektir. Bagliam TEK BASINA yeterli
-degil: brain kayitlari yazildiklari andaki bilgiyle dogru olan bir GOZLEM
-GUNLUGUDUR, olgu kaynagi degil. Icindeki teshisler sik sik dar bir aramayla
-(tek dosyada grep, tek ornekle test) uretilip genel gercek gibi yazilmistir.
-
-Bu yuzden brain'den sonra asagidaki zincir devreye girer.
-
-**Bu paket kurulunca baska bir skill'e ihtiyac yoktur** — `serif-brain init`
-(ya da `serif-brain skills update --apply`) zincirin TAMAMINI projeye kurar.
-Isin turune gore dogru kapiyi buradan sec:
-
-| Is turu | Hangi skill | Ne zaman |
+| Ölçek | Ne zaman | Yol |
 |---|---|---|
-| Yeni urun / yeni modul / kapsamli ozellik | `urun-teslim` | EN BASTA — urun/sistem/dilim karari |
-| Bug, beklenmeyen davranis, kucuk fix | `cerrahi-plan` | koda dokunmadan once — teshis/etki/en kucuk kesik |
-| Bug duzeltilecek ya da sozlesme degisecek | `test-once` | koda dokunmadan once — kirmizi testi GOR |
-| Ayni mantik ikinci kez yazilacak | `ikiz-kod` | gomulu/uretilmis kod, farkli runtime, sunucu/istemci |
-| Sayi, oran, karsilastirma, benchmark | `olcum-sozlesmesi` | olcumu KURMADAN once |
-| "Bitti / tamam / calisiyor" denecek | `kanit-disiplini` | iddiadan once — gercek komut ciktisi |
-| Deploy / canliya alma / "yayina hazir mi" | `prod-kapisi` | deploy'dan ONCE — tier'e gore cek listesi, repo+canli iki katman, kapi ikili |
-| Kullaniciya anlatma / devir / ozet | `somut-rapor` | is bitince |
+| **S0** nokta | Tek dosya, davranış değişmiyor (metin, yorum, yazım) | değişiklik → kanıt (derle/test + TR tarama) |
+| **S1** dilim | Tek akışta düzeltme veya küçük özellik | kabul satırı → kırmızı test → kesik → katalog → kanıt |
+| **S2** modül | Modülü bitirmek, çok akışlı özellik, refactor, bağımlılık yükseltme | S1 + modül defteri + denetim + prod-kapisi; `references/disiplin.md` tamamı |
+| **S3** ürün | Yeni ürün veya alt sistem | **urun-teslim** ile başla, sonra S2 |
 
-Tipik yeni-ozellik akisi:
-`urun-teslim` (dilim sec) → `cerrahi-plan` (kesigi ciz) → `test-once`
-(kirmiziyi gor) → kod → `kanit-disiplini` (kapat) → [deploy ise
-`prod-kapisi` (son kapi)] → `somut-rapor` (anlat)
-→ `serif-brain add decision --body "..."` (kalicilastir).
+**Küçültme tuzağı:** Davranış değişiyorsa S0 değildir. Birden çok dosyaya yayılıyorsa en
+az S1'dir. Yetki, veri, para, silme veya kalıcı biçime dokunuyorsa **bağımsız göz**
+zorunludur. Şüphede bir üst ölçek.
 
-**Acik is tavani:** `context/active-work.md` her oturumda WIP sayacini basar.
-Tavan asilmissa YENI IS ACILMAZ — once biri kapatilir. Yururlukteki
-kural/sozlesme kayitlari (`status: standing`) bu sayaca DAHIL DEGILDIR:
-kural is degildir, yaslanmaz, `prune` onu arsivlemez.
+**Ayrı plan adımı yok.** Güncel modeller teşhis ve kesiği kendi içinde yapar. Kök neden
+belirsizse ya da birden çok dosya/davranış etkileniyorsa **cerrahi-plan** çağrılır;
+aksi halde doğrudan kabul satırı yazılıp işe başlanır.
 
-**Brain'e ozel kural:** bir kayittaki teshisi plana temel yapacaksan O TURDA
-yeniden dogrula. Kayit yanlis ciktiysa duzelt ve `add record` ile not dus —
-yoksa sonraki oturum ayni yanlisi kovalar. (Bu oturumda bir bug kaydinin
-teshisi tam boyle yanlis cikti: "hicbir click listener yok" deniyordu, gercekte
-listener vardi; o grep tek dosyada kosulmustu.)
+## 3. Kabul — "bitti" tanımı koddan ÖNCE
+
+S1 ve üstünde işe başlamadan üç satır yazılır, kapanışta doldurulur:
+
+```
+KABUL:  <önce → sonra, yüzeyin adıyla; ikili ve gözlenebilir; hangi veriyle>
+KANIT:  <kırmızı→yeşil test adı / kare yolu / komut çıktısı>
+BRAIN:  <yazılan kayıt id | GEREKMEZ>
+```
+
+"Daha iyi" ölçüt değildir; "görsel önizleme slaytında görünüyor" ölçüttür. Sayı içeren
+ölçütte önce **olcum-sozlesmesi**. Para, veri silme, canlıya yazma ya da geri dönüşsüz
+işlem varsa dur, sahibe sor.
+
+## 4. Uygulama
+
+1. **Bağlam:** `brief` + `guard <dosya>`; `git status` (başkasının commit'lenmemiş
+   değişikliğine dokunma); sunucu/build ihtimalinde `lsof -i`. Hata görüldüğü yerde
+   üretilmeden düzeltmeye başlanmaz.
+2. **Önce kırmızı** (**test-once**): hatayı yakalayan test önce kırmızı, sonra yeşil
+   görülür ve projenin test paketine commit'lenir.
+3. **En küçük tutarlı değişiklik.** Deponun deseni izlenir; gerekçesiz bağımlılık, desen
+   ya da dosya yapısı eklenmez. İstenmeyen özellik eklenmez, önerilir.
+4. **Katalog taraması — betikle:** `bash <bu-skill>/scripts/katalog-tara.sh [taban-ref]`.
+   Tetiklenen her sınıf için `yok (neden)` | `var → düzeltildi (test)` | `var → PARK`.
+   Sınıfın ayrıntısı gerekirse `references/kusur-katalogu.md`'de o satıra bakılır.
+   Betiğin göremediği 5 soru her dilimde cevaplanır:
+   - Veri son yüzeye (ekran, dışa aktarma, köprü, e-posta) kadar gidiyor mu?
+   - Başarı mesajı sonucu mu ölçüyor, yoksa yalnız çağrının döndüğünü mü?
+   - Bu değişikliğe bağlı başka ne var? (sabit, eşik, ikiz kod, eski kayıt, eski istemci)
+   - Yetkisiz kullanıcı ya da başka kiracı ne görür?
+   - Kötü yol: boş, hata, zaman aşımı, çift tık, geri tuşu — kullanıcı ne görüyor?
+5. Kalıcı biçim, bağımlılık yükseltme, yeni env, API sözleşmesi →
+   `references/disiplin.md` §5.
+
+## 5. Kanıt merdiveni
+
+| Basamak | Kanıt | Ne kanıtlar |
+|---|---|---|
+| 1 | Kullanıcı yüzeyinde kare | **Görünürlüğü** — UI ölçütünde zorunlu |
+| 2 | Çalışan sistemde gerçek akış (HTTP, tarayıcı otomasyonu, gerçek veri) | Davranışı |
+| 3 | Ölçütü sınayan otomatik test (üretimi import eder, taklit etmez) | Doğruluğu, kalıcı olarak |
+| 4 | Statik okuma | Yalnız "muhtemel" |
+
+Kare doğruluğu kanıtlamaz: sayısal/mantıksal ölçüt basamak 2 ya da 3 olmadan kapanmaz.
+Kare alınamıyorsa iş **DOĞRULANMADI** statüsünde kalır. Her ölçekte **kanit-disiplini**.
+
+## 6. Zincir — tek harita
+
+| İş | Skill | Ne zaman |
+|---|---|---|
+| Yeni ürün / alt sistem | `urun-teslim` | S3, en başta — ürün/sistem/dilim kararı |
+| Kök neden belirsiz, çok dosya | `cerrahi-plan` | koda dokunmadan önce |
+| Bug ya da sözleşme değişikliği | `test-once` | koda dokunmadan önce — kırmızıyı gör |
+| Aynı mantık ikinci kez yazılacak | `ikiz-kod` | gömülü/üretilmiş kod, farklı runtime |
+| Sayı, oran, karşılaştırma | `olcum-sozlesmesi` | ölçümü kurmadan önce |
+| "Bitti / tamam / çalışıyor" | `kanit-disiplini` | iddiadan önce |
+| Deploy / "yayına hazır mı" | `prod-kapisi` | deploy'dan önce |
+| Kullanıcıya anlatma | `somut-rapor` | iş bitince |
+| Aynı düzeltme 3. kez deneniyor | `systematic-debugging` (kuruluysa) | hemen |
+
+Ayrıntılı kapılar (bağlam, modül defteri, dilimler, yayın, kapanış, modül "bitti"
+tanımı): `references/disiplin.md`. Modül defteri şablonu: `references/modul-defteri.md`.
+
+## 7. Kapanış
+
+- Brain: `add decision` / `add bug` (gövde zorunlu) / `close --note`.
+- Yeni hata sınıfı yaşandıysa kataloğa yazılır; yakalama yolu otomatik kapıya
+  (betik deseni, `lint` imzası, test) çevrilebiliyorsa çevrilir.
+- Rapor: önce sonuç, en fazla 3 madde, en fazla 1 soru (**somut-rapor**).
+
+## Kayma alarmları — dur, yeniden planla
+
+Doğrulama farklı kök neden gösterdi · yeni bağımlılık/veri/yetki modeli riski
+değiştiriyor · çözüm kullanıcı davranışını değiştiren geçici çözüme dönüşüyor · dilim
+tek dar sonuçla anlatılamıyor · aynı düzeltme üçüncü kez · iş hiçbir kabul satırına
+denk gelmiyor. Dururken yazılır: kanıt, gereken karar, önerilen yol. Yanlış yöne
+gidildiyse ısrar edilmez; son sağlam noktaya geri dönülür.
+
+## Yasaklar
+
+- Ölçek ve kabul satırı yazmadan koda dokunmak.
+- Kırmızısı görülmemiş testle "düzeldi" demek; regresyon testini commit'lememek.
+- Kanıt karesi olmadan UI işine "bitti" demek.
+- Kapıyı gevşeterek yeşile çevirmek (`skip`, `--no-verify`, `any`, `@ts-ignore`,
+  beklenen değeri çıktıya uydurmak).
+- Başkasının commit'lenmemiş değişikliğine dokunmak; kapıdan geçmemiş SHA'yı push etmek.
+- Boş hücreli defterle modül kapatmak; yeni hata sınıfını kataloğa yazmadan kapatmak.
+- Kullanıcıya uzun rapor dökmek.
